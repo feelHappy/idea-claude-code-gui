@@ -1,6 +1,8 @@
 <div align="center">
 
-# CC GUI (originally Claude Code GUI)
+# CC GUI（Claude or Codex）
+
+> Originally Claude Code GUI
 
 <img width="120" alt="Image" src="./docs/images/idea-claude-code-gui-logo.png" />
 

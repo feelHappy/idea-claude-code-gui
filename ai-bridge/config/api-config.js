@@ -5,8 +5,6 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { platform } from 'os';
-import { execSync } from 'child_process';
 import { getClaudeDir, getManagedSettingsPath } from '../utils/path-utils.js';
 
 // Conditional debug logging: set CLAUDE_DEBUG=1 to enable verbose diagnostics
@@ -111,107 +109,6 @@ export function loadClaudeSettings() {
 }
 
 /**
- * Read credentials from macOS Keychain
- * @returns {Object|null} Credentials object or null if not found
- */
-function readMacKeychainCredentials() {
-  try {
-    // Try different possible keychain service names
-    const serviceNames = ['Claude Code-credentials', 'Claude Code'];
-
-    for (const serviceName of serviceNames) {
-      try {
-        const result = execSync(
-          `security find-generic-password -s "${serviceName}" -w 2>/dev/null`,
-          { encoding: 'utf8', timeout: 5000 }
-        );
-
-        if (result && result.trim()) {
-          const credentials = JSON.parse(result.trim());
-          debugLog(`[DEBUG] Successfully read credentials from macOS Keychain (service: ${serviceName})`);
-          return credentials;
-        }
-      } catch (e) {
-        // Continue to next service name
-        continue;
-      }
-    }
-
-    debugLog('[DEBUG] No credentials found in macOS Keychain');
-    return null;
-  } catch (error) {
-    debugLog('[DEBUG] Failed to read from macOS Keychain:', error.message);
-    return null;
-  }
-}
-
-/**
- * Read credentials from file (Linux/Windows)
- * @returns {Object|null} Credentials object or null if not found
- */
-function readFileCredentials() {
-  try {
-    const credentialsPath = join(getClaudeDir(), '.credentials.json');
-
-    if (!existsSync(credentialsPath)) {
-      debugLog('[DEBUG] No CLI session found: .credentials.json does not exist');
-      return null;
-    }
-
-    const credentials = JSON.parse(readFileSync(credentialsPath, 'utf8'));
-    debugLog('[DEBUG] Successfully read credentials from file');
-    return credentials;
-  } catch (error) {
-    debugLog('[DEBUG] Failed to read credentials file:', error.message);
-    return null;
-  }
-}
-
-/**
- * Check whether a valid Claude CLI session authentication exists.
- * - macOS: Reads credentials from the system Keychain
- * - Linux/Windows: Reads credentials from ~/.claude/.credentials.json
- *
- * @returns {boolean} True if valid CLI session credentials are found, false otherwise
- */
-export function hasCliSessionAuth() {
-  try {
-    let credentials = null;
-    const currentPlatform = platform();
-
-    // macOS uses Keychain, other platforms use file
-    if (currentPlatform === 'darwin') {
-      debugLog('[DEBUG] Detected macOS, attempting to read from Keychain...');
-      credentials = readMacKeychainCredentials();
-
-      // Fallback to file if keychain fails (in case user manually created the file)
-      if (!credentials) {
-        debugLog('[DEBUG] Keychain read failed, trying file fallback...');
-        credentials = readFileCredentials();
-      }
-    } else {
-      debugLog(`[DEBUG] Detected ${currentPlatform}, reading from credentials file...`);
-      credentials = readFileCredentials();
-    }
-
-    // Validate OAuth access token
-    const hasValidToken = credentials?.claudeAiOauth?.accessToken &&
-                         credentials.claudeAiOauth.accessToken.length > 0;
-
-    if (hasValidToken) {
-      debugLog('[DEBUG] Valid CLI session found with access token');
-      return true;
-    } else {
-      debugLog('[DEBUG] No valid access token found in credentials');
-      return false;
-    }
-  } catch (error) {
-    debugLog('[DEBUG] Failed to check CLI session:', error.message);
-    return false;
-  }
-}
-
-/**
  * Configure the API Key.
  * @returns {Object} Contains apiKey, baseUrl, authType and their sources
  */
@@ -237,6 +134,29 @@ export function setupApiKey() {
   // This ensures a single source of truth and avoids interference from shell environment variables.
   debugLog('[DEBUG] Loading configuration from settings.json only (ignoring shell environment variables)...');
 
+  if (settings?.env?.ANTHROPIC_BASE_URL) {
+    baseUrl = settings.env.ANTHROPIC_BASE_URL;
+    baseUrlSource = 'settings.json';
+  }
+
+  // HIGHEST PRIORITY: CLI login mode. When user explicitly opted in via plugin UI,
+  // strictly use SDK native OAuth flow. No fallback to other auth methods.
+  const cliLoginAuthorized = settings?.env?.CCGUI_CLI_LOGIN_AUTHORIZED === '1';
+  if (cliLoginAuthorized) {
+    debugLog('[INFO] CLI login authorized by user - delegating auth to Claude SDK native OAuth flow');
+    // Clear ALL API Key env vars so the SDK uses its built-in OAuth auth exclusively.
+    // Use empty string assignment instead of delete to avoid irreversible global side effects
+    // (delete on process.env permanently removes the key from the process for the lifetime of the node).
+    process.env.ANTHROPIC_API_KEY = '';
+    process.env.ANTHROPIC_AUTH_TOKEN = '';
+
+    if (baseUrl) {
+      process.env.ANTHROPIC_BASE_URL = baseUrl;
+    }
+
+    return { apiKey: null, baseUrl, authType: 'cli_login', apiKeySource: 'CLI login (SDK native auth)', baseUrlSource };
+  }
+
   // Prefer ANTHROPIC_AUTH_TOKEN (Bearer auth), fall back to ANTHROPIC_API_KEY (x-api-key auth).
   // This supports both authentication methods used by the Claude Code CLI.
   if (settings?.env?.ANTHROPIC_AUTH_TOKEN) {
@@ -253,69 +173,39 @@ export function setupApiKey() {
     apiKeySource = 'settings.json (AWS_BEDROCK)';
   }
 
-  if (settings?.env?.ANTHROPIC_BASE_URL) {
-    baseUrl = settings.env.ANTHROPIC_BASE_URL;
-    baseUrlSource = 'settings.json';
-  }
-
-  // If no API Key is configured, check for CLI session authentication
   if (!apiKey) {
-    debugLog('[DEBUG] No API Key found in settings.json, checking for CLI session...');
+    debugLog('[DEBUG] No API Key found in settings.json, checking for apiKeyHelper...');
 
-    if (hasCliSessionAuth()) {
-      // Use CLI session authentication
-      debugLog('[INFO] Using CLI session authentication (claude login)');
-      authType = 'cli_session';
-      // Set source based on platform
-      const currentPlatform = platform();
-      apiKeySource = currentPlatform === 'darwin'
-        ? 'CLI session (macOS Keychain)'
-        : 'CLI session (~/.claude/.credentials.json)';
+    // Check for apiKeyHelper in managed settings or user settings before giving up.
+    // The SDK handles apiKeyHelper execution natively, so we just need to not throw.
+    const managedSettings = loadManagedSettings();
+    const hasApiKeyHelper = managedSettings?.apiKeyHelper || settings?.apiKeyHelper;
 
-      // Clear all API Key environment variables so the SDK auto-detects the CLI session
+    if (hasApiKeyHelper) {
+      debugLog('[INFO] Using apiKeyHelper authentication (SDK will handle execution)');
+      authType = 'api_key_helper';
+      apiKeySource = managedSettings?.apiKeyHelper
+        ? 'managed-settings.json (apiKeyHelper)'
+        : 'settings.json (apiKeyHelper)';
+
+      // Clear all API Key environment variables so the SDK uses apiKeyHelper
       delete process.env.ANTHROPIC_API_KEY;
       delete process.env.ANTHROPIC_AUTH_TOKEN;
 
-      // Set baseUrl if configured
       if (baseUrl) {
         process.env.ANTHROPIC_BASE_URL = baseUrl;
       }
 
       debugLog('[DEBUG] Auth type:', authType);
       return { apiKey: null, baseUrl, authType, apiKeySource, baseUrlSource };
-    } else {
-      // Check for apiKeyHelper in managed settings or user settings before giving up.
-      // The SDK handles apiKeyHelper execution natively, so we just need to not throw.
-      const managedSettings = loadManagedSettings();
-      const hasApiKeyHelper = managedSettings?.apiKeyHelper || settings?.apiKeyHelper;
-
-      if (hasApiKeyHelper) {
-        debugLog('[INFO] Using apiKeyHelper authentication (SDK will handle execution)');
-        authType = 'api_key_helper';
-        apiKeySource = managedSettings?.apiKeyHelper
-          ? 'managed-settings.json (apiKeyHelper)'
-          : 'settings.json (apiKeyHelper)';
-
-        // Clear all API Key environment variables so the SDK uses apiKeyHelper
-        delete process.env.ANTHROPIC_API_KEY;
-        delete process.env.ANTHROPIC_AUTH_TOKEN;
-
-        if (baseUrl) {
-          process.env.ANTHROPIC_BASE_URL = baseUrl;
-        }
-
-        debugLog('[DEBUG] Auth type:', authType);
-        return { apiKey: null, baseUrl, authType, apiKeySource, baseUrlSource };
-      }
-
-      // Neither API Key, CLI session, nor apiKeyHelper found
-      console.error('[ERROR] API Key not configured and no CLI session found.');
-      console.error('[ERROR] Please either:');
-      console.error('[ERROR]   1. Set ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN in ~/.claude/settings.json');
-      console.error('[ERROR]   2. Run "claude login" to authenticate via CLI');
-      console.error('[ERROR]   3. Configure apiKeyHelper in managed-settings.json or settings.json');
-      throw new Error('API Key not configured and no CLI session found');
     }
+
+    console.error('[ERROR] API Key not configured.');
+    console.error('[ERROR] Please either:');
+    console.error('[ERROR]   1. Configure ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN in Provider Management');
+    console.error('[ERROR]   2. Explicitly enable local ~/.claude/settings.json mode and set credentials there');
+    console.error('[ERROR]   3. Configure apiKeyHelper in managed-settings.json or settings.json');
+    throw new Error('API Key not configured');
   }
 
   // Set the corresponding environment variables based on auth type

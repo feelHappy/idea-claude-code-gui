@@ -1,6 +1,6 @@
 package com.github.claudecodegui.settings;
 
-import com.github.claudecodegui.ClaudeCodeGuiBundle;
+import com.github.claudecodegui.i18n.ClaudeCodeGuiBundle;
 import com.github.claudecodegui.bridge.NodeDetector;
 import com.github.claudecodegui.model.DeleteResult;
 import com.google.gson.Gson;
@@ -28,6 +28,7 @@ public class ProviderManager {
     private static final Logger LOG = Logger.getInstance(ProviderManager.class);
     private static final String BACKUP_FILE_NAME = "config.json.bak";
     public static final String LOCAL_SETTINGS_PROVIDER_ID = "__local_settings_json__";
+    public static final String CLI_LOGIN_PROVIDER_ID = "__cli_login__";
 
     private final Gson gson;
     private final Function<Void, JsonObject> configReader;
@@ -59,6 +60,9 @@ public class ProviderManager {
 
         // Add local provider using the extracted method
         result.add(createLocalProviderObject(LOCAL_SETTINGS_PROVIDER_ID.equals(currentId)));
+
+        // Add CLI login provider
+        result.add(createCliLoginProviderObject(CLI_LOGIN_PROVIDER_ID.equals(currentId)));
 
         if (!claude.has("providers")) {
             return result;
@@ -115,6 +119,11 @@ public class ProviderManager {
         // Return local provider using the extracted method
         if (LOCAL_SETTINGS_PROVIDER_ID.equals(currentId)) {
             return createLocalProviderObject(true);
+        }
+
+        // Return CLI login provider
+        if (CLI_LOGIN_PROVIDER_ID.equals(currentId)) {
+            return createCliLoginProviderObject(true);
         }
 
         if (!claude.has("providers")) {
@@ -309,8 +318,8 @@ public class ProviderManager {
                     claude.addProperty("current", firstKey);
                     LOG.info("[ProviderManager] Switched to provider: " + firstKey);
                 } else {
-                    claude.addProperty("current", LOCAL_SETTINGS_PROVIDER_ID);
-                    LOG.info("[ProviderManager] No remaining providers, fallback to local settings.json");
+                    claude.addProperty("current", "");
+                    LOG.info("[ProviderManager] No remaining providers, leaving Claude provider inactive");
                 }
             }
 
@@ -367,6 +376,25 @@ public class ProviderManager {
         claude.addProperty("current", id);
         configWriter.accept(config);
         LOG.info("[ProviderManager] Switched to provider: " + id);
+    }
+
+    /**
+     * Leave Claude with no active provider.
+     */
+    public void deactivateClaudeProvider() throws IOException {
+        JsonObject config = configReader.apply(null);
+
+        if (!config.has("claude")) {
+            JsonObject claude = new JsonObject();
+            claude.add("providers", new JsonObject());
+            claude.addProperty("current", "");
+            config.add("claude", claude);
+        } else {
+            config.getAsJsonObject("claude").addProperty("current", "");
+        }
+
+        configWriter.accept(config);
+        LOG.info("[ProviderManager] Claude provider deactivated");
     }
 
     /**
@@ -437,10 +465,12 @@ public class ProviderManager {
         JsonObject config = configReader.apply(null);
 
         if (config.has("claude") &&
-                config.getAsJsonObject("claude").has("current") &&
-                LOCAL_SETTINGS_PROVIDER_ID.equals(config.getAsJsonObject("claude").get("current").getAsString())) {
-            LOG.info("[ProviderManager] Local settings.json provider active, skipping sync to settings.json");
-            return;
+                config.getAsJsonObject("claude").has("current")) {
+            String currentId = config.getAsJsonObject("claude").get("current").getAsString();
+            if (LOCAL_SETTINGS_PROVIDER_ID.equals(currentId) || CLI_LOGIN_PROVIDER_ID.equals(currentId)) {
+                LOG.info("[ProviderManager] " + currentId + " provider active, skipping sync to settings.json");
+                return;
+            }
         }
 
         JsonObject activeProvider = getActiveClaudeProvider();
@@ -633,45 +663,30 @@ public class ProviderManager {
         localProvider.addProperty("name", ClaudeCodeGuiBundle.message("provider.local.name"));
         localProvider.addProperty("isActive", isActive);
         localProvider.addProperty("isLocalProvider", true);
-
-        // Read env from local settings.json, only extract model-mapping related keys for frontend display
-        try {
-            JsonObject claudeSettings = claudeSettingsManager.readClaudeSettings();
-            if (claudeSettings != null && claudeSettings.has("env")) {
-                JsonObject fullEnv = claudeSettings.getAsJsonObject("env");
-                JsonObject filteredEnv = new JsonObject();
-                String[] modelMappingKeys = {
-                        "ANTHROPIC_MODEL",
-                        "ANTHROPIC_DEFAULT_HAIKU_MODEL",
-                        "ANTHROPIC_DEFAULT_SONNET_MODEL",
-                        "ANTHROPIC_DEFAULT_OPUS_MODEL"
-                };
-                for (String key : modelMappingKeys) {
-                    if (fullEnv.has(key) && !fullEnv.get(key).isJsonNull()) {
-                        filteredEnv.add(key, fullEnv.get(key));
-                    }
-                }
-                if (filteredEnv.size() > 0) {
-                    JsonObject settingsConfig = new JsonObject();
-                    settingsConfig.add("env", filteredEnv);
-                    localProvider.add("settingsConfig", settingsConfig);
-                    LOG.debug("[ProviderManager] Included model mapping env from local settings.json");
-                }
-            }
-        } catch (Exception e) {
-            LOG.warn("[ProviderManager] Failed to read local settings.json env: " + e.getMessage());
-        }
-
         return localProvider;
     }
 
     /**
-     * 归一化 Claude 当前 Provider。
-     * 首次启动或旧配置未设置 current 时，默认回退到本地 settings.json，
-     * 这样前端初始化时就能拿到稳定的模型映射来源。
+     * Create CLI login provider object with internationalized name and description
      *
-     * @param config 当前插件配置
-     * @return 可用的 current provider id
+     * @param isActive whether this provider is currently active
+     * @return JsonObject representing the CLI login provider
+     */
+    private JsonObject createCliLoginProviderObject(boolean isActive) {
+        JsonObject cliLoginProvider = new JsonObject();
+        cliLoginProvider.addProperty("id", CLI_LOGIN_PROVIDER_ID);
+        cliLoginProvider.addProperty("name", ClaudeCodeGuiBundle.message("provider.cliLogin.name"));
+        cliLoginProvider.addProperty("isActive", isActive);
+        cliLoginProvider.addProperty("isCliLoginProvider", true);
+        return cliLoginProvider;
+    }
+
+    /**
+     * Normalize the current Claude provider.
+     * Preserve an explicit empty current value so Claude can remain intentionally inactive.
+     *
+     * @param config current plugin configuration
+     * @return available current provider id
      */
     private String normalizeCurrentClaudeProviderId(JsonObject config) {
         boolean changed = false;
@@ -691,16 +706,25 @@ public class ProviderManager {
         }
 
         JsonObject providers = claude.getAsJsonObject("providers");
+        boolean hasExplicitCurrent = claude.has("current") && !claude.get("current").isJsonNull();
         String currentId = null;
-        if (claude.has("current") && !claude.get("current").isJsonNull()) {
+        if (hasExplicitCurrent) {
             currentId = claude.get("current").getAsString();
         }
 
-        // current 为空，或指向了已删除的 provider 时，统一回退到本地 settings.json。
-        if (currentId == null
-                || currentId.trim().isEmpty()
-                || (!LOCAL_SETTINGS_PROVIDER_ID.equals(currentId) && !providers.has(currentId))) {
-            currentId = LOCAL_SETTINGS_PROVIDER_ID;
+        boolean invalidCurrent = currentId == null
+                || (!LOCAL_SETTINGS_PROVIDER_ID.equals(currentId)
+                    && !CLI_LOGIN_PROVIDER_ID.equals(currentId)
+                    && !providers.has(currentId));
+
+        // Marketplace-safe default:
+        // - Preserve an explicit local settings provider selection.
+        // - If current is missing entirely and there are saved providers, select the first one.
+        // - If current is explicitly blank, leave Claude inactive until the user explicitly chooses a mode.
+        if (invalidCurrent) {
+            currentId = !hasExplicitCurrent && providers.size() > 0
+                    ? providers.keySet().iterator().next()
+                    : "";
             claude.addProperty("current", currentId);
             changed = true;
         }
@@ -725,5 +749,17 @@ public class ProviderManager {
             return false;
         }
         return LOCAL_SETTINGS_PROVIDER_ID.equals(claude.get("current").getAsString());
+    }
+
+    public boolean isCliLoginProviderActive() {
+        JsonObject config = configReader.apply(null);
+        if (!config.has("claude")) {
+            return false;
+        }
+        JsonObject claude = config.getAsJsonObject("claude");
+        if (!claude.has("current")) {
+            return false;
+        }
+        return CLI_LOGIN_PROVIDER_ID.equals(claude.get("current").getAsString());
     }
 }

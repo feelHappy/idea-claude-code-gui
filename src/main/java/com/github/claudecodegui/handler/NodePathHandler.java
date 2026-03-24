@@ -1,5 +1,7 @@
 package com.github.claudecodegui.handler;
 
+import com.github.claudecodegui.handler.core.HandlerContext;
+
 import com.github.claudecodegui.bridge.NodeDetector;
 import com.github.claudecodegui.model.NodeDetectionResult;
 import com.google.gson.Gson;
@@ -40,10 +42,27 @@ public class NodePathHandler {
                 String versionToSend = null;
 
                 if (saved != null && !saved.trim().isEmpty()) {
-                    pathToSend = saved.trim();
-                    NodeDetectionResult result = context.getClaudeSDKBridge().verifyAndCacheNodePath(pathToSend);
+                    String trimmedPath = saved.trim();
+                    NodeDetectionResult result = this.context.getClaudeSDKBridge().verifyAndCacheNodePath(trimmedPath);
                     if (result != null && result.isFound()) {
+                        pathToSend = trimmedPath;
                         versionToSend = result.getNodeVersion();
+                    } else {
+                        // Saved path is invalid, clear it and trigger re-detection
+                        LOG.warn("[NodePathHandler] Saved Node.js path is invalid: " + trimmedPath
+                            + ", clearing and triggering re-detection");
+                        props.unsetValue(NODE_PATH_PROPERTY_KEY);
+                        this.context.getClaudeSDKBridge().setNodeExecutable(null);
+                        this.context.getCodexSDKBridge().setNodeExecutable(null);
+
+                        NodeDetectionResult detected = this.context.getClaudeSDKBridge().detectNodeWithDetails();
+                        if (detected != null && detected.isFound() && detected.getNodePath() != null) {
+                            pathToSend = detected.getNodePath();
+                            versionToSend = detected.getNodeVersion();
+                            props.setValue(NODE_PATH_PROPERTY_KEY, pathToSend);
+                            this.context.getClaudeSDKBridge().verifyAndCacheNodePath(pathToSend);
+                            this.context.getCodexSDKBridge().setNodeExecutable(pathToSend);
+                        }
                     }
                 } else {
                     NodeDetectionResult detected = context.getClaudeSDKBridge().detectNodeWithDetails();
@@ -132,16 +151,21 @@ public class NodePathHandler {
                         failureMsg = "已清空自定义路径，但无法自动检测到 Node.js，请手动配置路径";
                     }
                 } else {
-                    props.setValue(NODE_PATH_PROPERTY_KEY, pathArg);
+                    // Verify before saving to avoid caching invalid path
                     NodeDetectionResult result = context.getClaudeSDKBridge().verifyAndCacheNodePath(pathArg);
-                    LOG.info("[NodePathHandler] Updated manual Node.js path from settings: " + pathArg);
-                    finalPath = pathArg;
                     if (result != null && result.isFound()) {
+                        // Only save if verification succeeds
+                        props.setValue(NODE_PATH_PROPERTY_KEY, pathArg);
                         context.getCodexSDKBridge().setNodeExecutable(pathArg);
+                        finalPath = pathArg;
                         versionToSend = result.getNodeVersion();
                         verifySuccess = true;
+                        LOG.info("[NodePathHandler] Saved manual Node.js path: " + pathArg);
                     } else {
+                        // Verification failed, don't save invalid path
+                        finalPath = "";
                         failureMsg = result != null ? result.getErrorMessage() : "无法验证指定的 Node.js 路径";
+                        LOG.warn("[NodePathHandler] Node.js path verification failed: " + pathArg + " - " + failureMsg);
                     }
                 }
 

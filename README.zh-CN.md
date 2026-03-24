@@ -1,6 +1,8 @@
 <div align="center">
 
-# CC GUI (原 Claude Code GUI)
+# CC GUI（Claude or Codex）
+
+> 原名：Claude Code GUI
 
 <img width="120" alt="Image" src="./docs/images/idea-claude-code-gui-logo.png" />
 

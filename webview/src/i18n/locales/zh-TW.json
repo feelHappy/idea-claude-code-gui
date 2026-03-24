@@ -369,7 +369,8 @@
         "spanish": "Español",
         "french": "Français",
         "japanese": "日本語",
-        "russian": "Русский"
+        "russian": "Русский",
+        "korean": "한국어"
       },
       "nodePath": {
         "label": "Node.js 路徑",
@@ -404,7 +405,7 @@
         "hint": "When enabled, AI responses will appear character by character in real-time, instead of waiting for the complete response. May consume more resources."
       },
       "autoOpenFile": {
-        "label": "自動開啟檔案",
+        "label": "發送已開啟的檔案路徑",
         "enabled": "已啟用",
         "disabled": "已停用",
         "hint": "開啟後，在專案樹選擇檔案時會自動將檔案路徑告訴 AI（注意：只傳遞檔案路徑，不傳檔案內容）。關閉後需要手動操作。"
@@ -610,6 +611,16 @@
       "localProviderName": "Local settings.json",
       "localProviderDescription": "Use configuration directly from ~/.claude/settings.json",
       "localProviderHelp": "When using local provider mode:\n• The plugin will not modify your ~/.claude/settings.json file\n• You need to manually manage your configurations\n• Make sure the file exists and contains valid JSON\n• Suitable for advanced users who prefer manual control",
+      "authorizeAndEnable": "授權並啟用",
+      "revokeAuthorization": "取消授權",
+      "cliLoginProviderName": "CLI 登入狀態",
+      "cliLoginProviderDescription": "將重用您已在終端完成的 Claude CLI 登入狀態",
+      "cliLoginAuthorizeTitle": "授權使用 CLI 登入狀態",
+      "cliLoginAuthorizeMessage": "這將允許插件使用您的 Claude CLI 登入會話進行 API 請求。您必須已在終端透過 Claude CLI 登入。",
+      "cliLoginAuthorizeDetail": "插件將認證委託給 Claude SDK 的原生 OAuth 流程。您可以隨時取消此授權。",
+      "cliLoginDisableTitle": "取消 CLI 登入授權",
+      "cliLoginDisableMessage": "此操作會停止使用 CLI 登入狀態，並讓 Claude 處於未啟用任何供應商的狀態，直到您再次顯式啟用其它供應商。",
+      "cliLoginAccountInfo": "已登入：{{email}}",
       "subscriptionTutorial": {
         "entry": "訂閱制帳號教學",
         "dialogTitle": "如何使用訂閱制帳號",

@@ -195,6 +195,83 @@ public class ClaudeSettingsManager {
     }
 
     /**
+     * Apply CLI login mode to Claude settings.json.
+     * Sets CCGUI_CLI_LOGIN_AUTHORIZED=1 and removes explicit API keys
+     * so the Claude SDK falls through to its native OAuth auth flow.
+     */
+    public void applyCliLoginToClaudeSettings() throws IOException {
+        JsonObject settings = readClaudeSettings();
+
+        if (!settings.has("env") || settings.get("env").isJsonNull()) {
+            settings.add("env", new JsonObject());
+        }
+        JsonObject env = settings.getAsJsonObject("env");
+
+        // Set the authorization flag
+        env.addProperty("CCGUI_CLI_LOGIN_AUTHORIZED", "1");
+
+        // Remove explicit API keys so SDK uses native OAuth
+        env.remove("ANTHROPIC_API_KEY");
+        env.remove("ANTHROPIC_AUTH_TOKEN");
+
+        writeClaudeSettings(settings);
+        LOG.info("[ClaudeSettingsManager] Applied CLI login mode to settings.json");
+    }
+
+    /**
+     * Read OAuth account info from ~/.claude.json for UI display.
+     * Only extracts safe display fields (email, name), never credentials or tokens.
+     * @return JsonObject with filtered account info, or null if not available
+     */
+    public JsonObject readCliLoginAccountInfo() {
+        try {
+            String homeDir = PlatformUtils.getHomeDirectory();
+            Path claudeJsonPath = Paths.get(homeDir, ".claude.json");
+            File claudeJsonFile = claudeJsonPath.toFile();
+
+            if (!claudeJsonFile.exists()) {
+                return null;
+            }
+
+            try (FileReader reader = new FileReader(claudeJsonFile, StandardCharsets.UTF_8)) {
+                JsonObject claudeJson = JsonParser.parseReader(reader).getAsJsonObject();
+                if (claudeJson.has("oauthAccount") && !claudeJson.get("oauthAccount").isJsonNull()) {
+                    JsonObject oauthAccount = claudeJson.getAsJsonObject("oauthAccount");
+                    // Only extract safe display fields - never pass the full object
+                    JsonObject safeInfo = new JsonObject();
+                    if (oauthAccount.has("emailAddress")) {
+                        safeInfo.addProperty("emailAddress", oauthAccount.get("emailAddress").getAsString());
+                    }
+                    if (oauthAccount.has("name")) {
+                        safeInfo.addProperty("name", oauthAccount.get("name").getAsString());
+                    }
+                    return safeInfo;
+                }
+            }
+        } catch (Exception e) {
+            LOG.debug("[ClaudeSettingsManager] Failed to read CLI login account info: " + e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Remove CLI login authorization flag from Claude settings.json.
+     * Called when switching away from CLI login mode.
+     */
+    public void removeCliLoginFromClaudeSettings() throws IOException {
+        JsonObject settings = readClaudeSettings();
+
+        if (settings.has("env") && !settings.get("env").isJsonNull()) {
+            JsonObject env = settings.getAsJsonObject("env");
+            if (env.has("CCGUI_CLI_LOGIN_AUTHORIZED")) {
+                env.remove("CCGUI_CLI_LOGIN_AUTHORIZED");
+                writeClaudeSettings(settings);
+                LOG.info("[ClaudeSettingsManager] Removed CLI login authorization flag from settings.json");
+            }
+        }
+    }
+
+    /**
      * Detect apiKeyHelper in user settings or managed settings.
      * @return true if apiKeyHelper is configured, false otherwise
      */
@@ -231,6 +308,13 @@ public class ClaudeSettingsManager {
             }
 
             String baseUrl = env.has("ANTHROPIC_BASE_URL") ? env.get("ANTHROPIC_BASE_URL").getAsString() : "";
+
+            // Check for CLI login authorization
+            if (apiKey.isEmpty() && "none".equals(authType) &&
+                    env.has("CCGUI_CLI_LOGIN_AUTHORIZED") &&
+                    "1".equals(env.get("CCGUI_CLI_LOGIN_AUTHORIZED").getAsString())) {
+                authType = "cli_login";
+            }
 
             // If no API key found, check for apiKeyHelper in user settings or managed settings
             if (apiKey.isEmpty() && "none".equals(authType) && hasApiKeyHelper(claudeSettings)) {

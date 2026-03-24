@@ -13,6 +13,56 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: '0.3.1',
+    date: '2026-03-23',
+    content: {
+      en: `✨ Features
+- Add CLI Login provider: delegate auth to Claude SDK's native OAuth flow, with account info display and authorize/revoke dialogs; update i18n across 9 languages
+- Add provider deactivation support: deactivateClaudeProvider() sets current provider to empty, add confirmation dialogs for switching to/from local provider, simplify settings UI
+- Add Korean language support #KimTibber
+
+🐛 Fixes
+- Fix UI stuck in responding/thinking state: resolve race conditions in DaemonBridge, ClaudeMessageHandler, StreamMessageCoalescer, and streamingCallbacks.ts
+- Fix race condition where last streaming assistant message is lost: move ref cleanup into setMessages updater, add fallback recovery path #gadfly3173
+- Fix JCEF WebView incorrect cursor types on macOS: add CefDisplayHandler to map Chromium cursors to Swing (#753) #yogendrasinghx
+- Fix Codex history initial load returning fewer sessions than refresh: replace root-dir timestamp check with file-count comparison #gadfly3173
+- Fix MSYS2/Git Bash path conversion: handle ~, /home/<user>, /tmp, /dev/null mappings; consolidate temp dir resolution into PlatformUtils.getTempDirectory() #gadfly3173
+- Fix node path validation regression: reject invalid saved node paths and keep bridge state in sync #gadfly3173
+- Fix plugin installation and UI interaction reliability: versioned plugin dirs, thinking block state, enqueue dialog requests #hpstream
+- Rename "Auto Open File" to "Send Opened File Path" across all 8 locales (#693) #gadfly3173
+
+🔧 Improvements
+- Large-scale refactoring: ClaudeSDKBridge (1600+ lines) → 12 classes, DiffHandler → 7 modules, ClaudeSession → 5 modules, SlashCommandRegistry → 6 classes, CodexHistoryReader → 4 modules, PersistentQueryService and ChatInputBox split into focused modules
+- Reorganize Java package structure by domain (action, ui, handler subpackages)
+- Normalize model resolution: keep canonical model ID in Java, add env config normalization helpers with tests
+- Extract CursorHandler and throttle mousemove with requestAnimationFrame
+- Translate Chinese comments and JSDoc to English across 14 files
+- Rename plugin ID and project name to idea-claude-code-gui`,
+      zh: `✨ Features
+- 新增 CLI Login Provider：通过 Claude SDK 原生 OAuth 认证，ProviderList 显示账户信息及授权/撤销对话框，更新 9 种语言 i18n
+- 新增 Provider 停用支持：切换本地 Provider 时显示确认对话框，将 Provider 信息集成至 ProviderList 简化设置界面
+- 新增韩语支持 #KimTibber
+
+🐛 Fixes
+- 修复 UI 卡在"响应中/思考中"状态：修复 DaemonBridge、ClaudeMessageHandler、StreamMessageCoalescer 及 streamingCallbacks.ts 多处竞态
+- 修复流结束时最后一条助手消息丢失的竞态问题 #gadfly3173
+- 修复 JCEF WebView 在 macOS 上光标类型不正确 (#753) #yogendrasinghx
+- 修复 Codex 历史记录首次加载比刷新少会话 #gadfly3173
+- 修复 MSYS2/Git Bash 路径转换：处理 ~、/tmp、/dev/null 等映射 #gadfly3173
+- 修复 Node 路径验证回归：拒绝保存无效路径 #gadfly3173
+- 修复插件安装和 UI 交互可靠性：支持带版本号插件目录、对话框请求入队 #hpstream
+- 将"Auto Open File"重命名为"Send Opened File Path"，8 种语言全部更新 (#693) #gadfly3173
+
+🔧 Improvements
+- 大规模后端重构：ClaudeSDKBridge（1600+行）→ 12 个类，DiffHandler → 7 个模块，ClaudeSession → 5 个模块，SlashCommandRegistry → 6 个类，CodexHistoryReader → 4 个模块
+- 按领域重组 Java 包结构（action、ui、handler 子包）
+- 规范化模型解析和环境变量配置，新增辅助函数和单元测试
+- 提取 CursorHandler，使用 requestAnimationFrame 节流 mousemove 监听
+- 将 14 个文件中文注释和 JSDoc 统一翻译为英文
+- 重命名插件 ID 和项目名称为 idea-claude-code-gui`,
+    },
+  },
+  {
     version: '0.3',
     date: '2026-03-16',
     content: {

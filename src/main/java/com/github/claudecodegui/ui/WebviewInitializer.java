@@ -1,8 +1,9 @@
 package com.github.claudecodegui.ui;
 
-import com.github.claudecodegui.ClaudeCodeGuiBundle;
 import com.github.claudecodegui.bridge.NodeDetector;
-import com.github.claudecodegui.handler.HandlerContext;
+import com.github.claudecodegui.handler.core.HandlerContext;
+import com.github.claudecodegui.i18n.ClaudeCodeGuiBundle;
+import com.github.claudecodegui.model.NodeDetectionResult;
 import com.github.claudecodegui.provider.claude.ClaudeSDKBridge;
 import com.github.claudecodegui.provider.codex.CodexSDKBridge;
 import com.github.claudecodegui.startup.BridgePreloader;
@@ -298,6 +299,30 @@ public class WebviewInitializer {
                     cefBrowser.executeJavaScript(languageConfigInjection, cefBrowser.getURL(), 0);
                     LOG.info("[LanguageSync] Language config injected into frontend");
 
+                    // Fix cursor display in JCEF on macOS: track CSS cursor changes via JS
+                    // and send them to Java through the bridge. JCEF native rendering on macOS
+                    // does not propagate CSS cursor styles to the host Swing component.
+                    String cursorTracker =
+                        "(function() {"
+                        + "  var lastCursor = '';"
+                        + "  var pending = false;"
+                        + "  document.addEventListener('mousemove', function(e) {"
+                        + "    if (pending) return;"
+                        + "    pending = true;"
+                        + "    requestAnimationFrame(function() {"
+                        + "      pending = false;"
+                        + "      var c = window.getComputedStyle(e.target).cursor;"
+                        + "      if (c !== lastCursor) {"
+                        + "        lastCursor = c;"
+                        + "        if (window.sendToJava) {"
+                        + "          window.sendToJava('cursor_change:' + c);"
+                        + "        }"
+                        + "      }"
+                        + "    });"
+                        + "  }, {passive: true});"
+                        + "})();";
+                    cefBrowser.executeJavaScript(cursorTracker, cefBrowser.getURL(), 0);
+
                     LOG.debug("onLoadEnd completed, waiting for frontend_ready signal");
                 }
             }, browser.getCefBrowser());
@@ -511,24 +536,46 @@ public class WebviewInitializer {
      * Handle Node.js path save from the error panel input.
      */
     public void handleNodePathSave(String manualPath) {
-        ClaudeSDKBridge claudeSDKBridge = host.getClaudeSDKBridge();
-        CodexSDKBridge codexSDKBridge = host.getCodexSDKBridge();
-        JPanel mainPanel = host.getMainPanel();
+        ClaudeSDKBridge claudeSDKBridge = this.host.getClaudeSDKBridge();
+        CodexSDKBridge codexSDKBridge = this.host.getCodexSDKBridge();
+        JPanel mainPanel = this.host.getMainPanel();
 
         try {
             PropertiesComponent props = PropertiesComponent.getInstance();
 
             if (manualPath == null || manualPath.isEmpty()) {
+                // Clear saved path and trigger auto-detection
                 props.unsetValue(NODE_PATH_PROPERTY_KEY);
                 claudeSDKBridge.setNodeExecutable(null);
                 codexSDKBridge.setNodeExecutable(null);
-                LOG.info("Cleared manual Node.js path");
+                LOG.info("Cleared manual Node.js path, triggering auto-detection");
+
+                NodeDetectionResult detected = claudeSDKBridge.detectNodeWithDetails();
+                if (detected != null && detected.isFound() && detected.getNodePath() != null) {
+                    String detectedPath = detected.getNodePath();
+                    props.setValue(NODE_PATH_PROPERTY_KEY, detectedPath);
+                    claudeSDKBridge.verifyAndCacheNodePath(detectedPath);
+                    codexSDKBridge.setNodeExecutable(detectedPath);
+                    LOG.info("Auto-detected and saved Node.js path: " + detectedPath);
+                }
             } else {
-                props.setValue(NODE_PATH_PROPERTY_KEY, manualPath);
-                claudeSDKBridge.setNodeExecutable(manualPath);
-                codexSDKBridge.setNodeExecutable(manualPath);
-                claudeSDKBridge.verifyAndCacheNodePath(manualPath);
-                LOG.info("Saved manual Node.js path: " + manualPath);
+                // Verify before saving to avoid caching invalid path
+                NodeDetectionResult result = claudeSDKBridge.verifyAndCacheNodePath(manualPath);
+                if (result != null && result.isFound()) {
+                    // Only save if verification succeeds
+                    props.setValue(NODE_PATH_PROPERTY_KEY, manualPath);
+                    claudeSDKBridge.setNodeExecutable(manualPath);
+                    codexSDKBridge.setNodeExecutable(manualPath);
+                    LOG.info("Saved manual Node.js path: " + manualPath);
+                } else {
+                    // Verification failed, show error and don't save invalid path
+                    String errorMsg = result != null ? result.getErrorMessage() : "Unknown error";
+                    LOG.warn("Node.js path verification failed: " + manualPath + " - " + errorMsg);
+                    JOptionPane.showMessageDialog(mainPanel,
+                        "Node.js path verification failed: " + errorMsg + "\n\nPath not saved.",
+                        "Invalid Node.js Path", JOptionPane.WARNING_MESSAGE);
+                    return; // Don't reinitialize UI, let user try again
+                }
             }
 
             ApplicationManager.getApplication().invokeLater(() -> {

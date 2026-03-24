@@ -1,6 +1,6 @@
 <idea-plugin>
     <!--
-    Terminal-specific features for Claude Code GUI.
+    Terminal-specific features for CC GUI（Claude or Codex）.
     This configuration is only loaded when the Terminal plugin is available.
     -->
     <extensions defaultExtensionNs="com.intellij">

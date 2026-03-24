@@ -118,7 +118,8 @@
         "spanish": "Español",
         "french": "Français",
         "japanese": "日本語",
-        "russian": "Русский"
+        "russian": "Русский",
+        "korean": "한국어"
       },
       "nodePath": {
         "label": "Chemin Node.js",
@@ -153,7 +154,7 @@
         "hint": "When enabled, AI responses will appear character by character in real-time, instead of waiting for the complete response. May consume more resources."
       },
       "autoOpenFile": {
-        "label": "Ouverture automatique des fichiers",
+        "label": "Envoyer le chemin du fichier ouvert",
         "enabled": "Activé",
         "disabled": "Désactivé",
         "hint": "Lorsqu'activé, sélectionner un fichier dans l'arborescence du projet enverra automatiquement son chemin à l'AI (note : seul le chemin du fichier est envoyé, pas son contenu). Lorsque désactivé, une action manuelle est requise."
@@ -354,6 +355,16 @@
       "localProviderName": "Local settings.json",
       "localProviderDescription": "Use configuration directly from ~/.claude/settings.json",
       "localProviderHelp": "When using local provider mode:\n• The plugin will not modify your ~/.claude/settings.json file\n• You need to manually manage your configurations\n• Make sure the file exists and contains valid JSON\n• Suitable for advanced users who prefer manual control",
+      "authorizeAndEnable": "Autoriser et activer",
+      "revokeAuthorization": "Révoquer l'autorisation",
+      "cliLoginProviderName": "État de connexion CLI",
+      "cliLoginProviderDescription": "Réutiliser l'état de connexion Claude CLI que vous avez déjà établi dans le terminal",
+      "cliLoginAuthorizeTitle": "Autoriser l'état de connexion CLI",
+      "cliLoginAuthorizeMessage": "Cela permettra au plugin d'utiliser votre session de connexion Claude CLI pour les requêtes API. Vous devez vous être connecté via Claude CLI dans votre terminal.",
+      "cliLoginAuthorizeDetail": "Le plugin délègue l'authentification au flux OAuth natif du SDK Claude. Vous pouvez révoquer cette autorisation à tout moment.",
+      "cliLoginDisableTitle": "Révoquer l'autorisation de connexion CLI",
+      "cliLoginDisableMessage": "Cela arrêtera l'utilisation de l'état de connexion CLI et laissera Claude sans fournisseur actif jusqu'à ce que vous en activiez explicitement un autre.",
+      "cliLoginAccountInfo": "Connecté en tant que : {{email}}",
       "subscriptionTutorial": {
         "entry": "Guide du compte d'abonnement",
         "dialogTitle": "Comment utiliser un compte d'abonnement",

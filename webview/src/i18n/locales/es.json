@@ -118,7 +118,8 @@
         "spanish": "Español",
         "french": "Français",
         "japanese": "日本語",
-        "russian": "Русский"
+        "russian": "Русский",
+        "korean": "한국어"
       },
       "nodePath": {
         "label": "Ruta de Node.js",
@@ -153,7 +154,7 @@
         "hint": "When enabled, AI responses will appear character by character in real-time, instead of waiting for the complete response. May consume more resources."
       },
       "autoOpenFile": {
-        "label": "Apertura automática de archivos",
+        "label": "Enviar ruta del archivo abierto",
         "enabled": "Activado",
         "disabled": "Desactivado",
         "hint": "Al activar, seleccionar un archivo en el árbol del proyecto enviará automáticamente su ruta al AI (nota: solo se envía la ruta del archivo, no su contenido). Al desactivar, se requiere acción manual."
@@ -354,6 +355,16 @@
       "localProviderName": "Local settings.json",
       "localProviderDescription": "Use configuration directly from ~/.claude/settings.json",
       "localProviderHelp": "When using local provider mode:\n• The plugin will not modify your ~/.claude/settings.json file\n• You need to manually manage your configurations\n• Make sure the file exists and contains valid JSON\n• Suitable for advanced users who prefer manual control",
+      "authorizeAndEnable": "Autorizar y habilitar",
+      "revokeAuthorization": "Revocar autorización",
+      "cliLoginProviderName": "Estado de inicio de sesión CLI",
+      "cliLoginProviderDescription": "Reutilizar el estado de inicio de sesión de Claude CLI que ya completó en la terminal",
+      "cliLoginAuthorizeTitle": "Autorizar estado de inicio de sesión CLI",
+      "cliLoginAuthorizeMessage": "Esto permitirá que el plugin use su sesión de inicio de sesión de Claude CLI para solicitudes API. Debe haber iniciado sesión a través de Claude CLI en su terminal.",
+      "cliLoginAuthorizeDetail": "El plugin delega la autenticación al flujo OAuth nativo del SDK de Claude. Puede revocar esta autorización en cualquier momento.",
+      "cliLoginDisableTitle": "Revocar autorización de inicio de sesión CLI",
+      "cliLoginDisableMessage": "Esto dejará de usar el estado de inicio de sesión CLI y dejará a Claude sin proveedor activo hasta que habilite explícitamente otro.",
+      "cliLoginAccountInfo": "Conectado como: {{email}}",
       "subscriptionTutorial": {
         "entry": "Tutorial de cuenta de suscripción",
         "dialogTitle": "Cómo usar una cuenta de suscripción",

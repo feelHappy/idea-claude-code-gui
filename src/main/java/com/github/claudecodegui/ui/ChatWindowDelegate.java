@@ -1,11 +1,12 @@
 package com.github.claudecodegui.ui;
 
-import com.github.claudecodegui.ClaudeCodeGuiBundle;
-import com.github.claudecodegui.ClaudeSession;
-import com.github.claudecodegui.CodemossSettingsService;
+import com.github.claudecodegui.i18n.ClaudeCodeGuiBundle;
+import com.github.claudecodegui.session.ClaudeSession;
+import com.github.claudecodegui.settings.CodemossSettingsService;
 import com.github.claudecodegui.handler.AgentHandler;
 import com.github.claudecodegui.handler.BmadHandler;
 import com.github.claudecodegui.handler.ClipboardHandler;
+import com.github.claudecodegui.handler.CursorHandler;
 import com.github.claudecodegui.handler.CodexMcpServerHandler;
 import com.github.claudecodegui.handler.DependencyHandler;
 import com.github.claudecodegui.handler.DiffHandler;
@@ -14,12 +15,14 @@ import com.github.claudecodegui.handler.FileHandler;
 import com.github.claudecodegui.handler.GitNexusHandler;
 import com.github.claudecodegui.handler.HandlerContext;
 import com.github.claudecodegui.handler.HistoryHandler;
+import com.github.claudecodegui.handler.core.HandlerContext;
+import com.github.claudecodegui.handler.history.HistoryHandler;
 import com.github.claudecodegui.handler.McpServerHandler;
-import com.github.claudecodegui.handler.MessageDispatcher;
+import com.github.claudecodegui.handler.core.MessageDispatcher;
 import com.github.claudecodegui.handler.PermissionHandler;
 import com.github.claudecodegui.handler.PromptEnhancerHandler;
 import com.github.claudecodegui.handler.PromptHandler;
-import com.github.claudecodegui.handler.ProviderHandler;
+import com.github.claudecodegui.handler.provider.ProviderHandler;
 import com.github.claudecodegui.handler.RewindHandler;
 import com.github.claudecodegui.handler.SessionHandler;
 import com.github.claudecodegui.handler.SettingsHandler;
@@ -28,6 +31,9 @@ import com.github.claudecodegui.handler.TabHandler;
 import com.github.claudecodegui.handler.UiUxProHandler;
 import com.github.claudecodegui.handler.UndoFileHandler;
 import com.github.claudecodegui.handler.WindowEventHandler;
+import com.github.claudecodegui.handler.file.FileExportHandler;
+import com.github.claudecodegui.handler.file.FileHandler;
+import com.github.claudecodegui.handler.file.UndoFileHandler;
 import com.github.claudecodegui.permission.PermissionService;
 import com.github.claudecodegui.provider.claude.ClaudeSDKBridge;
 import com.github.claudecodegui.provider.codex.CodexSDKBridge;
@@ -283,6 +289,7 @@ public class ChatWindowDelegate {
         messageDispatcher.registerHandler(new UiUxProHandler(handlerContext));
         messageDispatcher.registerHandler(new GitNexusHandler(handlerContext));
         messageDispatcher.registerHandler(new ClipboardHandler(handlerContext));
+        messageDispatcher.registerHandler(new CursorHandler(handlerContext));
 
         // Window event handler
         messageDispatcher.registerHandler(new WindowEventHandler(handlerContext, new WindowEventHandler.Callback() {

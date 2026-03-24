@@ -118,7 +118,8 @@
         "spanish": "Español",
         "french": "Français",
         "japanese": "日本語",
-        "russian": "Русский"
+        "russian": "Русский",
+        "korean": "한국어"
       },
       "nodePath": {
         "label": "Node.js पथ",
@@ -153,7 +154,7 @@
         "hint": "When enabled, AI responses will appear character by character in real-time, instead of waiting for the complete response. May consume more resources."
       },
       "autoOpenFile": {
-        "label": "फ़ाइल स्वतः खोलें",
+        "label": "खुली फ़ाइल पथ भेजें",
         "enabled": "सक्षम",
         "disabled": "अक्षम",
         "hint": "सक्षम होने पर, प्रोजेक्ट ट्री में फ़ाइल चुनने पर उसका फ़ाइल पथ स्वचालित रूप से AI को भेजा जाएगा (ध्यान दें: केवल फ़ाइल पथ भेजा जाता है, फ़ाइल सामग्री नहीं)। अक्षम होने पर मैन्युअल कार्रवाई आवश्यक है।"
@@ -354,6 +355,16 @@
       "localProviderName": "Local settings.json",
       "localProviderDescription": "Use configuration directly from ~/.claude/settings.json",
       "localProviderHelp": "When using local provider mode:\n• The plugin will not modify your ~/.claude/settings.json file\n• You need to manually manage your configurations\n• Make sure the file exists and contains valid JSON\n• Suitable for advanced users who prefer manual control",
+      "authorizeAndEnable": "अधिकृत करें और सक्षम करें",
+      "revokeAuthorization": "प्राधिकरण रद्द करें",
+      "cliLoginProviderName": "CLI लॉगिन स्थिति",
+      "cliLoginProviderDescription": "टर्मिनल में पहले से पूर्ण की गई आपकी Claude CLI लॉगिन स्थिति का पुन: उपयोग करें",
+      "cliLoginAuthorizeTitle": "CLI लॉगिन स्थिति को अधिकृत करें",
+      "cliLoginAuthorizeMessage": "यह प्लगइन को API अनुरोधों के लिए आपके Claude CLI लॉगिन सत्र का उपयोग करने की अनुमति देगा। आपको पहले टर्मिनल में Claude CLI के माध्यम से लॉग इन होना चाहिए।",
+      "cliLoginAuthorizeDetail": "प्लगइन प्रमाणीकरण को Claude SDK के मूल OAuth प्रवाह को सौंपता है। आप किसी भी समय इस प्राधिकरण को रद्द कर सकते हैं।",
+      "cliLoginDisableTitle": "CLI लॉगिन प्राधिकरण रद्द करें",
+      "cliLoginDisableMessage": "यह CLI लॉगिन स्थिति का उपयोग बंद कर देगा और जब तक आप स्पष्ट रूप से कोई अन्य प्रदाता सक्षम नहीं करते, Claude को बिना किसी सक्रिय प्रदाता के छोड़ देगा।",
+      "cliLoginAccountInfo": "के रूप में लॉग इन: {{email}}",
       "subscriptionTutorial": {
         "entry": "सदस्यता खाता गाइड",
         "dialogTitle": "सदस्यता खाता कैसे उपयोग करें",
