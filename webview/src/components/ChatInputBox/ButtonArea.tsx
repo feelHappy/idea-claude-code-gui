@@ -1,6 +1,9 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ButtonAreaProps, ModelInfo, PermissionMode, ReasoningEffort } from './types';
+import { BmadCommandBar } from './BmadCommandBar.js';
+import { GitNexusBar } from './GitNexusBar.js';
+import { UiUxProBar } from './UiUxProBar.js';
 import { ConfigSelect, ModelSelect, ModeSelect, ProviderSelect, ReasoningSelect } from './selectors';
 import { CLAUDE_MODELS, CODEX_MODELS } from './types';
 import { STORAGE_KEYS, validateCodexCustomModels } from '../../types/provider';
@@ -90,6 +93,9 @@ export const ButtonArea = ({
   onAgentSelect,
   onOpenAgentSettings,
   onAddModel,
+  bmad,
+  uiUxPro,
+  gitNexus,
 }: ButtonAreaProps) => {
   const { t } = useTranslation();
   // const fileInputRef = useRef<HTMLInputElement>(null);
@@ -121,6 +127,46 @@ export const ButtonArea = ({
       window.removeEventListener('localStorageChange', handleCustomStorageChange as EventListener);
     };
   }, []);
+
+  const addonTabs = useMemo(() => {
+    const tabs: Array<{ id: 'bmad' | 'uiUxPro' | 'gitNexus'; label: string; icon: string }> = [];
+    if (bmad) {
+      tabs.push({
+        id: 'bmad',
+        label: t('chat.bmad.title', { defaultValue: 'BMad' }),
+        icon: 'codicon-hubot',
+      });
+    }
+    if (uiUxPro) {
+      tabs.push({
+        id: 'uiUxPro',
+        label: t('chat.uiUxPro.title', { defaultValue: 'UI UX Pro Max' }),
+        icon: 'codicon-symbol-color',
+      });
+    }
+    if (gitNexus) {
+      tabs.push({
+        id: 'gitNexus',
+        label: t('chat.gitNexus.title', { defaultValue: 'GitNexus' }),
+        icon: 'codicon-graph',
+      });
+    }
+    return tabs;
+  }, [bmad, gitNexus, t, uiUxPro]);
+
+  const [activeAddonTab, setActiveAddonTab] = useState<'bmad' | 'uiUxPro' | 'gitNexus'>(
+    uiUxPro && !bmad ? 'uiUxPro' : gitNexus && !bmad && !uiUxPro ? 'gitNexus' : 'bmad'
+  );
+
+  useEffect(() => {
+    if (addonTabs.length === 0) {
+      return;
+    }
+
+    if (!addonTabs.some((tab) => tab.id === activeAddonTab)) {
+      setActiveAddonTab(addonTabs[0].id);
+    }
+  }, [activeAddonTab, addonTabs]);
 
   /**
    * Apply model name mapping
@@ -240,63 +286,87 @@ export const ButtonArea = ({
 
   return (
     <div className="button-area" data-provider={currentProvider}>
-      {/* Left side: selectors */}
-      <div className="button-area-left">
-        <ConfigSelect
-          alwaysThinkingEnabled={alwaysThinkingEnabled}
-          onToggleThinking={onToggleThinking}
-          streamingEnabled={streamingEnabled}
-          onStreamingEnabledChange={onStreamingEnabledChange}
-          selectedAgent={selectedAgent}
-          onAgentSelect={onAgentSelect}
-          onOpenAgentSettings={onOpenAgentSettings}
-        />
-        <ProviderSelect
-          value={currentProvider}
-          onChange={handleProviderSelect}
-          compact
-        />
-        <ModeSelect value={permissionMode} onChange={handleModeSelect} provider={currentProvider} />
-        <ModelSelect value={selectedModel} onChange={handleModelSelect} models={availableModels} currentProvider={currentProvider} onAddModel={onAddModel} />
-        {currentProvider === 'codex' && (
-          <ReasoningSelect value={reasoningEffort} onChange={handleReasoningChange} />
-        )}
+      <div className="button-area-top">
+        <div className="button-area-left">
+          <ConfigSelect
+            alwaysThinkingEnabled={alwaysThinkingEnabled}
+            onToggleThinking={onToggleThinking}
+            streamingEnabled={streamingEnabled}
+            onStreamingEnabledChange={onStreamingEnabledChange}
+            selectedAgent={selectedAgent}
+            onAgentSelect={onAgentSelect}
+            onOpenAgentSettings={onOpenAgentSettings}
+          />
+          <ProviderSelect
+            value={currentProvider}
+            onChange={handleProviderSelect}
+            compact
+          />
+          <ModeSelect value={permissionMode} onChange={handleModeSelect} provider={currentProvider} />
+          <ModelSelect value={selectedModel} onChange={handleModelSelect} models={availableModels} currentProvider={currentProvider} onAddModel={onAddModel} />
+          {currentProvider === 'codex' && (
+            <ReasoningSelect value={reasoningEffort} onChange={handleReasoningChange} />
+          )}
+        </div>
+
+        <div className="button-area-right">
+          <div className="button-divider" />
+
+          <button
+            className="enhance-prompt-button has-tooltip"
+            onClick={handleEnhanceClick}
+            disabled={disabled || !hasInputContent || isLoading || isEnhancing}
+            data-tooltip={`${t('promptEnhancer.tooltip')} (${t('promptEnhancer.shortcut')})`}
+          >
+            <span className={`codicon ${isEnhancing ? 'codicon-loading codicon-modifier-spin' : 'codicon-sparkle'}`} />
+          </button>
+
+          {isLoading ? (
+            <button
+              className="submit-button stop-button"
+              onClick={handleStopClick}
+              title={t('chat.stopGeneration')}
+            >
+              <span className="codicon codicon-debug-stop" />
+            </button>
+          ) : (
+            <button
+              className="submit-button"
+              onClick={handleSubmitClick}
+              disabled={disabled || !hasInputContent}
+              title={t('chat.sendMessageEnter')}
+            >
+              <span className="codicon codicon-send" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Right side: tool buttons */}
-      <div className="button-area-right">
-        <div className="button-divider" />
+      {addonTabs.length > 0 ? (
+        <div className="button-area-bottom">
+          <div className="addon-panel">
+            {addonTabs.length > 1 ? (
+              <div className="addon-tabs">
+                {addonTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    className={`addon-tab${tab.id === activeAddonTab ? ' active' : ''}`}
+                    onClick={() => setActiveAddonTab(tab.id)}
+                  >
+                    <span className={`codicon ${tab.icon}`} />
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
-        {/* Enhance prompt button */}
-        <button
-          className="enhance-prompt-button has-tooltip"
-          onClick={handleEnhanceClick}
-          disabled={disabled || !hasInputContent || isLoading || isEnhancing}
-          data-tooltip={`${t('promptEnhancer.tooltip')} (${t('promptEnhancer.shortcut')})`}
-        >
-          <span className={`codicon ${isEnhancing ? 'codicon-loading codicon-modifier-spin' : 'codicon-sparkle'}`} />
-        </button>
-
-        {/* Send/Stop button */}
-        {isLoading ? (
-          <button
-            className="submit-button stop-button"
-            onClick={handleStopClick}
-            title={t('chat.stopGeneration')}
-          >
-            <span className="codicon codicon-debug-stop" />
-          </button>
-        ) : (
-          <button
-            className="submit-button"
-            onClick={handleSubmitClick}
-            disabled={disabled || !hasInputContent}
-            title={t('chat.sendMessageEnter')}
-          >
-            <span className="codicon codicon-send" />
-          </button>
-        )}
-      </div>
+            {activeAddonTab === 'bmad' && bmad ? <BmadCommandBar {...bmad} /> : null}
+            {activeAddonTab === 'uiUxPro' && uiUxPro ? <UiUxProBar {...uiUxPro} /> : null}
+            {activeAddonTab === 'gitNexus' && gitNexus ? <GitNexusBar {...gitNexus} /> : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

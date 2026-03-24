@@ -30,7 +30,7 @@ checkstyle {
 }
 
 group = 'com.github.jetbrains-long-gui'
-version = '0.3'
+version = '1.0.0'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -485,6 +485,8 @@ tasks.matching { it.name == 'preparePluginForDistribution' || it.name == 'compos
 
 tasks.named('buildPlugin') {
     dependsOn('packageAiBridge', 'checkstyleMain')
+    archiveBaseName.set('cc-ai-toolkit')
+    archiveVersion.set(project.version.toString())
 
     doLast {
         // Unzip the plugin zip, add ai-bridge.zip and ai-bridge.hash, then repackage

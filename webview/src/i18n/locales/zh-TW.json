@@ -88,7 +88,258 @@
     "unknownFile": "Unknown file",
     "attachmentsUploaded": "[已上傳附件]",
     "streamingConnected": "Claude 已成功連接，正在理解問題",
-    "showEarlierMessages": "顯示之前的 {{count}} 則訊息"
+    "showEarlierMessages": "顯示之前的 {{count}} 則訊息",
+    "bmad": {
+      "title": "BMad",
+      "selectAria": "選擇一個 BMad 工作流",
+      "insert": "插入",
+      "insertAndSend": "送出",
+      "install": "安裝",
+      "repair": "修復",
+      "installing": "安裝中...",
+      "refresh": "重新整理",
+      "searchPlaceholder": "搜尋命令或說明",
+      "searchEmpty": "沒有符合的 BMad 命令。",
+      "readyHint": "選一個工作流，然後點「插入」或「送出」。",
+      "missingHint": "目前專案還沒配置 BMad，點「安裝」就能自動準備好。",
+      "partialHint": "偵測到 BMad 安裝不完整，點「修復」補齊目前專案。",
+      "loadingHint": "正在檢查目前專案的 BMad 狀態...",
+      "unsupportedHint": "BMad 目前只支援 Claude Code 和 Codex。",
+      "errorHint": "BMad 狀態檢查失敗，可先重新整理，必要時重新安裝。",
+      "nodeHint": "請先安裝 Node.js 18 或更高版本，再回來一鍵安裝 BMad。",
+      "installStart": "正在為 {{provider}} 安裝 BMad...",
+      "installBusy": "已有一個 BMad 安裝任務正在執行，請稍候再試。",
+      "installSuccess": "{{provider}} 的 BMad 已可用。",
+      "installFailed": "BMad 安裝失敗。",
+      "installFailedWithReason": "BMad 安裝失敗：{{reason}}",
+      "resultParseFailed": "處理 BMad 安裝結果失敗。",
+      "status": {
+        "loading": "檢查中",
+        "ready": "可用",
+        "missing": "未安裝",
+        "partial": "需修復",
+        "unsupported": "不支援",
+        "error": "異常"
+      },
+      "groups": {
+        "agents": "角色",
+        "analysis": "分析",
+        "planning": "規劃",
+        "solutioning": "方案",
+        "implementation": "研發",
+        "utilities": "常用"
+      },
+      "kinds": {
+        "agent": "角色",
+        "workflow": "流程"
+      },
+      "commands": {
+        "bmad-analyst": "載入 Analyst 角色，適合做需求分析、研究整理與專案前期探索。",
+        "bmad-pm": "載入 Product Manager 角色，適合推進產品規劃、範圍界定與 PRD 決策。",
+        "bmad-architect": "載入 Architect 角色，適合做技術架構、系統設計與方案把關。",
+        "bmad-ux-designer": "載入 UX Designer 角色，適合做介面流程、使用者旅程與體驗設計。",
+        "bmad-sm": "載入 Scrum Master 角色，適合協調 Story 流轉、Sprint 準備與交付節奏。",
+        "bmad-dev": "載入 Developer 角色，適合進入實作階段、撰寫程式並推進交付。",
+        "bmad-qa": "載入 QA 角色，適合做測試策略、品質檢查與驗證規劃。",
+        "bmad-tech-writer": "載入 Tech Writer 角色，適合撰寫技術文件、說明文案與交付材料。",
+        "bmad-quick-flow-solo-dev": "載入單人快流程角色，適合一個人快速完成輕量交付。",
+        "bmad-advanced-elicitation": "透過有針對性的追問，補齊目標、限制與缺失需求。",
+        "bmad-brainstorming": "用結構化方式做腦力激盪，適合發散想法與收斂方向。",
+        "bmad-help": "幫你推薦下一步該走哪個 BMad 流程，或說明接下來怎麼做。",
+        "bmad-market-research": "研究市場、使用者需求、趨勢和競品格局。",
+        "bmad-domain-research": "深入梳理業務領域、術語、流程與上下文知識。",
+        "bmad-technical-research": "評估技術可行性、方案選型與實作路徑。",
+        "bmad-create-product-brief": "在寫 PRD 前，先把產品想法整理成聚焦的 Brief。",
+        "bmad-product-brief-preview": "預覽並校準 Product Brief，再決定是否進入 PRD 階段。",
+        "bmad-create-prd": "為新功能或新專案產生結構化 PRD。",
+        "bmad-validate-prd": "檢查 PRD 是否完整、精簡且前後一致。",
+        "bmad-edit-prd": "在既有 PRD 基礎上做增強與修訂，而不是重寫。",
+        "bmad-create-ux-design": "規劃 UX 與互動流程，尤其適合 UI 比重高的專案。",
+        "bmad-create-architecture": "輸出技術架構與方案設計。",
+        "bmad-create-epics-and-stories": "把 PRD 和架構拆成 Epic 與可執行 Story。",
+        "bmad-check-implementation-readiness": "在進入交付前，檢查 PRD、UX、架構和 Story 是否已對齊。",
+        "bmad-sprint-planning": "把準備好的 Story 整理成可執行的 Sprint 計畫。",
+        "bmad-sprint-status": "彙整目前 Sprint 進度，並指向下一步該走的流程。",
+        "bmad-create-story": "在開發開始前整理下一條 Story。",
+        "bmad-dev-story": "依照 BMad 流程實作目前 Story。",
+        "bmad-code-review": "在開發完成後執行 BMad Review。",
+        "bmad-qa-generate-e2e-tests": "結合專案現有測試棧，補齊自動化 QA 或 E2E 測試。",
+        "bmad-retrospective": "在階段完成後做回顧，整理經驗與下一步動作。",
+        "bmad-quick-dev": "小需求或簡單修改走輕量快開發流程。",
+        "bmad-quick-dev-new-preview": "使用實驗中的一體化快流程，一次完成澄清、規劃、實作、評審與交付說明。",
+        "bmad-quick-spec": "為一次性任務、小應用或簡單存量改造產生輕量規格說明。",
+        "bmad-document-project": "在深入規劃或交付前先整理既有專案文件。",
+        "bmad-generate-project-context": "為存量專案產生精簡上下文，方便智能體理解專案。",
+        "bmad-correct-course": "當範圍、計畫或實作跑偏時，用來糾偏。",
+        "bmad-distillator": "把長文件、長筆記或長輸出壓縮成結構化摘要。",
+        "bmad-editorial-review-prose": "檢查文案表達的清晰度、語氣、可讀性與措辭。",
+        "bmad-editorial-review-structure": "檢查文件結構、順序安排與整體資訊流。",
+        "bmad-index-docs": "為專案文件產生索引，方便後續 BMad 流程引用。",
+        "bmad-party-mode": "切換到更自由、更有創意的協作模式，適合探索大膽想法。",
+        "bmad-review-adversarial-general": "用對抗式視角審視方案或輸出，盡早暴露薄弱點。",
+        "bmad-review-edge-case-hunter": "專門排查邊界情境、失敗模式與容易忽略的問題。",
+        "bmad-shard-doc": "把超長文件拆成更容易閱讀和評審的小段。"
+      }
+    },
+    "uiUxPro": {
+      "title": "UI UX Pro Max",
+      "selectAria": "選擇一個 UI UX Pro Max 場景",
+      "insert": "插入",
+      "insertAndSend": "送出",
+      "install": "安裝",
+      "installWithDeps": "安裝並補環境",
+      "repair": "修復",
+      "installing": "安裝中...",
+      "refresh": "重新整理",
+      "preview": "起步提示詞",
+      "searchPlaceholder": "搜尋場景或說明",
+      "searchEmpty": "沒有符合的 UI UX Pro Max 場景。",
+      "readyHint": "安裝完成後可以直接描述 UI/UX 需求，也可以先插入一個起步提示詞。",
+      "missingHint": "目前專案還沒配置 UI UX Pro Max，點「安裝」就能自動準備好。",
+      "partialHint": "偵測到 UI UX Pro Max 安裝不完整，點「修復」補齊目前專案。",
+      "loadingHint": "正在檢查目前專案的 UI UX Pro Max 狀態...",
+      "unsupportedHint": "UI UX Pro Max 目前只支援 Claude Code 和 Codex。",
+      "errorHint": "UI UX Pro Max 狀態檢查失敗，可先重新整理，必要時重新安裝。",
+      "nodeHint": "請先安裝 Node.js 18 或更高版本，再回來一鍵安裝 UI UX Pro Max。",
+      "nodeBootstrapHint": "缺少 Node.js。點「安裝」後，外掛會在 Windows 下嘗試自動安裝。",
+      "pythonHint": "請先安裝 Python 3.x，再回來一鍵安裝 UI UX Pro Max。",
+      "pythonBootstrapHint": "缺少 Python 3.x。點「安裝」後，外掛會在 Windows 下嘗試自動安裝。",
+      "autoTriggerHint": "安裝一次後，直接自然語言描述 UI/UX 需求就會觸發該技能。",
+      "explicitHint": "自然語言就能自動觸發；Codex 也可以顯式寫 {{command}}。",
+      "installStart": "正在為 {{provider}} 安裝 UI UX Pro Max...",
+      "installBusy": "已有一個 UI UX Pro Max 安裝任務正在執行，請稍候再試。",
+      "installSuccess": "{{provider}} 的 UI UX Pro Max 已可用。",
+      "installFailed": "UI UX Pro Max 安裝失敗。",
+      "installFailedWithReason": "UI UX Pro Max 安裝失敗：{{reason}}",
+      "resultParseFailed": "處理 UI UX Pro Max 安裝結果失敗。",
+      "status": {
+        "loading": "檢查中",
+        "ready": "可用",
+        "missing": "未安裝",
+        "partial": "需修復",
+        "unsupported": "不支援",
+        "error": "異常"
+      },
+      "groups": {
+        "create": "建立",
+        "review": "評審",
+        "system": "體系"
+      },
+      "prompts": {
+        "landingPage": {
+          "title": "落地頁",
+          "description": "產出一個視覺方向明確、可直接落地的行銷或產品落地頁方案。",
+          "prompt": "請使用 UI UX Pro Max，為我設計一個高質感的 SaaS 落地頁，包含清晰的資訊層級、強烈的視覺對比、完整內容分區，以及可直接落地為前端程式碼的實作建議。"
+        },
+        "dashboard": {
+          "title": "資料看板",
+          "description": "規劃帶有卡片、圖表與版面節奏的分析型後台介面。",
+          "prompt": "請使用 UI UX Pro Max，為我設計一個分析型 dashboard，重點考慮資訊層級、卡片與圖表版面、響應式結構，以及適合前端實作的元件拆分方式。"
+        },
+        "mobileApp": {
+          "title": "行動應用",
+          "description": "產出行動優先的應用流程、主畫面與互動體驗建議。",
+          "prompt": "請使用 UI UX Pro Max，為我設計一個行動優先的應用流程，涵蓋核心頁面、關鍵互動模式、無障礙考量與統一的視覺語言。"
+        },
+        "designReview": {
+          "title": "設計評審",
+          "description": "檢查目前頁面或元件的版面、層級、可讀性與 UX 問題，並給出整改建議。",
+          "prompt": "請使用 UI UX Pro Max，幫我評審目前頁面或元件，從版面、層級、間距、字體、可存取性與互動體驗幾個面向指出問題，並給出可執行的改造建議。"
+        },
+        "componentRefactor": {
+          "title": "元件改造",
+          "description": "只針對一個現有元件做視覺與互動重構，不重做整個系統。",
+          "prompt": "請使用 UI UX Pro Max，幫我把這個現有元件重構得更一致、更清晰，重點優化狀態設計、間距節奏、響應式表現與互動回饋。"
+        },
+        "designSystem": {
+          "title": "設計體系",
+          "description": "為產品建立可重用的色彩、字體、間距與元件規範。",
+          "prompt": "請使用 UI UX Pro Max，為目前產品定義一套輕量設計系統，包含色彩 token、字體層級、間距規則、核心元件規範，以及前端實作建議。"
+        }
+      }
+    },
+    "gitNexus": {
+      "title": "GitNexus",
+      "selectAria": "選擇一個 GitNexus 起步問題",
+      "insert": "插入",
+      "insertAndSend": "送出",
+      "install": "安裝",
+      "installWithDeps": "安裝並補環境",
+      "repair": "修復",
+      "reindex": "重建索引",
+      "installing": "安裝中...",
+      "refresh": "重新整理",
+      "preview": "起步提示詞",
+      "searchPlaceholder": "搜尋問題或說明",
+      "searchEmpty": "沒有符合的 GitNexus 起步問題。",
+      "readyHint": "GitNexus 已就緒。你可以直接提倉庫級問題，或先插入一個起步問題。",
+      "missingHint": "目前倉庫還沒配置 GitNexus，點「安裝」會自動執行 setup 和 analyze。",
+      "partialHint": "偵測到 GitNexus 安裝不完整，點「安裝」或「重建索引」補齊目前倉庫。",
+      "loadingHint": "正在檢查目前倉庫的 GitNexus 狀態...",
+      "unsupportedHint": "GitNexus 目前只支援 Claude Code 和 Codex。",
+      "errorHint": "GitNexus 狀態檢查失敗，可先重新整理，必要時重新安裝。",
+      "repoHint": "GitNexus 只適用於 Git 倉庫，請打開倉庫根目錄後再試。",
+      "nodeHint": "請先安裝 Node.js 18 或更高版本，再回來一鍵安裝 GitNexus。",
+      "nodeBootstrapHint": "缺少 Node.js。點「安裝」後，外掛會在 Windows 下嘗試自動安裝。",
+      "detailHint": "GitNexus 會為倉庫建立圖譜與 MCP 工具，後續問呼叫鏈、影響面、模組關係會更準。",
+      "installStart": "正在為 {{provider}} 安裝 GitNexus...",
+      "reindexStart": "正在為 {{provider}} 重建 GitNexus 索引...",
+      "installBusy": "已有一個 GitNexus 任務正在執行，請稍候再試。",
+      "installSuccess": "{{provider}} 的 GitNexus 已可用。",
+      "installFailed": "GitNexus 安裝失敗。",
+      "installFailedWithReason": "GitNexus 安裝失敗：{{reason}}",
+      "resultParseFailed": "處理 GitNexus 安裝結果失敗。",
+      "status": {
+        "loading": "檢查中",
+        "ready": "可用",
+        "missing": "未安裝",
+        "partial": "需修復",
+        "unsupported": "不支援",
+        "error": "異常"
+      },
+      "groups": {
+        "understand": "理解倉庫",
+        "change": "改動評估"
+      },
+      "scopeLabel": "分析範圍",
+      "scopes": {
+        "repo": "全倉庫",
+        "directory": "目前目錄",
+        "module": "目前模組"
+      },
+      "scopeSummary": {
+        "repo": "全倉庫：{{path}}",
+        "directory": "目前目錄：{{path}}",
+        "module": "目前模組：{{path}}"
+      },
+      "scopePrompt": {
+        "repo": "請把分析範圍限定在這個倉庫根目錄：{{path}}\n\n{{prompt}}",
+        "directory": "請把分析範圍限定在這個目錄：{{path}}\n\n{{prompt}}",
+        "module": "請把分析範圍限定在這個模組根目錄：{{path}}\n\n{{prompt}}"
+      },
+      "prompts": {
+        "repoOverview": {
+          "title": "倉庫總覽",
+          "description": "快速建立對整個倉庫結構、模組邊界和關鍵依賴的認知。",
+          "prompt": "請使用 GitNexus，對這個倉庫做整體梳理：總結主要模組、邊界關係、關鍵依賴，以及我優先應該閱讀的目錄和檔案。"
+        },
+        "callChain": {
+          "title": "呼叫鏈",
+          "description": "追蹤某個功能或方法的入口、呼叫鏈和下游依賴。",
+          "prompt": "請使用 GitNexus，幫我追蹤我接下來提到的功能或方法的呼叫鏈，從入口一路梳理到下游服務、關鍵檔案和依賴。"
+        },
+        "hotspots": {
+          "title": "風險熱點",
+          "description": "找出耦合高、易變更、後續維護風險高的模組。",
+          "prompt": "請使用 GitNexus，幫我找出這個倉庫裡的架構熱點，包括高耦合模組、改動頻繁區域，以及未來維護風險較高的部分。"
+        },
+        "changeImpact": {
+          "title": "影響面",
+          "description": "在改程式前，先評估會影響哪些呼叫方、下游和測試範圍。",
+          "prompt": "請使用 GitNexus，幫我評估我接下來提到的模組、類別或介面改動影響面，包括可能受影響的檔案、上游呼叫方、下游消費者和需要關注的測試範圍。"
+        }
+      }
+    }
   },
   "settings": {
     "title": "設定",

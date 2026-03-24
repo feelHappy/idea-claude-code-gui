@@ -583,6 +583,51 @@ interface Window {
   dependencyUninstallResult?: (json: string) => void;
 
   /**
+   * Update BMad onboarding status
+   */
+  updateBmadStatus?: (json: string) => void;
+
+  /**
+   * BMad install progress callback
+   */
+  bmadInstallProgress?: (json: string) => void;
+
+  /**
+   * BMad install result callback
+   */
+  bmadInstallResult?: (json: string) => void;
+
+  /**
+   * Update UI UX Pro Max onboarding status
+   */
+  updateUiUxProStatus?: (json: string) => void;
+
+  /**
+   * UI UX Pro Max install progress callback
+   */
+  uiUxProInstallProgress?: (json: string) => void;
+
+  /**
+   * UI UX Pro Max install result callback
+   */
+  uiUxProInstallResult?: (json: string) => void;
+
+  /**
+   * Update GitNexus onboarding status
+   */
+  updateGitNexusStatus?: (json: string) => void;
+
+  /**
+   * GitNexus install progress callback
+   */
+  gitNexusInstallProgress?: (json: string) => void;
+
+  /**
+   * GitNexus install result callback
+   */
+  gitNexusInstallResult?: (json: string) => void;
+
+  /**
    * Node environment status callback
    */
   nodeEnvironmentStatus?: (json: string) => void;

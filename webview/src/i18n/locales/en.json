@@ -88,7 +88,258 @@
     "unknownFile": "Unknown file",
     "attachmentsUploaded": "[Attachments Uploaded]",
     "streamingConnected": "Claude connected, understanding your question",
-    "showEarlierMessages": "Show {{count}} earlier messages"
+    "showEarlierMessages": "Show {{count}} earlier messages",
+    "bmad": {
+      "title": "BMad",
+      "selectAria": "Select a BMad workflow",
+      "insert": "Insert",
+      "insertAndSend": "Send",
+      "install": "Install",
+      "repair": "Repair",
+      "installing": "Installing...",
+      "refresh": "Refresh",
+      "searchPlaceholder": "Search commands or descriptions",
+      "searchEmpty": "No matching BMad commands.",
+      "readyHint": "Choose a workflow, then click Insert or Send.",
+      "missingHint": "BMad is not set up for this project yet. Click Install to prepare it.",
+      "partialHint": "A partial BMad setup was detected. Click Repair to complete it.",
+      "loadingHint": "Checking the current project for a BMad setup...",
+      "unsupportedHint": "BMad onboarding currently supports Claude Code and Codex only.",
+      "errorHint": "BMad status check failed. Try Refresh or reinstall.",
+      "nodeHint": "Install Node.js 18 or later first, then return here for one-click setup.",
+      "installStart": "Installing BMad for {{provider}}...",
+      "installBusy": "Another BMad installation is already running. Please wait and retry.",
+      "installSuccess": "BMad is ready for {{provider}}.",
+      "installFailed": "BMad installation failed.",
+      "installFailedWithReason": "BMad installation failed: {{reason}}",
+      "resultParseFailed": "Failed to process the BMad installation result.",
+      "status": {
+        "loading": "Checking",
+        "ready": "Ready",
+        "missing": "Not Installed",
+        "partial": "Needs Repair",
+        "unsupported": "Unsupported",
+        "error": "Error"
+      },
+      "groups": {
+        "agents": "Agents",
+        "analysis": "Analysis",
+        "planning": "Planning",
+        "solutioning": "Solutioning",
+        "implementation": "Implementation",
+        "utilities": "Utilities"
+      },
+      "kinds": {
+        "agent": "Agent",
+        "workflow": "Workflow"
+      },
+      "commands": {
+        "bmad-analyst": "Load the Analyst agent for discovery, requirement analysis, and structured project exploration.",
+        "bmad-pm": "Load the Product Manager agent to drive product planning, scope, and PRD-oriented decisions.",
+        "bmad-architect": "Load the Architect agent for technical architecture, system design, and implementation guidance.",
+        "bmad-ux-designer": "Load the UX Designer agent for interface flows, user journeys, and experience design work.",
+        "bmad-sm": "Load the Scrum Master agent to coordinate story flow, sprint preparation, and delivery sequencing.",
+        "bmad-dev": "Load the Developer agent to implement stories, write code, and handle delivery-focused execution.",
+        "bmad-qa": "Load the QA agent for testing strategy, quality checks, and verification planning.",
+        "bmad-tech-writer": "Load the Tech Writer agent to produce technical docs, explanations, and polished written outputs.",
+        "bmad-quick-flow-solo-dev": "Load the solo quick-flow agent for fast one-person delivery without the full multi-role sequence.",
+        "bmad-advanced-elicitation": "Ask targeted follow-up questions to clarify goals, constraints, and missing requirements.",
+        "bmad-brainstorming": "Guide a structured brainstorming session across one or more ideation techniques.",
+        "bmad-help": "Recommend the next BMad workflow or explain what to do next.",
+        "bmad-market-research": "Research the market, customer needs, trends, and the competitive landscape.",
+        "bmad-domain-research": "Deep-dive into the domain, terminology, workflows, and subject-matter context.",
+        "bmad-technical-research": "Evaluate technical feasibility, solution options, and implementation approaches.",
+        "bmad-create-product-brief": "Capture a new product idea as a focused brief before PRD work starts.",
+        "bmad-product-brief-preview": "Review the product brief and decide what to refine before moving into PRD work.",
+        "bmad-create-prd": "Create a structured PRD for a new feature or project.",
+        "bmad-validate-prd": "Validate that the PRD is complete, lean, and internally consistent.",
+        "bmad-edit-prd": "Improve and refine an existing PRD instead of starting over.",
+        "bmad-create-ux-design": "Plan the UX and interaction flow, especially when UI is a major part of the project.",
+        "bmad-create-architecture": "Produce the technical architecture and solution design.",
+        "bmad-create-epics-and-stories": "Break the PRD and architecture into epics and implementable stories.",
+        "bmad-check-implementation-readiness": "Check that PRD, UX, architecture, epics, and stories are aligned before delivery starts.",
+        "bmad-sprint-planning": "Turn the prepared stories into an execution-ready sprint plan.",
+        "bmad-sprint-status": "Summarize current sprint progress and route to the next BMad workflow.",
+        "bmad-create-story": "Prepare the next story before implementation starts.",
+        "bmad-dev-story": "Implement the current story with the expected BMad flow.",
+        "bmad-code-review": "Run the BMad review step after implementation.",
+        "bmad-qa-generate-e2e-tests": "Generate automated QA or E2E coverage using the project's existing test stack.",
+        "bmad-retrospective": "Review completed work, lessons learned, and what to do next at the end of an epic.",
+        "bmad-quick-dev": "Use the lightweight quick-flow for small tasks and simple changes.",
+        "bmad-quick-dev-new-preview": "Try the experimental quick flow that clarifies, plans, implements, reviews, and presents in one pass.",
+        "bmad-quick-spec": "Create a lighter-weight spec for one-off tasks, small apps, and simple brownfield work.",
+        "bmad-document-project": "Document an existing project before deeper planning or delivery work.",
+        "bmad-generate-project-context": "Generate lean project context for better agent grounding in brownfield repos.",
+        "bmad-correct-course": "Recover when scope, plan, or implementation has drifted off track.",
+        "bmad-distillator": "Condense long notes, docs, or outputs into concise structured takeaways.",
+        "bmad-editorial-review-prose": "Review prose for clarity, tone, readability, and wording.",
+        "bmad-editorial-review-structure": "Review document structure, sequencing, and overall information flow.",
+        "bmad-index-docs": "Generate an index of project documents to speed up later BMad workflows.",
+        "bmad-party-mode": "Switch into a looser, more creative collaboration mode for exploring bold ideas.",
+        "bmad-review-adversarial-general": "Stress-test a plan or output with adversarial review to uncover weak spots.",
+        "bmad-review-edge-case-hunter": "Search for edge cases, failure modes, and overlooked scenarios.",
+        "bmad-shard-doc": "Split a large document into smaller, easier-to-review sections."
+      }
+    },
+    "uiUxPro": {
+      "title": "UI UX Pro Max",
+      "selectAria": "Select a UI UX Pro Max starter prompt",
+      "insert": "Insert",
+      "insertAndSend": "Send",
+      "install": "Install",
+      "installWithDeps": "Install Dependencies",
+      "repair": "Repair",
+      "installing": "Installing...",
+      "refresh": "Refresh",
+      "preview": "Starter prompt",
+      "searchPlaceholder": "Search scenes or descriptions",
+      "searchEmpty": "No matching UI UX Pro Max prompts.",
+      "readyHint": "Install complete. Insert a starter prompt, or describe your UI/UX task naturally.",
+      "missingHint": "UI UX Pro Max is not set up for this project yet. Click Install to prepare it.",
+      "partialHint": "A partial UI UX Pro Max setup was detected. Click Repair to complete it.",
+      "loadingHint": "Checking the current project for UI UX Pro Max...",
+      "unsupportedHint": "UI UX Pro Max onboarding currently supports Claude Code and Codex only.",
+      "errorHint": "UI UX Pro Max status check failed. Try Refresh or reinstall.",
+      "nodeHint": "Install Node.js 18 or later first, then return here for one-click setup.",
+      "nodeBootstrapHint": "Node.js is missing. Click Install and the plugin will try to install it automatically on Windows.",
+      "pythonHint": "Install Python 3.x first, then return here for one-click setup.",
+      "pythonBootstrapHint": "Python 3.x is missing. Click Install and the plugin will try to install it automatically on Windows.",
+      "autoTriggerHint": "Install once, then describe your UI/UX needs naturally to activate the skill.",
+      "explicitHint": "Auto-trigger works with natural UI/UX requests. Codex can also invoke {{command}} explicitly.",
+      "installStart": "Installing UI UX Pro Max for {{provider}}...",
+      "installBusy": "Another UI UX Pro Max installation is already running. Please wait and retry.",
+      "installSuccess": "UI UX Pro Max is ready for {{provider}}.",
+      "installFailed": "UI UX Pro Max installation failed.",
+      "installFailedWithReason": "UI UX Pro Max installation failed: {{reason}}",
+      "resultParseFailed": "Failed to process the UI UX Pro Max installation result.",
+      "status": {
+        "loading": "Checking",
+        "ready": "Ready",
+        "missing": "Not Installed",
+        "partial": "Needs Repair",
+        "unsupported": "Unsupported",
+        "error": "Error"
+      },
+      "groups": {
+        "create": "Create",
+        "review": "Review",
+        "system": "System"
+      },
+      "prompts": {
+        "landingPage": {
+          "title": "Landing Page",
+          "description": "Generate a polished marketing or product landing page with a strong visual direction.",
+          "prompt": "Use UI UX Pro Max to design a premium SaaS landing page with clear hierarchy, strong visual contrast, compelling sections, and production-ready frontend implementation details."
+        },
+        "dashboard": {
+          "title": "Dashboard",
+          "description": "Plan an analytics dashboard with cards, charts, and implementation-friendly structure.",
+          "prompt": "Use UI UX Pro Max to design an analytics dashboard with meaningful information hierarchy, sharp card layout, responsive charts, and a practical component structure for implementation."
+        },
+        "mobileApp": {
+          "title": "Mobile App",
+          "description": "Create mobile-first product flows, screens, and interaction guidance.",
+          "prompt": "Use UI UX Pro Max to design a mobile-first application flow, including the main screens, interaction patterns, accessibility considerations, and a clean design language."
+        },
+        "designReview": {
+          "title": "Design Review",
+          "description": "Review an existing page or component and produce actionable UI/UX fixes.",
+          "prompt": "Use UI UX Pro Max to review the current page or component for layout, hierarchy, spacing, typography, accessibility, and UX issues, then give concrete redesign suggestions."
+        },
+        "componentRefactor": {
+          "title": "Component Refactor",
+          "description": "Improve one existing component without redesigning the whole product.",
+          "prompt": "Use UI UX Pro Max to refactor this component into a cleaner, more consistent UI with better states, spacing, responsiveness, and clearer interaction feedback."
+        },
+        "designSystem": {
+          "title": "Design System",
+          "description": "Define reusable tokens, rules, and component standards for a product.",
+          "prompt": "Use UI UX Pro Max to define a lightweight design system for this product, including color tokens, typography scale, spacing, component rules, and implementation guidance."
+        }
+      }
+    },
+    "gitNexus": {
+      "title": "GitNexus",
+      "selectAria": "Select a GitNexus starter prompt",
+      "insert": "Insert",
+      "insertAndSend": "Send",
+      "install": "Install",
+      "installWithDeps": "Install Dependencies",
+      "repair": "Repair",
+      "reindex": "Reindex",
+      "installing": "Installing...",
+      "refresh": "Refresh",
+      "preview": "Starter prompt",
+      "searchPlaceholder": "Search prompts or descriptions",
+      "searchEmpty": "No matching GitNexus prompts.",
+      "readyHint": "GitNexus is ready. Ask repository questions directly, or insert a starter prompt first.",
+      "missingHint": "GitNexus is not set up for this repository yet. Click Install to run setup and analyze automatically.",
+      "partialHint": "A partial GitNexus setup was detected. Click Install or Reindex to complete this repository.",
+      "loadingHint": "Checking the current repository for GitNexus...",
+      "unsupportedHint": "GitNexus onboarding currently supports Claude Code and Codex only.",
+      "errorHint": "GitNexus status check failed. Try Refresh or reinstall.",
+      "repoHint": "GitNexus works on Git repositories. Open the repo root and retry.",
+      "nodeHint": "Install Node.js 18 or later first, then return here for one-click setup.",
+      "nodeBootstrapHint": "Node.js is missing. Click Install and the plugin will try to install it automatically on Windows.",
+      "detailHint": "GitNexus builds a repository graph and MCP tools, so repo-wide reasoning becomes much more accurate.",
+      "installStart": "Installing GitNexus for {{provider}}...",
+      "reindexStart": "Rebuilding the GitNexus index for {{provider}}...",
+      "installBusy": "Another GitNexus task is already running. Please wait and retry.",
+      "installSuccess": "GitNexus is ready for {{provider}}.",
+      "installFailed": "GitNexus installation failed.",
+      "installFailedWithReason": "GitNexus installation failed: {{reason}}",
+      "resultParseFailed": "Failed to process the GitNexus installation result.",
+      "status": {
+        "loading": "Checking",
+        "ready": "Ready",
+        "missing": "Not Installed",
+        "partial": "Needs Repair",
+        "unsupported": "Unsupported",
+        "error": "Error"
+      },
+      "groups": {
+        "understand": "Understand",
+        "change": "Change"
+      },
+      "scopeLabel": "Analysis scope",
+      "scopes": {
+        "repo": "Repository",
+        "directory": "Current Directory",
+        "module": "Current Module"
+      },
+      "scopeSummary": {
+        "repo": "Whole repository: {{path}}",
+        "directory": "Current directory: {{path}}",
+        "module": "Current module: {{path}}"
+      },
+      "scopePrompt": {
+        "repo": "Analyze the whole repository rooted at: {{path}}\n\n{{prompt}}",
+        "directory": "Limit the analysis to this directory: {{path}}\n\n{{prompt}}",
+        "module": "Limit the analysis to this module root: {{path}}\n\n{{prompt}}"
+      },
+      "prompts": {
+        "repoOverview": {
+          "title": "Repo Overview",
+          "description": "Quickly build a mental model of the whole repository.",
+          "prompt": "Use GitNexus to map this repository: summarize the main modules, boundaries, key dependencies, and the files or folders I should read first."
+        },
+        "callChain": {
+          "title": "Call Chain",
+          "description": "Trace request flow, service chain, and key file links.",
+          "prompt": "Use GitNexus to trace the call chain for the feature or function I mention, from entry point to downstream services, files, and important dependencies."
+        },
+        "hotspots": {
+          "title": "Hotspots",
+          "description": "Find coupling, risky modules, and places that deserve refactoring attention.",
+          "prompt": "Use GitNexus to identify architecture hotspots in this repository, including highly coupled modules, change-prone areas, and parts that look risky for future maintenance."
+        },
+        "changeImpact": {
+          "title": "Change Impact",
+          "description": "Estimate what will break or need updates before making a change.",
+          "prompt": "Use GitNexus to analyze the impact of changing the module, class, or API I mention, including likely affected files, upstream callers, downstream consumers, and test areas."
+        }
+      }
+    }
   },
   "settings": {
     "title": "Settings",

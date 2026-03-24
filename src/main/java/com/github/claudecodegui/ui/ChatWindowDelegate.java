@@ -4,12 +4,14 @@ import com.github.claudecodegui.ClaudeCodeGuiBundle;
 import com.github.claudecodegui.ClaudeSession;
 import com.github.claudecodegui.CodemossSettingsService;
 import com.github.claudecodegui.handler.AgentHandler;
+import com.github.claudecodegui.handler.BmadHandler;
 import com.github.claudecodegui.handler.ClipboardHandler;
 import com.github.claudecodegui.handler.CodexMcpServerHandler;
 import com.github.claudecodegui.handler.DependencyHandler;
 import com.github.claudecodegui.handler.DiffHandler;
 import com.github.claudecodegui.handler.FileExportHandler;
 import com.github.claudecodegui.handler.FileHandler;
+import com.github.claudecodegui.handler.GitNexusHandler;
 import com.github.claudecodegui.handler.HandlerContext;
 import com.github.claudecodegui.handler.HistoryHandler;
 import com.github.claudecodegui.handler.McpServerHandler;
@@ -23,6 +25,7 @@ import com.github.claudecodegui.handler.SessionHandler;
 import com.github.claudecodegui.handler.SettingsHandler;
 import com.github.claudecodegui.handler.SkillHandler;
 import com.github.claudecodegui.handler.TabHandler;
+import com.github.claudecodegui.handler.UiUxProHandler;
 import com.github.claudecodegui.handler.UndoFileHandler;
 import com.github.claudecodegui.handler.WindowEventHandler;
 import com.github.claudecodegui.permission.PermissionService;
@@ -276,6 +279,9 @@ public class ChatWindowDelegate {
         messageDispatcher.registerHandler(new RewindHandler(handlerContext));
         messageDispatcher.registerHandler(new UndoFileHandler(handlerContext));
         messageDispatcher.registerHandler(new DependencyHandler(handlerContext));
+        messageDispatcher.registerHandler(new BmadHandler(handlerContext));
+        messageDispatcher.registerHandler(new UiUxProHandler(handlerContext));
+        messageDispatcher.registerHandler(new GitNexusHandler(handlerContext));
         messageDispatcher.registerHandler(new ClipboardHandler(handlerContext));
 
         // Window event handler

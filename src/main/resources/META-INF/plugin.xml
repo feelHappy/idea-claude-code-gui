@@ -1,17 +1,18 @@
 <idea-plugin>
     <id>com.github.jetbrains-long-gui</id>
-    <name>CC GUI（Claude and Codex）</name>
+    <name>CC AI Toolkit</name>
     <vendor>Jordan</vendor>
 
     <!-- Resource bundle for i18n -->
     <resource-bundle>messages.ClaudeCodeGuiBundle</resource-bundle>
 
     <description><![CDATA[
-        <h2>Dual-engine GUI for Claude Code and Codex - MIT 100% Open Source</h2>
-        <h2>Claude Code 和 Codex 的双引擎GUI MIT 100%开源产品</h2>
+        <h2>CC AI Toolkit - Claude Code / Codex Workflow GUI</h2>
+        <h2>CC AI Toolkit：面向 Claude Code、Codex 与扩展技能工作流的图形化插件</h2>
         <ul>
             <li><strong>Claude Code</strong> Anthropic 官方 AI 编程助手（支持 Opus 4.6 等多模型）</li>
             <li><strong>OpenAI Codex</strong> - OpenAI 强大的代码生成引擎</li>
+            <li><strong>BMad / UI UX Pro Max / GitNexus</strong> - 可视化接入常用工作流与仓库分析能力</li>
         </ul>
 
         <h2>核心功能</h2>
@@ -31,7 +32,7 @@
 
         <h2>使用方法</h2>
         <ul>
-            <li>从右侧边栏打开 CC GUI 工具窗口</li>
+            <li>从右侧边栏打开 CC AI Toolkit 工具窗口</li>
             <li>选中代码后使用 <kbd>Ctrl+Alt+K</kbd>（Win/Linux）或 <kbd>Cmd+Alt+K</kbd>（Mac）发送给 AI</li>
             <li>即时获得 AI 驱动的代码辅助和智能建议</li>
         </ul>

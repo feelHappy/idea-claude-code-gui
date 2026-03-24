@@ -57,11 +57,34 @@ import {
   type PromptItem,
 } from './providers/index.js';
 import { debounce } from './utils/debounce.js';
-import { setCursorOffset } from './utils/selectionUtils.js';
+import { insertTextAtCursor, setCursorOffset } from './utils/selectionUtils.js';
 import { perfTimer } from '../../utils/debug.js';
 import { DEBOUNCE_TIMING } from '../../constants/performance.js';
+import { sendToJava } from '../../utils/bridge.js';
 import { ContextMenu } from '../ContextMenu';
 import { useContextMenu, copySelection, cutSelection, pasteAtCursor, insertNewline } from '../../hooks/useContextMenu.js';
+import {
+  BMAD_COMMAND_PRESETS,
+  createDefaultBmadStatus,
+  getBmadCommandPresets,
+  getBmadCommandPrefix,
+  isBmadProviderSupported,
+  type BmadStatus,
+} from './bmadCommands.js';
+import {
+  GIT_NEXUS_PROMPT_PRESETS,
+  createDefaultGitNexusStatus,
+  getGitNexusAvailableScopes,
+  isGitNexusProviderSupported,
+  type GitNexusScope,
+  type GitNexusStatus,
+} from './gitNexusPrompts.js';
+import {
+  UI_UX_PRO_PROMPT_PRESETS,
+  createDefaultUiUxStatus,
+  isUiUxProviderSupported,
+  type UiUxStatus,
+} from './uiUxProPrompts.js';
 import './styles.css';
 
 /**
@@ -126,13 +149,38 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
     }: ChatInputBoxProps,
     ref: React.ForwardedRef<ChatInputBoxHandle>
   ) => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
 
     // Open source banner state (show once, dismiss permanently)
     const BANNER_DISMISSED_KEY = 'openSourceBannerDismissed';
     const [showOpenSourceBanner, setShowOpenSourceBanner] = useState(
       () => !localStorage.getItem(BANNER_DISMISSED_KEY)
     );
+    const [selectedBmadPresetId, setSelectedBmadPresetId] = useState(
+      BMAD_COMMAND_PRESETS[0]?.id ?? ''
+    );
+    const [selectedUiUxPresetId, setSelectedUiUxPresetId] = useState(
+      UI_UX_PRO_PROMPT_PRESETS[0]?.id ?? ''
+    );
+    const [selectedGitNexusPresetId, setSelectedGitNexusPresetId] = useState(
+      GIT_NEXUS_PROMPT_PRESETS[0]?.id ?? ''
+    );
+    const [selectedGitNexusScope, setSelectedGitNexusScope] = useState<GitNexusScope>('repo');
+    const [bmadStatus, setBmadStatus] = useState<BmadStatus>(() =>
+      createDefaultBmadStatus(currentProvider)
+    );
+    const [gitNexusStatus, setGitNexusStatus] = useState<GitNexusStatus>(() =>
+      createDefaultGitNexusStatus(currentProvider)
+    );
+    const [uiUxStatus, setUiUxStatus] = useState<UiUxStatus>(() =>
+      createDefaultUiUxStatus(currentProvider)
+    );
+    const [bmadInstallLog, setBmadInstallLog] = useState('');
+    const [gitNexusInstallLog, setGitNexusInstallLog] = useState('');
+    const [uiUxInstallLog, setUiUxInstallLog] = useState('');
+    const [isBmadInstalling, setIsBmadInstalling] = useState(false);
+    const [isGitNexusInstalling, setIsGitNexusInstalling] = useState(false);
+    const [isUiUxInstalling, setIsUiUxInstalling] = useState(false);
     const handleDismissOpenSourceBanner = useCallback(() => {
       localStorage.setItem(BANNER_DISMISSED_KEY, 'true');
       setShowOpenSourceBanner(false);
@@ -155,6 +203,9 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
     const editableWrapperRef = useRef<HTMLDivElement>(null);
     const submittedOnEnterRef = useRef(false);
     const completionSelectedRef = useRef(false);
+    const bmadInstallRequestRef = useRef(false);
+    const gitNexusInstallRequestRef = useRef(false);
+    const uiUxInstallRequestRef = useRef(false);
     const [hasContent, setHasContent] = useState(false);
 
     // Flag to track if we're updating from external value
@@ -757,6 +808,20 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       editableRef.current?.focus();
     }, []);
 
+    const focusInputToEnd = useCallback(() => {
+      if (!editableRef.current) {
+        return;
+      }
+
+      editableRef.current.focus();
+      const range = document.createRange();
+      const selection = window.getSelection();
+      range.selectNodeContents(editableRef.current);
+      range.collapse(false);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }, []);
+
     useChatInputImperativeHandle({
       ref,
       editableRef,
@@ -783,6 +848,559 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       closeAllCompletions,
       focusInput,
     });
+
+    const bmadUiLanguage = i18n.resolvedLanguage || i18n.language || 'en';
+    const bmadPresets = useMemo(
+      () => getBmadCommandPresets(bmadStatus.availableCommands),
+      [bmadStatus.availableCommands]
+    );
+    const gitNexusPresets = GIT_NEXUS_PROMPT_PRESETS;
+    const uiUxProPresets = UI_UX_PRO_PROMPT_PRESETS;
+
+    const requestBmadStatus = useCallback(() => {
+      if (!isBmadProviderSupported(currentProvider)) {
+        setBmadStatus(createDefaultBmadStatus(currentProvider));
+        setBmadInstallLog('');
+        setIsBmadInstalling(false);
+        bmadInstallRequestRef.current = false;
+        return;
+      }
+
+      setBmadStatus(createDefaultBmadStatus(currentProvider));
+      setBmadInstallLog('');
+      sendToJava('get_bmad_status', {
+        provider: currentProvider,
+        language: bmadUiLanguage,
+      });
+    }, [bmadUiLanguage, currentProvider]);
+
+    const handleInstallBmad = useCallback(() => {
+      if (!isBmadProviderSupported(currentProvider) || isBmadInstalling || bmadInstallRequestRef.current) {
+        return;
+      }
+
+      const providerLabel = t(`providers.${currentProvider}.label`, {
+        defaultValue: currentProvider,
+      });
+      bmadInstallRequestRef.current = true;
+      setIsBmadInstalling(true);
+      setBmadInstallLog(t('chat.bmad.installStart', {
+        defaultValue: 'Installing BMad for {{provider}}...',
+        provider: providerLabel,
+      }));
+      sendToJava('install_bmad', {
+        provider: currentProvider,
+        language: bmadUiLanguage,
+      });
+    }, [bmadUiLanguage, currentProvider, isBmadInstalling, t]);
+
+    const requestGitNexusStatus = useCallback(() => {
+      if (!isGitNexusProviderSupported(currentProvider)) {
+        setGitNexusStatus(createDefaultGitNexusStatus(currentProvider));
+        setGitNexusInstallLog('');
+        setIsGitNexusInstalling(false);
+        gitNexusInstallRequestRef.current = false;
+        return;
+      }
+
+      setGitNexusStatus(createDefaultGitNexusStatus(currentProvider));
+      setGitNexusInstallLog('');
+      sendToJava('get_gitnexus_status', {
+        provider: currentProvider,
+        language: bmadUiLanguage,
+      });
+    }, [bmadUiLanguage, currentProvider]);
+
+    const handleInstallGitNexus = useCallback((forceReindex = false) => {
+      if (!isGitNexusProviderSupported(currentProvider) || isGitNexusInstalling || gitNexusInstallRequestRef.current) {
+        return;
+      }
+
+      const providerLabel = t(`providers.${currentProvider}.label`, {
+        defaultValue: currentProvider,
+      });
+      gitNexusInstallRequestRef.current = true;
+      setIsGitNexusInstalling(true);
+      setGitNexusInstallLog(t(forceReindex ? 'chat.gitNexus.reindexStart' : 'chat.gitNexus.installStart', {
+        defaultValue: forceReindex
+          ? 'Rebuilding the GitNexus index for {{provider}}...'
+          : 'Installing GitNexus for {{provider}}...',
+        provider: providerLabel,
+      }));
+      sendToJava(forceReindex ? 'reindex_gitnexus' : 'install_gitnexus', {
+        provider: currentProvider,
+        language: bmadUiLanguage,
+      });
+    }, [bmadUiLanguage, currentProvider, isGitNexusInstalling, t]);
+
+    const requestUiUxStatus = useCallback(() => {
+      if (!isUiUxProviderSupported(currentProvider)) {
+        setUiUxStatus(createDefaultUiUxStatus(currentProvider));
+        setUiUxInstallLog('');
+        setIsUiUxInstalling(false);
+        uiUxInstallRequestRef.current = false;
+        return;
+      }
+
+      setUiUxStatus(createDefaultUiUxStatus(currentProvider));
+      setUiUxInstallLog('');
+      sendToJava('get_uiux_pro_status', {
+        provider: currentProvider,
+        language: bmadUiLanguage,
+      });
+    }, [bmadUiLanguage, currentProvider]);
+
+    const handleInstallUiUx = useCallback(() => {
+      if (!isUiUxProviderSupported(currentProvider) || isUiUxInstalling || uiUxInstallRequestRef.current) {
+        return;
+      }
+
+      const providerLabel = t(`providers.${currentProvider}.label`, {
+        defaultValue: currentProvider,
+      });
+      uiUxInstallRequestRef.current = true;
+      setIsUiUxInstalling(true);
+      setUiUxInstallLog(t('chat.uiUxPro.installStart', {
+        defaultValue: 'Installing UI UX Pro Max for {{provider}}...',
+        provider: providerLabel,
+      }));
+      sendToJava('install_uiux_pro', {
+        provider: currentProvider,
+        language: bmadUiLanguage,
+      });
+    }, [bmadUiLanguage, currentProvider, isUiUxInstalling, t]);
+
+    useEffect(() => {
+      const previousUpdateBmadStatus = window.updateBmadStatus;
+      const previousBmadInstallProgress = window.bmadInstallProgress;
+      const previousBmadInstallResult = window.bmadInstallResult;
+
+      window.updateBmadStatus = (jsonStr: string) => {
+        try {
+          const data = JSON.parse(jsonStr) as Partial<BmadStatus>;
+          const nextProvider = typeof data.provider === 'string'
+            ? data.provider
+            : currentProvider;
+          setBmadStatus({
+            ...createDefaultBmadStatus(nextProvider),
+            ...data,
+          });
+        } catch (error) {
+          console.error('[ChatInputBox] Failed to parse BMad status:', error);
+        }
+
+        if (
+          previousUpdateBmadStatus &&
+          previousUpdateBmadStatus !== window.updateBmadStatus
+        ) {
+          previousUpdateBmadStatus(jsonStr);
+        }
+      };
+
+      window.bmadInstallProgress = (jsonStr: string) => {
+        try {
+          const data = JSON.parse(jsonStr) as { log?: string };
+          setIsBmadInstalling(true);
+          if (data.log) {
+            setBmadInstallLog(data.log);
+            setBmadStatus((prev) => ({
+              ...prev,
+              message: data.log,
+            }));
+          }
+        } catch (error) {
+          console.error('[ChatInputBox] Failed to parse BMad install progress:', error);
+        }
+
+        if (
+          previousBmadInstallProgress &&
+          previousBmadInstallProgress !== window.bmadInstallProgress
+        ) {
+          previousBmadInstallProgress(jsonStr);
+        }
+      };
+
+      window.bmadInstallResult = (jsonStr: string) => {
+        try {
+          const data = JSON.parse(jsonStr) as {
+            success?: boolean;
+            busy?: boolean;
+            provider?: string;
+            message?: string;
+            error?: string;
+          };
+          const providerId = typeof data.provider === 'string'
+            ? data.provider
+            : currentProvider;
+          const providerLabel = t(`providers.${providerId}.label`, {
+            defaultValue: providerId,
+          });
+          const toastMessage = data.message || data.error;
+
+          if (data.busy) {
+            bmadInstallRequestRef.current = false;
+            setIsBmadInstalling(false);
+            setBmadInstallLog(t('chat.bmad.installBusy', {
+              defaultValue: 'Another BMad installation is already running. Please wait and retry.',
+            }));
+            addToast?.(
+              t('chat.bmad.installBusy', {
+                defaultValue: 'Another BMad installation is already running. Please wait and retry.',
+              }),
+              'info'
+            );
+            requestBmadStatus();
+            return;
+          }
+
+          bmadInstallRequestRef.current = false;
+          setIsBmadInstalling(false);
+          setBmadInstallLog(toastMessage ?? '');
+
+          if (data.success) {
+            addToast?.(
+              t('chat.bmad.installSuccess', {
+                defaultValue: 'BMad is ready for {{provider}}.',
+                provider: providerLabel,
+              }),
+              'success'
+            );
+            sendToJava('refresh_slash_commands');
+          } else {
+            addToast?.(
+              toastMessage
+                ? t('chat.bmad.installFailedWithReason', {
+                    defaultValue: 'BMad installation failed: {{reason}}',
+                    reason: toastMessage,
+                  })
+                : t('chat.bmad.installFailed', {
+                    defaultValue: 'BMad installation failed',
+                  }),
+              'error'
+            );
+          }
+
+          requestBmadStatus();
+        } catch (error) {
+          console.error('[ChatInputBox] Failed to parse BMad install result:', error);
+          bmadInstallRequestRef.current = false;
+          setIsBmadInstalling(false);
+          addToast?.(
+            t('chat.bmad.resultParseFailed', {
+              defaultValue: 'Failed to process the BMad installation result.',
+            }),
+            'error'
+          );
+          requestBmadStatus();
+        }
+
+        if (
+          previousBmadInstallResult &&
+          previousBmadInstallResult !== window.bmadInstallResult
+        ) {
+          previousBmadInstallResult(jsonStr);
+        }
+      };
+
+      requestBmadStatus();
+
+      return () => {
+        window.updateBmadStatus = previousUpdateBmadStatus;
+        window.bmadInstallProgress = previousBmadInstallProgress;
+        window.bmadInstallResult = previousBmadInstallResult;
+      };
+    }, [addToast, currentProvider, requestBmadStatus, t]);
+
+    useEffect(() => {
+      const previousUpdateGitNexusStatus = window.updateGitNexusStatus;
+      const previousGitNexusInstallProgress = window.gitNexusInstallProgress;
+      const previousGitNexusInstallResult = window.gitNexusInstallResult;
+
+      window.updateGitNexusStatus = (jsonStr: string) => {
+        try {
+          const data = JSON.parse(jsonStr) as Partial<GitNexusStatus>;
+          const nextProvider = typeof data.provider === 'string'
+            ? data.provider
+            : currentProvider;
+          if (data.state && data.state !== 'loading' && !gitNexusInstallRequestRef.current) {
+            setIsGitNexusInstalling(false);
+          }
+          setGitNexusStatus({
+            ...createDefaultGitNexusStatus(nextProvider),
+            ...data,
+          });
+        } catch (error) {
+          console.error('[ChatInputBox] Failed to parse GitNexus status:', error);
+        }
+
+        if (
+          previousUpdateGitNexusStatus &&
+          previousUpdateGitNexusStatus !== window.updateGitNexusStatus
+        ) {
+          previousUpdateGitNexusStatus(jsonStr);
+        }
+      };
+
+      window.gitNexusInstallProgress = (jsonStr: string) => {
+        try {
+          const data = JSON.parse(jsonStr) as { log?: string };
+          setIsGitNexusInstalling(true);
+          if (data.log) {
+            setGitNexusInstallLog(data.log);
+            setGitNexusStatus((prev) => ({
+              ...prev,
+              message: data.log,
+            }));
+          }
+        } catch (error) {
+          console.error('[ChatInputBox] Failed to parse GitNexus install progress:', error);
+        }
+
+        if (
+          previousGitNexusInstallProgress &&
+          previousGitNexusInstallProgress !== window.gitNexusInstallProgress
+        ) {
+          previousGitNexusInstallProgress(jsonStr);
+        }
+      };
+
+      window.gitNexusInstallResult = (jsonStr: string) => {
+        try {
+          const data = JSON.parse(jsonStr) as {
+            success?: boolean;
+            busy?: boolean;
+            provider?: string;
+            message?: string;
+            error?: string;
+            logs?: string;
+          };
+          const providerId = typeof data.provider === 'string'
+            ? data.provider
+            : currentProvider;
+          const providerLabel = t(`providers.${providerId}.label`, {
+            defaultValue: providerId,
+          });
+          const toastMessage = data.message || data.error;
+          const detailMessage = data.logs?.trim() || toastMessage || '';
+
+          if (data.busy) {
+            gitNexusInstallRequestRef.current = false;
+            setIsGitNexusInstalling(false);
+            setGitNexusInstallLog(t('chat.gitNexus.installBusy', {
+              defaultValue: 'Another GitNexus task is already running. Please wait and retry.',
+            }));
+            addToast?.(
+              t('chat.gitNexus.installBusy', {
+                defaultValue: 'Another GitNexus task is already running. Please wait and retry.',
+              }),
+              'info'
+            );
+            requestGitNexusStatus();
+            return;
+          }
+
+          gitNexusInstallRequestRef.current = false;
+          setIsGitNexusInstalling(false);
+          setGitNexusInstallLog(detailMessage);
+
+          if (data.success) {
+            addToast?.(
+              t('chat.gitNexus.installSuccess', {
+                defaultValue: 'GitNexus is ready for {{provider}}.',
+                provider: providerLabel,
+              }),
+              'success'
+            );
+          } else {
+            addToast?.(
+              toastMessage
+                ? t('chat.gitNexus.installFailedWithReason', {
+                    defaultValue: 'GitNexus installation failed: {{reason}}',
+                    reason: toastMessage,
+                  })
+                : t('chat.gitNexus.installFailed', {
+                    defaultValue: 'GitNexus installation failed',
+                  }),
+              'error'
+            );
+          }
+
+          requestGitNexusStatus();
+        } catch (error) {
+          console.error('[ChatInputBox] Failed to parse GitNexus install result:', error);
+          gitNexusInstallRequestRef.current = false;
+          setIsGitNexusInstalling(false);
+          addToast?.(
+            t('chat.gitNexus.resultParseFailed', {
+              defaultValue: 'Failed to process the GitNexus installation result.',
+            }),
+            'error'
+          );
+          requestGitNexusStatus();
+        }
+
+        if (
+          previousGitNexusInstallResult &&
+          previousGitNexusInstallResult !== window.gitNexusInstallResult
+        ) {
+          previousGitNexusInstallResult(jsonStr);
+        }
+      };
+
+      requestGitNexusStatus();
+
+      return () => {
+        window.updateGitNexusStatus = previousUpdateGitNexusStatus;
+        window.gitNexusInstallProgress = previousGitNexusInstallProgress;
+        window.gitNexusInstallResult = previousGitNexusInstallResult;
+      };
+    }, [addToast, currentProvider, requestGitNexusStatus, t]);
+
+    useEffect(() => {
+      if (isGitNexusProviderSupported(currentProvider)) {
+        requestGitNexusStatus();
+      }
+    }, [activeFile, currentProvider, requestGitNexusStatus]);
+
+    useEffect(() => {
+      const previousUpdateUiUxProStatus = window.updateUiUxProStatus;
+      const previousUiUxProInstallProgress = window.uiUxProInstallProgress;
+      const previousUiUxProInstallResult = window.uiUxProInstallResult;
+
+      window.updateUiUxProStatus = (jsonStr: string) => {
+        try {
+          const data = JSON.parse(jsonStr) as Partial<UiUxStatus>;
+          const nextProvider = typeof data.provider === 'string'
+            ? data.provider
+            : currentProvider;
+          setUiUxStatus({
+            ...createDefaultUiUxStatus(nextProvider),
+            ...data,
+          });
+        } catch (error) {
+          console.error('[ChatInputBox] Failed to parse UI UX Pro Max status:', error);
+        }
+
+        if (
+          previousUpdateUiUxProStatus &&
+          previousUpdateUiUxProStatus !== window.updateUiUxProStatus
+        ) {
+          previousUpdateUiUxProStatus(jsonStr);
+        }
+      };
+
+      window.uiUxProInstallProgress = (jsonStr: string) => {
+        try {
+          const data = JSON.parse(jsonStr) as { log?: string };
+          setIsUiUxInstalling(true);
+          if (data.log) {
+            setUiUxInstallLog(data.log);
+            setUiUxStatus((prev) => ({
+              ...prev,
+              message: data.log,
+            }));
+          }
+        } catch (error) {
+          console.error('[ChatInputBox] Failed to parse UI UX Pro Max install progress:', error);
+        }
+
+        if (
+          previousUiUxProInstallProgress &&
+          previousUiUxProInstallProgress !== window.uiUxProInstallProgress
+        ) {
+          previousUiUxProInstallProgress(jsonStr);
+        }
+      };
+
+      window.uiUxProInstallResult = (jsonStr: string) => {
+        try {
+          const data = JSON.parse(jsonStr) as {
+            success?: boolean;
+            busy?: boolean;
+            provider?: string;
+            message?: string;
+            error?: string;
+          };
+          const providerId = typeof data.provider === 'string'
+            ? data.provider
+            : currentProvider;
+          const providerLabel = t(`providers.${providerId}.label`, {
+            defaultValue: providerId,
+          });
+          const toastMessage = data.message || data.error;
+
+          if (data.busy) {
+            uiUxInstallRequestRef.current = false;
+            setIsUiUxInstalling(false);
+            setUiUxInstallLog(t('chat.uiUxPro.installBusy', {
+              defaultValue: 'Another UI UX Pro Max installation is already running. Please wait and retry.',
+            }));
+            addToast?.(
+              t('chat.uiUxPro.installBusy', {
+                defaultValue: 'Another UI UX Pro Max installation is already running. Please wait and retry.',
+              }),
+              'info'
+            );
+            requestUiUxStatus();
+            return;
+          }
+
+          uiUxInstallRequestRef.current = false;
+          setIsUiUxInstalling(false);
+          setUiUxInstallLog(toastMessage ?? '');
+
+          if (data.success) {
+            addToast?.(
+              t('chat.uiUxPro.installSuccess', {
+                defaultValue: 'UI UX Pro Max is ready for {{provider}}.',
+                provider: providerLabel,
+              }),
+              'success'
+            );
+          } else {
+            addToast?.(
+              toastMessage
+                ? t('chat.uiUxPro.installFailedWithReason', {
+                    defaultValue: 'UI UX Pro Max installation failed: {{reason}}',
+                    reason: toastMessage,
+                  })
+                : t('chat.uiUxPro.installFailed', {
+                    defaultValue: 'UI UX Pro Max installation failed',
+                  }),
+              'error'
+            );
+          }
+
+          requestUiUxStatus();
+        } catch (error) {
+          console.error('[ChatInputBox] Failed to parse UI UX Pro Max install result:', error);
+          uiUxInstallRequestRef.current = false;
+          setIsUiUxInstalling(false);
+          addToast?.(
+            t('chat.uiUxPro.resultParseFailed', {
+              defaultValue: 'Failed to process the UI UX Pro Max installation result.',
+            }),
+            'error'
+          );
+          requestUiUxStatus();
+        }
+
+        if (
+          previousUiUxProInstallResult &&
+          previousUiUxProInstallResult !== window.uiUxProInstallResult
+        ) {
+          previousUiUxProInstallResult(jsonStr);
+        }
+      };
+
+      requestUiUxStatus();
+
+      return () => {
+        window.updateUiUxProStatus = previousUpdateUiUxProStatus;
+        window.uiUxProInstallProgress = previousUiUxProInstallProgress;
+        window.uiUxProInstallResult = previousUiUxProInstallResult;
+      };
+    }, [addToast, currentProvider, requestUiUxStatus, t]);
 
     useSpaceKeyListener({ editableRef, onKeyDown: handleKeyDownForTagRendering });
 
@@ -813,6 +1431,225 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
     const handleRequestEnableFileContext = useCallback(() => {
       onAutoOpenFileEnabledChange?.(true);
     }, [onAutoOpenFileEnabledChange]);
+
+    const selectedBmadPreset = useMemo(
+      () => bmadPresets.find((preset) => preset.id === selectedBmadPresetId) ?? bmadPresets[0],
+      [bmadPresets, selectedBmadPresetId]
+    );
+    const selectedGitNexusPreset = useMemo(
+      () => gitNexusPresets.find((preset) => preset.id === selectedGitNexusPresetId) ?? gitNexusPresets[0],
+      [gitNexusPresets, selectedGitNexusPresetId]
+    );
+    const availableGitNexusScopes = useMemo(
+      () => getGitNexusAvailableScopes(gitNexusStatus),
+      [gitNexusStatus]
+    );
+    const selectedUiUxPreset = useMemo(
+      () => uiUxProPresets.find((preset) => preset.id === selectedUiUxPresetId) ?? uiUxProPresets[0],
+      [selectedUiUxPresetId, uiUxProPresets]
+    );
+    const isBmadSupported = isBmadProviderSupported(currentProvider);
+    const isGitNexusSupported = isGitNexusProviderSupported(currentProvider);
+    const isUiUxSupported = isUiUxProviderSupported(currentProvider);
+    const bmadCommandPrefix = bmadStatus.commandPrefix || getBmadCommandPrefix(currentProvider);
+    const isBmadReady = bmadStatus.state === 'ready';
+    const isGitNexusReady = gitNexusStatus.state === 'ready';
+    const isUiUxReady = uiUxStatus.state === 'ready';
+
+    useEffect(() => {
+      if (bmadPresets.length === 0) {
+        return;
+      }
+
+      if (!bmadPresets.some((preset) => preset.id === selectedBmadPresetId)) {
+        setSelectedBmadPresetId(bmadPresets[0].id);
+      }
+    }, [bmadPresets, selectedBmadPresetId]);
+
+    useEffect(() => {
+      if (uiUxProPresets.length === 0) {
+        return;
+      }
+
+      if (!uiUxProPresets.some((preset) => preset.id === selectedUiUxPresetId)) {
+        setSelectedUiUxPresetId(uiUxProPresets[0].id);
+      }
+    }, [selectedUiUxPresetId, uiUxProPresets]);
+
+    useEffect(() => {
+      if (gitNexusPresets.length === 0) {
+        return;
+      }
+
+      if (!gitNexusPresets.some((preset) => preset.id === selectedGitNexusPresetId)) {
+        setSelectedGitNexusPresetId(gitNexusPresets[0].id);
+      }
+    }, [gitNexusPresets, selectedGitNexusPresetId]);
+
+    useEffect(() => {
+      if (!availableGitNexusScopes.includes(selectedGitNexusScope)) {
+        setSelectedGitNexusScope('repo');
+      }
+    }, [availableGitNexusScopes, selectedGitNexusScope]);
+
+    const insertBmadCommand = useCallback((submitAfterInsert: boolean) => {
+      if (!editableRef.current || !selectedBmadPreset || !isBmadReady || !bmadCommandPrefix) {
+        return;
+      }
+
+      const selection = window.getSelection();
+      const hasEditableSelection = !!selection &&
+        selection.rangeCount > 0 &&
+        editableRef.current.contains(selection.anchorNode);
+
+      if (!hasEditableSelection) {
+        focusInputToEnd();
+      }
+
+      const currentValue = getTextContent();
+      const hasContentAlready = currentValue.trim().length > 0;
+      const needsSpacing = hasContentAlready && !hasEditableSelection;
+      const prefix = needsSpacing
+        ? (currentValue.endsWith('\n') ? '\n' : '\n\n')
+        : '';
+      const insertionText = `${prefix}${bmadCommandPrefix}${selectedBmadPreset.command} `;
+
+      insertTextAtCursor(insertionText, editableRef.current);
+      handleInput();
+      editableRef.current.focus();
+
+      if (submitAfterInsert) {
+        requestAnimationFrame(() => {
+          handleSubmit();
+        });
+      }
+    }, [
+      selectedBmadPreset,
+      isBmadReady,
+      bmadCommandPrefix,
+      focusInputToEnd,
+      getTextContent,
+      handleInput,
+      handleSubmit,
+    ]);
+
+    const insertUiUxPrompt = useCallback((submitAfterInsert: boolean) => {
+      if (!editableRef.current || !selectedUiUxPreset || !isUiUxReady) {
+        return;
+      }
+
+      const selection = window.getSelection();
+      const hasEditableSelection = !!selection &&
+        selection.rangeCount > 0 &&
+        editableRef.current.contains(selection.anchorNode);
+
+      if (!hasEditableSelection) {
+        focusInputToEnd();
+      }
+
+      const currentValue = getTextContent();
+      const hasContentAlready = currentValue.trim().length > 0;
+      const needsSpacing = hasContentAlready && !hasEditableSelection;
+      const prefix = needsSpacing
+        ? (currentValue.endsWith('\n') ? '\n' : '\n\n')
+        : '';
+      const promptText = t(selectedUiUxPreset.promptKey, {
+        defaultValue: selectedUiUxPreset.prompt,
+      });
+      const insertionText = `${prefix}${promptText} `;
+
+      insertTextAtCursor(insertionText, editableRef.current);
+      handleInput();
+      editableRef.current.focus();
+
+      if (submitAfterInsert) {
+        requestAnimationFrame(() => {
+          handleSubmit();
+        });
+      }
+    }, [
+      focusInputToEnd,
+      getTextContent,
+      handleInput,
+      handleSubmit,
+      isUiUxReady,
+      selectedUiUxPreset,
+      t,
+    ]);
+
+    const buildScopedGitNexusPrompt = useCallback(() => {
+      if (!selectedGitNexusPreset) {
+        return '';
+      }
+
+      const basePrompt = t(selectedGitNexusPreset.promptKey, {
+        defaultValue: selectedGitNexusPreset.prompt,
+      });
+      if (selectedGitNexusScope === 'directory' && gitNexusStatus.currentDirectory) {
+        return t('chat.gitNexus.scopePrompt.directory', {
+          defaultValue: 'Limit the analysis to this directory: {{path}}\n\n{{prompt}}',
+          path: gitNexusStatus.currentDirectory,
+          prompt: basePrompt,
+        });
+      }
+      if (selectedGitNexusScope === 'module' && gitNexusStatus.currentModuleRoot) {
+        return t('chat.gitNexus.scopePrompt.module', {
+          defaultValue: 'Limit the analysis to this module root: {{path}}\n\n{{prompt}}',
+          path: gitNexusStatus.currentModuleRoot,
+          prompt: basePrompt,
+        });
+      }
+      if (selectedGitNexusScope === 'repo' && gitNexusStatus.projectRoot) {
+        return t('chat.gitNexus.scopePrompt.repo', {
+          defaultValue: 'Analyze the whole repository rooted at: {{path}}\n\n{{prompt}}',
+          path: gitNexusStatus.projectRoot,
+          prompt: basePrompt,
+        });
+      }
+      return basePrompt;
+    }, [gitNexusStatus.currentDirectory, gitNexusStatus.currentModuleRoot, gitNexusStatus.projectRoot, selectedGitNexusPreset, selectedGitNexusScope, t]);
+
+    const insertGitNexusPrompt = useCallback((submitAfterInsert: boolean) => {
+      if (!editableRef.current || !selectedGitNexusPreset || !isGitNexusReady) {
+        return;
+      }
+
+      const selection = window.getSelection();
+      const hasEditableSelection = !!selection &&
+        selection.rangeCount > 0 &&
+        editableRef.current.contains(selection.anchorNode);
+
+      if (!hasEditableSelection) {
+        focusInputToEnd();
+      }
+
+      const currentValue = getTextContent();
+      const hasContentAlready = currentValue.trim().length > 0;
+      const needsSpacing = hasContentAlready && !hasEditableSelection;
+      const prefix = needsSpacing
+        ? (currentValue.endsWith('\n') ? '\n' : '\n\n')
+        : '';
+      const promptText = buildScopedGitNexusPrompt();
+      const insertionText = `${prefix}${promptText} `;
+
+      insertTextAtCursor(insertionText, editableRef.current);
+      handleInput();
+      editableRef.current.focus();
+
+      if (submitAfterInsert) {
+        requestAnimationFrame(() => {
+          handleSubmit();
+        });
+      }
+    }, [
+      focusInputToEnd,
+      getTextContent,
+      handleInput,
+      handleSubmit,
+      buildScopedGitNexusPrompt,
+      isGitNexusReady,
+      selectedGitNexusPreset,
+    ]);
 
     return (
       <div
@@ -954,6 +1791,51 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
           onAgentSelect={(agent) => onAgentSelect?.(agent)}
           onOpenAgentSettings={onOpenAgentSettings}
           onAddModel={onOpenModelSettings}
+          bmad={isBmadSupported ? {
+            presets: bmadPresets,
+            selectedPresetId: selectedBmadPresetId,
+            status: bmadStatus,
+            installLog: bmadInstallLog,
+            onPresetChange: setSelectedBmadPresetId,
+            onInsert: () => insertBmadCommand(false),
+            onInsertAndSend: () => insertBmadCommand(true),
+            onRefresh: requestBmadStatus,
+            onInstall: handleInstallBmad,
+            commandDisabled: disabled || isLoading || sdkStatusLoading || !sdkInstalled,
+            installDisabled: disabled || isLoading || isBmadInstalling,
+            installing: isBmadInstalling,
+          } : undefined}
+          uiUxPro={isUiUxSupported ? {
+            presets: uiUxProPresets,
+            selectedPresetId: selectedUiUxPresetId,
+            status: uiUxStatus,
+            installLog: uiUxInstallLog,
+            onPresetChange: setSelectedUiUxPresetId,
+            onInsert: () => insertUiUxPrompt(false),
+            onInsertAndSend: () => insertUiUxPrompt(true),
+            onRefresh: requestUiUxStatus,
+            onInstall: handleInstallUiUx,
+            promptDisabled: disabled || isLoading || sdkStatusLoading || !sdkInstalled,
+            installDisabled: disabled || isLoading || isUiUxInstalling,
+            installing: isUiUxInstalling,
+          } : undefined}
+          gitNexus={isGitNexusSupported ? {
+            presets: gitNexusPresets,
+            selectedPresetId: selectedGitNexusPresetId,
+            status: gitNexusStatus,
+            installLog: gitNexusInstallLog,
+            selectedScope: selectedGitNexusScope,
+            onPresetChange: setSelectedGitNexusPresetId,
+            onScopeChange: setSelectedGitNexusScope,
+            onInsert: () => insertGitNexusPrompt(false),
+            onInsertAndSend: () => insertGitNexusPrompt(true),
+            onRefresh: requestGitNexusStatus,
+            onInstall: () => handleInstallGitNexus(false),
+            onReindex: () => handleInstallGitNexus(true),
+            promptDisabled: disabled || isLoading || sdkStatusLoading || !sdkInstalled,
+            installDisabled: disabled || isLoading || isGitNexusInstalling,
+            installing: isGitNexusInstalling,
+          } : undefined}
           onClearAgent={() => onAgentSelect?.(null)}
           fileCompletion={fileCompletion}
           commandCompletion={commandCompletion}
