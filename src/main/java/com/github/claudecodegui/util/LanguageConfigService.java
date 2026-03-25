@@ -17,14 +17,14 @@ public class LanguageConfigService {
     /**
      * Map IDEA locale codes to i18n-supported language codes.
      * IDEA locale format: zh_CN, en, ja, ko, etc.
-     * Supported i18n languages: zh, en, zh-TW, hi, es, fr, ja, ru
+     * Supported i18n languages: zh, en, zh-TW, hi, es, fr, ja, ru, ko
      *
      * @param ideaLocale the IDEA Locale
      * @return the i18n language code
      */
     private static String mapIdeaLocaleToI18n(Locale ideaLocale) {
         if (ideaLocale == null) {
-            return "en";  // default to English
+            return "zh";  // default to Simplified Chinese
         }
 
         String language = ideaLocale.getLanguage();
@@ -52,10 +52,12 @@ public class LanguageConfigService {
                 return "ja";
             case "ru":
                 return "ru";
+            case "ko":
+                return "ko";
             default:
-                // Unsupported language, fall back to English
-                LOG.info("[LanguageConfig] Unsupported language '" + language + "', falling back to English");
-                return "en";
+                // Unsupported language, fall back to Simplified Chinese
+                LOG.info("[LanguageConfig] Unsupported language '" + language + "', falling back to Simplified Chinese");
+                return "zh";
         }
     }
 
@@ -75,16 +77,16 @@ public class LanguageConfigService {
             String i18nLanguage = mapIdeaLocaleToI18n(currentLocale);
 
             config.addProperty("language", i18nLanguage);
-            config.addProperty("ideaLocale", currentLocale != null ? currentLocale.toString() : "en");
+            config.addProperty("ideaLocale", currentLocale != null ? currentLocale.toString() : "zh");
 
             LOG.info("[LanguageConfig] Retrieved IDEA language config: ideaLocale=" + currentLocale
                     + ", i18nLanguage=" + i18nLanguage);
 
         } catch (Exception e) {
-            // Fall back to English on exception
-            config.addProperty("language", "en");
-            config.addProperty("ideaLocale", "en");
-            LOG.error("[LanguageConfig] Failed to get language config, using default (en): " + e.getMessage(), e);
+            // Fall back to Simplified Chinese on exception
+            config.addProperty("language", "zh");
+            config.addProperty("ideaLocale", "zh");
+            LOG.error("[LanguageConfig] Failed to get language config, using default (zh): " + e.getMessage(), e);
         }
 
         return config;
@@ -102,7 +104,7 @@ public class LanguageConfigService {
     /**
      * Get the current i18n language code.
      *
-     * @return the language code (zh, en, zh-TW, hi, es, fr, ja, ru)
+     * @return the language code (zh, en, zh-TW, hi, es, fr, ja, ru, ko)
      */
     public static String getCurrentLanguage() {
         try {
@@ -110,7 +112,7 @@ public class LanguageConfigService {
             return mapIdeaLocaleToI18n(currentLocale);
         } catch (Exception e) {
             LOG.error("[LanguageConfig] Failed to get current language: " + e.getMessage());
-            return "en";
+            return "zh";
         }
     }
 }

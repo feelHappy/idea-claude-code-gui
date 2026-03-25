@@ -1,14 +1,5 @@
 import type { TFunction } from 'i18next';
-import type {
-  BmadToolbarProps,
-  GitNexusToolbarProps,
-  DropdownItemData,
-  DropdownPosition,
-  PermissionMode,
-  ReasoningEffort,
-  SelectedAgent,
-  UiUxToolbarProps,
-} from './types.js';
+import type { BmadToolbarProps, DropdownItemData, DropdownPosition, GitNexusToolbarProps, PermissionMode, ReasoningEffort, SelectedAgent, UiUxToolbarProps } from './types.js';
 import type { TooltipState } from './hooks/useTooltip.js';
 import { ButtonArea } from './ButtonArea.js';
 import { CompletionDropdown } from './Dropdown/index.js';
@@ -49,9 +40,6 @@ export function ChatInputBoxFooter({
   onAgentSelect,
   onOpenAgentSettings,
   onAddModel,
-  bmad,
-  uiUxPro,
-  gitNexus,
   onClearAgent,
   fileCompletion,
   commandCompletion,
@@ -61,6 +49,9 @@ export function ChatInputBoxFooter({
   tooltip,
   promptEnhancer,
   t,
+  bmad,
+  gitNexus,
+  uiUxPro,
 }: {
   disabled: boolean;
   hasInputContent: boolean;
@@ -85,9 +76,6 @@ export function ChatInputBoxFooter({
   onAgentSelect?: (agent: SelectedAgent) => void;
   onOpenAgentSettings?: () => void;
   onAddModel?: () => void;
-  bmad?: BmadToolbarProps;
-  uiUxPro?: UiUxToolbarProps;
-  gitNexus?: GitNexusToolbarProps;
   onClearAgent: () => void;
   fileCompletion: CompletionController;
   commandCompletion: CompletionController;
@@ -105,6 +93,9 @@ export function ChatInputBoxFooter({
     onClose: () => void;
   };
   t: TFunction;
+  bmad?: BmadToolbarProps;
+  gitNexus?: GitNexusToolbarProps;
+  uiUxPro?: UiUxToolbarProps;
 }) {
   return (
     <>
@@ -135,8 +126,8 @@ export function ChatInputBoxFooter({
         onAddModel={onAddModel}
         onClearAgent={onClearAgent}
         bmad={bmad}
-        uiUxPro={uiUxPro}
         gitNexus={gitNexus}
+        uiUxPro={uiUxPro}
       />
 
       {/* @ file reference dropdown menu */}

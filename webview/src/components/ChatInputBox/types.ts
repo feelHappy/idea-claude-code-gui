@@ -3,10 +3,6 @@
  * Feature: 004-refactor-input-box
  */
 
-import type { BmadCommandPreset, BmadStatus } from './bmadCommands.js';
-import type { GitNexusPromptPreset, GitNexusScope, GitNexusStatus } from './gitNexusPrompts.js';
-import type { UiUxPromptPreset, UiUxStatus } from './uiUxProPrompts.js';
-
 // ============================================================
 // Core Entity Types
 // ============================================================
@@ -544,93 +540,6 @@ export interface ChatInputBoxProps {
 /**
  * ButtonArea component props
  */
-export interface BmadToolbarProps {
-  /** Available BMad presets */
-  presets: BmadCommandPreset[];
-  /** Currently selected preset */
-  selectedPresetId: string;
-  /** Current BMad status */
-  status: BmadStatus;
-  /** Current install log */
-  installLog?: string;
-  /** Whether BMad is installing */
-  installing?: boolean;
-  /** Whether BMad commands should be disabled */
-  commandDisabled?: boolean;
-  /** Whether install action should be disabled */
-  installDisabled?: boolean;
-  /** Change preset callback */
-  onPresetChange: (presetId: string) => void;
-  /** Insert selected preset into the input box */
-  onInsert: () => void;
-  /** Insert selected preset and submit */
-  onInsertAndSend: () => void;
-  /** Refresh BMad status */
-  onRefresh: () => void;
-  /** Run one-click install or repair */
-  onInstall: () => void;
-}
-
-export interface UiUxToolbarProps {
-  /** Available UI UX Pro Max starter prompts */
-  presets: UiUxPromptPreset[];
-  /** Currently selected starter prompt */
-  selectedPresetId: string;
-  /** Current UI UX Pro Max status */
-  status: UiUxStatus;
-  /** Current install log */
-  installLog?: string;
-  /** Whether installation is in progress */
-  installing?: boolean;
-  /** Whether preset actions should be disabled */
-  promptDisabled?: boolean;
-  /** Whether install action should be disabled */
-  installDisabled?: boolean;
-  /** Change preset callback */
-  onPresetChange: (presetId: string) => void;
-  /** Insert selected preset into the input box */
-  onInsert: () => void;
-  /** Insert selected preset and submit */
-  onInsertAndSend: () => void;
-  /** Refresh UI UX Pro Max status */
-  onRefresh: () => void;
-  /** Run one-click install or repair */
-  onInstall: () => void;
-}
-
-export interface GitNexusToolbarProps {
-  /** Available GitNexus starter prompts */
-  presets: GitNexusPromptPreset[];
-  /** Currently selected starter prompt */
-  selectedPresetId: string;
-  /** Current GitNexus status */
-  status: GitNexusStatus;
-  /** Current install log */
-  installLog?: string;
-  /** Whether installation or reindex is in progress */
-  installing?: boolean;
-  /** Whether prompt actions should be disabled */
-  promptDisabled?: boolean;
-  /** Whether install or reindex actions should be disabled */
-  installDisabled?: boolean;
-  /** Selected analysis scope */
-  selectedScope: GitNexusScope;
-  /** Change preset callback */
-  onPresetChange: (presetId: string) => void;
-  /** Change analysis scope callback */
-  onScopeChange: (scope: GitNexusScope) => void;
-  /** Insert selected preset into the input box */
-  onInsert: () => void;
-  /** Insert selected preset and submit */
-  onInsertAndSend: () => void;
-  /** Refresh GitNexus status */
-  onRefresh: () => void;
-  /** Run install or repair */
-  onInstall: () => void;
-  /** Rebuild the current repository index */
-  onReindex: () => void;
-}
-
 export interface ButtonAreaProps {
   /** Whether submit disabled */
   disabled?: boolean;
@@ -677,12 +586,14 @@ export interface ButtonAreaProps {
   onOpenAgentSettings?: () => void;
   /** Navigate to model management to add models */
   onAddModel?: () => void;
-  /** BMad toolbar configuration */
+
+  // Toolkit addon props (optional, rendered when present)
+  /** BMad command bar props */
   bmad?: BmadToolbarProps;
-  /** UI UX Pro Max toolbar configuration */
-  uiUxPro?: UiUxToolbarProps;
-  /** GitNexus toolbar configuration */
+  /** GitNexus analysis bar props */
   gitNexus?: GitNexusToolbarProps;
+  /** UI UX Pro Max bar props */
+  uiUxPro?: UiUxToolbarProps;
 }
 
 /**
@@ -745,6 +656,77 @@ export interface DropdownItemProps {
   onClick?: () => void;
   /** Mouse enter callback */
   onMouseEnter?: () => void;
+}
+
+// ============================================================
+// Toolkit Addon Props Types
+// ============================================================
+
+/**
+ * BMad command bar toolbar props
+ * Used by BmadCommandBar component
+ */
+export interface BmadToolbarProps {
+  presets: import('./bmadCommands.js').BmadCommandPreset[];
+  selectedPresetId: string;
+  status: import('./bmadCommands.js').BmadStatus;
+  installLog: string;
+  operation?: 'install' | 'update' | null;
+  onPresetChange: (id: string) => void;
+  onInsert: () => void;
+  onInsertAndSend: () => void;
+  onRefresh: () => void;
+  onInstall: () => void;
+  onUpdate: () => void;
+  commandDisabled?: boolean;
+  installDisabled?: boolean;
+  updateDisabled?: boolean;
+}
+
+/**
+ * GitNexus analysis bar toolbar props
+ * Used by GitNexusBar component
+ */
+export interface GitNexusToolbarProps {
+  presets: import('./gitNexusPrompts.js').GitNexusPromptPreset[];
+  selectedPresetId: string;
+  status: import('./gitNexusPrompts.js').GitNexusStatus;
+  installLog: string;
+  operation?: 'install' | 'update' | 'reindex' | null;
+  selectedScope: import('./gitNexusPrompts.js').GitNexusScope;
+  onPresetChange: (id: string) => void;
+  onScopeChange: (scope: import('./gitNexusPrompts.js').GitNexusScope) => void;
+  onInsert: () => void;
+  onInsertAndSend: () => void;
+  onRefresh: () => void;
+  onInstall: () => void;
+  onUpdate: () => void;
+  onReindex: () => void;
+  promptDisabled?: boolean;
+  installDisabled?: boolean;
+  updateDisabled?: boolean;
+  reindexDisabled?: boolean;
+}
+
+/**
+ * UI UX Pro Max bar toolbar props
+ * Used by UiUxProBar component
+ */
+export interface UiUxToolbarProps {
+  presets: import('./uiUxProPrompts.js').UiUxPromptPreset[];
+  selectedPresetId: string;
+  status: import('./uiUxProPrompts.js').UiUxStatus;
+  installLog: string;
+  operation?: 'install' | 'update' | null;
+  onPresetChange: (id: string) => void;
+  onInsert: () => void;
+  onInsertAndSend: () => void;
+  onRefresh: () => void;
+  onInstall: () => void;
+  onUpdate: () => void;
+  promptDisabled?: boolean;
+  installDisabled?: boolean;
+  updateDisabled?: boolean;
 }
 
 // ============================================================

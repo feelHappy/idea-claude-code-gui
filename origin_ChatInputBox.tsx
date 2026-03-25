@@ -36,7 +36,6 @@ import {
   useOpenSourceBannerState,
   useSpaceKeyListener,
   useResizableChatInputBox,
-  useToolkitIntegrations,
 } from './hooks/index.js';
 import { debounce } from './utils/debounce.js';
 import { perfTimer } from '../../utils/debug.js';
@@ -546,37 +545,6 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
 
     useSpaceKeyListener({ editableRef, onKeyDown: handleKeyDownForTagRendering });
 
-    // ---- Toolkit addons (BMad / GitNexus / UiUxPro) ----
-    const toolkitInsertText = useCallback((text: string) => {
-      if (editableRef.current) {
-        editableRef.current.textContent = text;
-        invalidateCache();
-        setHasContent(true);
-        adjustHeight();
-        onInput?.(text);
-      }
-    }, [invalidateCache, adjustHeight, onInput]);
-
-    const toolkitInsertTextAndSend = useCallback((text: string) => {
-      if (editableRef.current) {
-        editableRef.current.textContent = text;
-        invalidateCache();
-        setHasContent(true);
-        adjustHeight();
-        // Flush pending onInput then submit
-        onInput?.(text);
-        // Use setTimeout to let React reconcile before submit reads the content
-        setTimeout(() => handleSubmit(), 0);
-      }
-    }, [invalidateCache, adjustHeight, onInput, handleSubmit]);
-
-    const toolkit = useToolkitIntegrations({
-      currentProvider,
-      insertText: toolkitInsertText,
-      insertTextAndSend: toolkitInsertTextAndSend,
-      addToast,
-    });
-
     const {
       isResizing: isResizingInputBox,
       containerStyle,
@@ -745,9 +713,6 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
             onClose: handleCloseEnhancerDialog,
           }}
           t={t}
-          bmad={toolkit.bmad}
-          gitNexus={toolkit.gitNexus}
-          uiUxPro={toolkit.uiUxPro}
         />
       </div>
     );

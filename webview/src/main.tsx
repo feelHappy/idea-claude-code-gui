@@ -269,8 +269,8 @@ function applyLanguageConfig(config: { language: string; ideaLocale?: string }) 
   }
 
   // Validate that the language code is supported
-  const supportedLanguages = ['zh', 'en', 'zh-TW', 'hi', 'es', 'fr', 'ja', 'ru'];
-  const targetLanguage = supportedLanguages.includes(language) ? language : 'en';
+  const supportedLanguages = ['zh', 'en', 'zh-TW', 'hi', 'es', 'fr', 'ja', 'ru', 'ko'];
+  const targetLanguage = supportedLanguages.includes(language) ? language : 'zh';
 
   console.log('[Main] Applying IDEA language config:', config, 'target language:', targetLanguage);
 

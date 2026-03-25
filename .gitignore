@@ -73,3 +73,11 @@ logs/*.log
 /.idea/
 .ace-tool/
 .workflow
+.gitnexus
+.agents
+.codex
+_bmad
+_bmad-output
+{output_folder}
+.tmp-bmad-codex-install-1774225788
+.tmp-bmad-pack

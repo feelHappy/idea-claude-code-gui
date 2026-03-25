@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.github.idea-claude-code-gui</id>
     <name>CC AI Toolkit</name>
-    <vendor>MossX</vendor>
+    <vendor>Jordan</vendor>
 
     <!-- Resource bundle for i18n -->
     <resource-bundle>messages.ClaudeCodeGuiBundle</resource-bundle>

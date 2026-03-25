@@ -1,14 +1,16 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ButtonAreaProps, ModelInfo, PermissionMode, ReasoningEffort } from './types';
-import { BmadCommandBar } from './BmadCommandBar.js';
-import { GitNexusBar } from './GitNexusBar.js';
-import { UiUxProBar } from './UiUxProBar.js';
 import { ConfigSelect, ModelSelect, ModeSelect, ProviderSelect, ReasoningSelect } from './selectors';
 import { CLAUDE_MODELS, CODEX_MODELS } from './types';
 import { STORAGE_KEYS, validateCodexCustomModels } from '../../types/provider';
 import type { CodexCustomModel } from '../../types/provider';
 import { readClaudeModelMapping } from '../../utils/claudeModelMapping';
+import { BmadCommandBar } from './BmadCommandBar.js';
+import { GitNexusBar } from './GitNexusBar.js';
+import { UiUxProBar } from './UiUxProBar.js';
+
+type AddonPanelId = 'bmad' | 'gitNexus' | 'uiUxPro';
 
 /**
  * Get custom Codex model list from localStorage
@@ -94,8 +96,8 @@ export const ButtonArea = ({
   onOpenAgentSettings,
   onAddModel,
   bmad,
-  uiUxPro,
   gitNexus,
+  uiUxPro,
 }: ButtonAreaProps) => {
   const { t } = useTranslation();
   // const fileInputRef = useRef<HTMLInputElement>(null);
@@ -127,46 +129,6 @@ export const ButtonArea = ({
       window.removeEventListener('localStorageChange', handleCustomStorageChange as EventListener);
     };
   }, []);
-
-  const addonTabs = useMemo(() => {
-    const tabs: Array<{ id: 'bmad' | 'uiUxPro' | 'gitNexus'; label: string; icon: string }> = [];
-    if (bmad) {
-      tabs.push({
-        id: 'bmad',
-        label: t('chat.bmad.title', { defaultValue: 'BMad' }),
-        icon: 'codicon-hubot',
-      });
-    }
-    if (uiUxPro) {
-      tabs.push({
-        id: 'uiUxPro',
-        label: t('chat.uiUxPro.title', { defaultValue: 'UI UX Pro Max' }),
-        icon: 'codicon-symbol-color',
-      });
-    }
-    if (gitNexus) {
-      tabs.push({
-        id: 'gitNexus',
-        label: t('chat.gitNexus.title', { defaultValue: 'GitNexus' }),
-        icon: 'codicon-graph',
-      });
-    }
-    return tabs;
-  }, [bmad, gitNexus, t, uiUxPro]);
-
-  const [activeAddonTab, setActiveAddonTab] = useState<'bmad' | 'uiUxPro' | 'gitNexus'>(
-    uiUxPro && !bmad ? 'uiUxPro' : gitNexus && !bmad && !uiUxPro ? 'gitNexus' : 'bmad'
-  );
-
-  useEffect(() => {
-    if (addonTabs.length === 0) {
-      return;
-    }
-
-    if (!addonTabs.some((tab) => tab.id === activeAddonTab)) {
-      setActiveAddonTab(addonTabs[0].id);
-    }
-  }, [activeAddonTab, addonTabs]);
 
   /**
    * Apply model name mapping
@@ -285,9 +247,67 @@ export const ButtonArea = ({
     onEnhancePrompt?.();
   }, [onEnhancePrompt]);
 
+  const addonItems = useMemo(() => {
+    const items: Array<{
+      id: AddonPanelId;
+      label: string;
+      icon: string;
+      contentClassName?: string;
+      content: React.ReactNode;
+    }> = [];
+
+    if (bmad) {
+      items.push({
+        id: 'bmad',
+        label: 'BMad',
+        icon: 'codicon-hubot',
+        contentClassName: 'addon-content-bmad',
+        content: <BmadCommandBar {...bmad} />,
+      });
+    }
+
+    if (uiUxPro) {
+      items.push({
+        id: 'uiUxPro',
+        label: 'UI UX Pro Max',
+        icon: 'codicon-symbol-color',
+        content: <UiUxProBar {...uiUxPro} />,
+      });
+    }
+
+    if (gitNexus) {
+      items.push({
+        id: 'gitNexus',
+        label: 'GitNexus',
+        icon: 'codicon-circuit-board',
+        content: <GitNexusBar {...gitNexus} />,
+      });
+    }
+
+    return items;
+  }, [bmad, gitNexus, uiUxPro]);
+
+  const [activeAddon, setActiveAddon] = useState<AddonPanelId | null>(addonItems[0]?.id ?? null);
+
+  useEffect(() => {
+    if (addonItems.length === 0) {
+      if (activeAddon !== null) {
+        setActiveAddon(null);
+      }
+      return;
+    }
+
+    if (!activeAddon || !addonItems.some(item => item.id === activeAddon)) {
+      setActiveAddon(addonItems[0].id);
+    }
+  }, [activeAddon, addonItems]);
+
+  const activeAddonItem = addonItems.find(item => item.id === activeAddon) ?? addonItems[0];
+
   return (
-    <div className="button-area" data-provider={currentProvider}>
-      <div className="button-area-top">
+    <>
+      <div className="button-area" data-provider={currentProvider}>
+        {/* Left side: selectors */}
         <div className="button-area-left">
           <ConfigSelect
             alwaysThinkingEnabled={alwaysThinkingEnabled}
@@ -310,9 +330,11 @@ export const ButtonArea = ({
           )}
         </div>
 
+        {/* Right side: tool buttons */}
         <div className="button-area-right">
           <div className="button-divider" />
 
+          {/* Enhance prompt button */}
           <button
             className="enhance-prompt-button has-tooltip"
             onClick={handleEnhanceClick}
@@ -322,6 +344,7 @@ export const ButtonArea = ({
             <span className={`codicon ${isEnhancing ? 'codicon-loading codicon-modifier-spin' : 'codicon-sparkle'}`} />
           </button>
 
+          {/* Send/Stop button */}
           {isLoading ? (
             <button
               className="submit-button stop-button"
@@ -343,32 +366,36 @@ export const ButtonArea = ({
         </div>
       </div>
 
-      {addonTabs.length > 0 ? (
+      {activeAddonItem && (
         <div className="button-area-bottom">
           <div className="addon-panel">
-            {addonTabs.length > 1 ? (
-              <div className="addon-tabs">
-                {addonTabs.map((tab) => (
+            {addonItems.length > 1 && (
+              <div className="addon-tabs" role="tablist" aria-label="Toolkit add-on panels">
+                {addonItems.map((item) => (
                   <button
-                    key={tab.id}
+                    key={item.id}
                     type="button"
-                    className={`addon-tab${tab.id === activeAddonTab ? ' active' : ''}`}
-                    onClick={() => setActiveAddonTab(tab.id)}
+                    className={`addon-tab${item.id === activeAddonItem.id ? ' active' : ''}`}
+                    role="tab"
+                    aria-selected={item.id === activeAddonItem.id}
+                    aria-label={item.label}
+                    title={item.label}
+                    onClick={() => setActiveAddon(item.id)}
                   >
-                    <span className={`codicon ${tab.icon}`} />
-                    <span>{tab.label}</span>
+                    <span className={`addon-tab-icon codicon ${item.icon}`} aria-hidden="true" />
+                    <span className="addon-tab-label">{item.label}</span>
                   </button>
                 ))}
               </div>
-            ) : null}
+            )}
 
-            {activeAddonTab === 'bmad' && bmad ? <BmadCommandBar {...bmad} /> : null}
-            {activeAddonTab === 'uiUxPro' && uiUxPro ? <UiUxProBar {...uiUxPro} /> : null}
-            {activeAddonTab === 'gitNexus' && gitNexus ? <GitNexusBar {...gitNexus} /> : null}
+            <div className={`addon-content${activeAddonItem.contentClassName ? ` ${activeAddonItem.contentClassName}` : ''}`}>
+              {activeAddonItem.content}
+            </div>
           </div>
         </div>
-      ) : null}
-    </div>
+      )}
+    </>
   );
 };
 

@@ -85,16 +85,26 @@ const App = () => {
   const userCollapsedRef = useRef(false);
   const [, forceStatusUpdate] = useState(0);
 
-  // Changelog dialog state (show once per version update)
-  const LAST_SEEN_VERSION_KEY = 'lastSeenChangelogVersion';
-  const [showChangelogDialog, setShowChangelogDialog] = useState(() => {
-    const lastSeen = localStorage.getItem(LAST_SEEN_VERSION_KEY);
+  // Feature guide state (show once per version update)
+  const LAST_SEEN_FEATURE_GUIDE_KEY = 'lastSeenFeatureGuideVersion';
+  const [showFeatureGuideDialog, setShowFeatureGuideDialog] = useState(() => {
+    const lastSeen = localStorage.getItem(LAST_SEEN_FEATURE_GUIDE_KEY);
     return lastSeen !== APP_VERSION;
   });
+  const handleCloseFeatureGuide = useCallback(() => {
+    localStorage.setItem(LAST_SEEN_FEATURE_GUIDE_KEY, APP_VERSION);
+    setShowFeatureGuideDialog(false);
+  }, []);
+
+  // Changelog dialog state (manual open only)
+  const [showChangelogDialog, setShowChangelogDialog] = useState(false);
   const handleCloseChangelog = useCallback(() => {
-    localStorage.setItem(LAST_SEEN_VERSION_KEY, APP_VERSION);
     setShowChangelogDialog(false);
   }, []);
+  const handleOpenChangelogFromFeatureGuide = useCallback(() => {
+    handleCloseFeatureGuide();
+    setShowChangelogDialog(true);
+  }, [handleCloseFeatureGuide]);
 
   // Context state (active file and selection)
   const [contextInfo, setContextInfo] = useState<ContextInfo | null>(null);
@@ -636,6 +646,9 @@ const App = () => {
         isRewinding={isRewinding}
         onRewindConfirm={handleRewindConfirm}
         onRewindCancel={handleRewindCancel}
+        showFeatureGuideDialog={showFeatureGuideDialog}
+        onCloseFeatureGuide={handleCloseFeatureGuide}
+        onOpenChangelogFromFeatureGuide={handleOpenChangelogFromFeatureGuide}
         showChangelogDialog={showChangelogDialog}
         onCloseChangelog={handleCloseChangelog}
         addModelDialogOpen={addModelDialogOpen}

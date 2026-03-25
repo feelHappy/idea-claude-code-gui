@@ -39,3 +39,4 @@ export { useOpenSourceBannerState } from './useOpenSourceBannerState.js';
 export { useSpaceKeyListener } from './useSpaceKeyListener.js';
 export { useResizableChatInputBox, computeResize } from './useResizableChatInputBox.js';
 export { useInlineHistoryCompletion } from './useInlineHistoryCompletion.js';
+export { useToolkitIntegrations } from './useToolkitIntegrations.js';

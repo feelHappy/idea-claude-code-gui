@@ -7,6 +7,7 @@ import PlanApprovalDialog from './PlanApprovalDialog';
 import RewindDialog from './RewindDialog';
 import RewindSelectDialog, { type RewindableMessage } from './RewindSelectDialog';
 import ChangelogDialog from './ChangelogDialog';
+import FeatureGuideDialog from './FeatureGuideDialog';
 import CustomModelDialog from './settings/CustomModelDialog';
 import { usePluginModels } from './settings/hooks/usePluginModels';
 import { STORAGE_KEYS } from '../types/provider';
@@ -70,6 +71,9 @@ export interface AppDialogsProps {
   isRewinding: boolean;
   onRewindConfirm: ComponentProps<typeof RewindDialog>['onConfirm'];
   onRewindCancel: ComponentProps<typeof RewindDialog>['onCancel'];
+  showFeatureGuideDialog: boolean;
+  onCloseFeatureGuide: () => void;
+  onOpenChangelogFromFeatureGuide: () => void;
   showChangelogDialog: boolean;
   onCloseChangelog: () => void;
   addModelDialogOpen: boolean;
@@ -128,6 +132,11 @@ export const AppDialogs = (props: AppDialogsProps) => (
       isLoading={props.isRewinding}
       onConfirm={props.onRewindConfirm}
       onCancel={props.onRewindCancel}
+    />
+    <FeatureGuideDialog
+      isOpen={props.showFeatureGuideDialog}
+      onClose={props.onCloseFeatureGuide}
+      onOpenChangelog={props.onOpenChangelogFromFeatureGuide}
     />
     <ChangelogDialog
       isOpen={props.showChangelogDialog}

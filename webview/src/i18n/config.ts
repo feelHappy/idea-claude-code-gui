@@ -10,10 +10,10 @@ import ja from './locales/ja.json';
 import ru from './locales/ru.json';
 import ko from './locales/ko.json';
 
-// Retrieve the saved language from localStorage; default to English if not set
+// Retrieve the saved language from localStorage; default to Simplified Chinese if not set
 const getInitialLanguage = (): string => {
   const savedLanguage = localStorage.getItem('language');
-  return savedLanguage || 'en'; // Default to English
+  return savedLanguage || 'zh'; // Default to Simplified Chinese
 };
 
 i18n
@@ -31,7 +31,7 @@ i18n
       ko: { translation: ko }, // Korean
     },
     lng: getInitialLanguage(), // Initial language
-    fallbackLng: 'en', // Fallback to English when a translation is missing
+    fallbackLng: 'zh', // Fallback to Simplified Chinese when a translation is missing
     interpolation: {
       escapeValue: false, // React already handles XSS protection
     },
