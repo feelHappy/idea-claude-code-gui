@@ -66,6 +66,7 @@ public class BmadHandler extends BaseMessageHandler {
     ));
     private static final int READY_SKILL_THRESHOLD = 8;
     private static final int READY_CORE_SKILL_THRESHOLD = 5;
+    private static final int BMAD_MIN_NODE_MAJOR_VERSION = 20;
     private static final Pattern ANSI_ESCAPE_PATTERN = Pattern.compile(
             "\\u001B(?:\\[[0-?]*[ -/]*[@-~]|\\][^\\u0007]*(?:\\u0007|\\u001B\\\\)|[@-Z\\\\-_])"
     );
@@ -150,16 +151,16 @@ public class BmadHandler extends BaseMessageHandler {
 
                 NodeDetectionResult nodeResult = detectNodeEnvironment();
                 if (nodeResult == null || !nodeResult.isFound()) {
-                    sendInstallResult(false, providerConfig, "Node.js 18+ is required before installing BMad.", null);
+                    sendInstallResult(false, providerConfig, "Node.js 20+ is required before installing BMad.", null);
                     return;
                 }
 
                 String nodeVersion = nodeResult.getNodeVersion();
-                if (!NodeDetector.isVersionSupported(nodeVersion)) {
+                if (!isBmadNodeVersionSupported(nodeVersion)) {
                     sendInstallResult(
                             false,
                             providerConfig,
-                            "BMad requires Node.js 18 or newer. Current version: " + nodeVersion,
+                            "BMad requires Node.js 20 or newer. Current version: " + nodeVersion,
                             null
                     );
                     return;
@@ -313,7 +314,7 @@ public class BmadHandler extends BaseMessageHandler {
 
         NodeDetectionResult nodeResult = detectNodeEnvironment();
         boolean nodeAvailable = nodeResult != null && nodeResult.isFound();
-        boolean nodeSupported = nodeAvailable && NodeDetector.isVersionSupported(nodeResult.getNodeVersion());
+        boolean nodeSupported = nodeAvailable && isBmadNodeVersionSupported(nodeResult.getNodeVersion());
 
         status.addProperty("nodeAvailable", nodeAvailable);
         status.addProperty("nodeSupported", nodeSupported);
@@ -355,13 +356,13 @@ public class BmadHandler extends BaseMessageHandler {
 
         if (!nodeAvailable) {
             status.addProperty("state", "missing");
-            status.addProperty("message", "Node.js 18+ is required before installing BMad.");
+            status.addProperty("message", "Node.js 20+ is required before installing BMad.");
             return status;
         }
 
         if (!nodeSupported) {
             status.addProperty("state", "missing");
-            status.addProperty("message", "BMad requires Node.js 18 or newer. Current version: " + nodeResult.getNodeVersion());
+            status.addProperty("message", "BMad requires Node.js 20 or newer. Current version: " + nodeResult.getNodeVersion());
             return status;
         }
 
@@ -644,6 +645,10 @@ public class BmadHandler extends BaseMessageHandler {
     /**
      * 检测并缓存 Node.js 环境。
      */
+    private boolean isBmadNodeVersionSupported(String version) {
+        return NodeDetector.parseMajorVersion(version) >= BMAD_MIN_NODE_MAJOR_VERSION;
+    }
+
     private NodeDetectionResult detectNodeEnvironment() {
         try {
             NodeDetectionResult cached = nodeDetector.getCachedDetectionResult();

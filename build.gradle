@@ -1,3 +1,5 @@
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
+
 plugins {
     id 'java'
     id 'checkstyle'
@@ -21,8 +23,31 @@ ext.getLocalProperty = { String key, String defaultValue = null ->
     return localProperties.getProperty(key) ?: project.findProperty(key) ?: defaultValue
 }
 
+ext.getReleaseProperty = { String key, String envKey = null, String defaultValue = null ->
+    def localValue = getLocalProperty(key)
+    if (localValue != null && !localValue.toString().trim().isEmpty()) {
+        return localValue.toString().trim()
+    }
+
+    if (envKey != null) {
+        def envValue = System.getenv(envKey)
+        if (envValue != null && !envValue.trim().isEmpty()) {
+            return envValue.trim()
+        }
+    }
+
+    return defaultValue
+}
+
 // Get custom JDK path from local properties (support both property names)
 def localJavaHome = getLocalProperty('java.home') ?: getLocalProperty('org.gradle.java.home')
+def releasePluginId = getReleaseProperty('marketplace.plugin.id', 'MARKETPLACE_PLUGIN_ID', 'com.github.idea-claude-code-gui')
+def releasePluginName = getReleaseProperty('marketplace.plugin.name', 'MARKETPLACE_PLUGIN_NAME', 'CC AI Toolkit')
+def releaseVendorName = getReleaseProperty('marketplace.vendor.name', 'MARKETPLACE_VENDOR_NAME', 'Jordan')
+def releaseVendorEmail = getReleaseProperty('marketplace.vendor.email', 'MARKETPLACE_VENDOR_EMAIL')
+def releaseVendorUrl = getReleaseProperty('marketplace.vendor.url', 'MARKETPLACE_VENDOR_URL', 'https://github.com/feelHappy')
+def releaseChannel = getReleaseProperty('marketplace.channel', 'MARKETPLACE_CHANNEL', 'default')
+def releaseHidden = getReleaseProperty('marketplace.hidden', 'MARKETPLACE_HIDDEN', 'false').toBoolean()
 
 checkstyle {
     toolVersion = '10.12.5'
@@ -30,7 +55,7 @@ checkstyle {
 }
 
 group = 'com.github.idea-claude-code-gui'
-version = '1.0.0'
+version = '1.0.1'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -71,6 +96,27 @@ repositories {
     mavenCentral()
     intellijPlatform {
         defaultRepositories()
+    }
+}
+
+intellijPlatform {
+    publishing {
+        token = providers.environmentVariable('PUBLISH_TOKEN')
+        channels = [releaseChannel]
+        hidden = releaseHidden
+    }
+
+    signing {
+        certificateChain = providers.environmentVariable('CERTIFICATE_CHAIN')
+        privateKey = providers.environmentVariable('PRIVATE_KEY')
+        password = providers.environmentVariable('PRIVATE_KEY_PASSWORD')
+    }
+
+    pluginVerification {
+        failureLevel = VerifyPluginTask.FailureLevel.ALL
+        ides {
+            recommended()
+        }
     }
 }
 
@@ -131,9 +177,20 @@ tasks.withType(JavaCompile).configureEach {
 
 // Ensure plugin.xml is patched with the correct since/until build and change notes
 patchPluginXml {
+    pluginId = releasePluginId
+    pluginName = releasePluginName
+    vendorName = releaseVendorName
+    if (releaseVendorEmail) {
+        vendorEmail = releaseVendorEmail
+    }
+    if (releaseVendorUrl) {
+        vendorUrl = releaseVendorUrl
+    }
+
     // plugin compatibility range
     sinceBuild = '233'
-    untilBuild = '263.*'
+    // Keep the upper bound open unless a release explicitly needs a cap.
+    untilBuild = providers.provider { null }
 
     // Release notes shown in plugin repositories
     // Dynamically load the latest changelog entry from CHANGELOG.md and convert to simple HTML.
@@ -561,4 +618,16 @@ tasks.named('buildPlugin') {
             delete(tempDir)
         }
     }
+}
+
+tasks.register('marketplaceCheck') {
+    group = 'verification'
+    description = 'Runs Marketplace-oriented validation and compatibility checks.'
+    dependsOn('verifyPluginConfiguration', 'verifyPlugin', 'runPluginVerifier')
+}
+
+tasks.register('marketplaceBuild') {
+    group = 'build'
+    description = 'Builds the Marketplace ZIP after Marketplace-oriented validation.'
+    dependsOn('marketplaceCheck', 'buildPlugin')
 }

@@ -121,7 +121,7 @@ export function BmadCommandBar({
   const busy = operation !== null;
   const installing = operation === 'install';
   const updating = operation === 'update';
-  const renderedCommand = `${status.commandPrefix}${selectedPreset.command}`;
+  const renderedCommand = selectedPreset.command;
   const selectedDescription = t(selectedPreset.descriptionKey, {
     defaultValue: selectedPreset.description,
   });
@@ -184,7 +184,7 @@ export function BmadCommandBar({
     if (status.state === 'missing') {
       if (status.nodeAvailable === false || status.nodeSupported === false) {
         return t('chat.bmad.nodeHint', {
-          defaultValue: 'Install Node.js 18 or later first, then return here for one-click setup.',
+          defaultValue: 'Install Node.js 20 or later first, then return here for one-click setup.',
         });
       }
       return t('chat.bmad.missingHint', {
@@ -297,7 +297,7 @@ export function BmadCommandBar({
                           >
                             <span className="bmad-command-option-heading">
                               <span className="bmad-command-option-title">
-                                {status.commandPrefix}{preset.command}
+                                {preset.command}
                               </span>
                               <span className={`bmad-command-kind-badge kind-${presetKind}`}>
                                 {presetKindLabel}

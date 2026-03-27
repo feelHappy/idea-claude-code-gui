@@ -1,7 +1,7 @@
-<idea-plugin>
+<idea-plugin url="https://github.com/feelHappy/idea-claude-code-gui">
     <id>com.github.idea-claude-code-gui</id>
     <name>CC AI Toolkit</name>
-    <vendor>Jordan</vendor>
+    <vendor url="https://github.com/feelHappy">Jordan</vendor>
 
     <!-- Resource bundle for i18n -->
     <resource-bundle>messages.ClaudeCodeGuiBundle</resource-bundle>

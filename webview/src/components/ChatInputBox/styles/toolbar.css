@@ -48,6 +48,7 @@
   display: flex;
   width: 100%;
   min-width: 0;
+  overflow: visible;
 }
 
 .addon-panel {
@@ -56,6 +57,7 @@
   gap: 8px;
   width: 100%;
   min-width: 0;
+  overflow: visible;
 }
 
 .addon-tabs {
@@ -103,6 +105,7 @@
 .addon-content {
   width: 100%;
   min-width: 0;
+  overflow: visible;
 }
 
 .addon-content-bmad {
@@ -469,6 +472,7 @@
   padding-top: 6px;
   border-top: 1px solid var(--border-color);
   position: relative;
+  overflow: visible;
 }
 
 .uiux-pro-main {
@@ -477,6 +481,7 @@
   flex-wrap: wrap;
   gap: 6px 8px;
   min-width: 0;
+  overflow: visible;
 }
 
 .uiux-pro-head {
@@ -546,8 +551,10 @@
 .uiux-pro-picker-wrap {
   position: relative;
   flex: 0 1 220px;
+  width: min(280px, 100%);
   min-width: 180px;
   max-width: 280px;
+  overflow: visible;
 }
 
 .uiux-pro-picker {
@@ -587,11 +594,11 @@
 
 .uiux-pro-menu {
   position: absolute;
-  right: 0;
+  left: 0;
   bottom: calc(100% + 6px);
   z-index: 10020;
-  width: min(420px, calc(100vw - 24px));
-  max-width: calc(100vw - 24px);
+  width: max(100%, 280px);
+  max-width: min(360px, calc(100vw - 24px));
   max-height: 320px;
   overflow-y: auto;
   background: var(--dropdown-bg);
@@ -600,6 +607,7 @@
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
   padding: 6px;
   box-sizing: border-box;
+  transform-origin: left bottom;
 }
 
 .uiux-pro-menu-search {
@@ -796,6 +804,7 @@
   padding-top: 6px;
   border-top: 1px solid var(--border-color);
   position: relative;
+  overflow: visible;
 }
 
 .gitnexus-main {
@@ -804,6 +813,7 @@
   flex-wrap: wrap;
   gap: 6px 8px;
   min-width: 0;
+  overflow: visible;
 }
 
 .gitnexus-head {
@@ -873,8 +883,10 @@
 .gitnexus-picker-wrap {
   position: relative;
   flex: 0 1 220px;
+  width: min(280px, 100%);
   min-width: 180px;
   max-width: 280px;
+  overflow: visible;
 }
 
 .gitnexus-picker {
@@ -914,11 +926,11 @@
 
 .gitnexus-menu {
   position: absolute;
-  right: 0;
+  left: 0;
   bottom: calc(100% + 6px);
   z-index: 10020;
-  width: min(420px, calc(100vw - 24px));
-  max-width: calc(100vw - 24px);
+  width: max(100%, 280px);
+  max-width: min(360px, calc(100vw - 24px));
   max-height: 320px;
   overflow-y: auto;
   background: var(--dropdown-bg);
@@ -927,6 +939,7 @@
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
   padding: 6px;
   box-sizing: border-box;
+  transform-origin: left bottom;
 }
 
 .gitnexus-menu-search {
@@ -1250,7 +1263,7 @@
   }
 
   .uiux-pro-menu {
-    width: min(420px, calc(100vw - 24px));
+    width: min(360px, calc(100vw - 24px));
   }
 
   .uiux-pro-summary {
@@ -1286,7 +1299,7 @@
   }
 
   .gitnexus-menu {
-    width: min(420px, calc(100vw - 24px));
+    width: min(360px, calc(100vw - 24px));
   }
 
   .gitnexus-summary {

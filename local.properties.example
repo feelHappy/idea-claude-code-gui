@@ -13,3 +13,22 @@
 # node.path=/usr/local/bin/node
 # node.path=/home/user/.nvm/versions/node/v20.10.0/bin/node
 # node.path=C:\\Program Files\\nodejs\\node.exe
+
+# JetBrains Marketplace release metadata overrides (optional)
+# Keep plugin.id unchanged if you are publishing updates to the existing listing.
+# marketplace.plugin.id=com.yourcompany.cc-ai-toolkit
+# marketplace.plugin.name=CC AI Toolkit
+# marketplace.vendor.name=Jordan
+# marketplace.vendor.email=you@example.com
+# marketplace.vendor.url=https://your-site.example
+# marketplace.channel=default
+# marketplace.hidden=false
+
+# Marketplace publish/sign secrets
+# Recommended: set these as environment variables instead of local.properties.
+# For IDE Run Configurations, multi-line certificate/private key values are often
+# provided as Base64-encoded single-line strings.
+# PUBLISH_TOKEN=...
+# CERTIFICATE_CHAIN=...
+# PRIVATE_KEY=...
+# PRIVATE_KEY_PASSWORD=...
