@@ -269,6 +269,82 @@
         }
       }
     },
+    "designToolkit": {
+      "title": "Design",
+      "ariaLabel": "Design toolkit modes",
+      "modes": {
+        "uiUxPro": "UI UX Pro Max",
+        "impeccable": "Impeccable"
+      }
+    },
+    "impeccable": {
+      "title": "Impeccable",
+      "selectAria": "Select an Impeccable command",
+      "insert": "Insert",
+      "insertAndSend": "Send",
+      "install": "Install",
+      "repair": "Repair",
+      "update": "Update",
+      "installing": "Installing...",
+      "refresh": "Refresh",
+      "preview": "Focus",
+      "statusTitle": "Status",
+      "searchPlaceholder": "Search commands or descriptions",
+      "searchEmpty": "No matching Impeccable commands.",
+      "readyHint": "Use Impeccable for design audits, normalization, and targeted UI refinement.",
+      "missingHint": "Impeccable is not set up for this project yet. Click Install to copy the official skills.",
+      "partialHint": "Found an incomplete Impeccable setup. Click Repair to sync the official skill bundle.",
+      "loadingHint": "Checking the current project for Impeccable...",
+      "unsupportedHint": "Impeccable onboarding currently supports Claude Code and Codex only.",
+      "errorHint": "Impeccable status check failed. Try Refresh or reinstall.",
+      "detailHint": "Best fit: auditing and tightening existing product interfaces instead of free-form redesigns.",
+      "installBusy": "Another Impeccable task is already running. Please wait and retry.",
+      "installSuccess": "Impeccable is ready for {{provider}}.",
+      "updateSuccess": "Impeccable has been updated for {{provider}}.",
+      "installFailed": "Impeccable installation failed.",
+      "installFailedWithReason": "Impeccable installation failed: {{reason}}",
+      "resultParseFailed": "Failed to process the Impeccable installation result.",
+      "installingHint": "Installing Impeccable for the current project...",
+      "updatingHint": "Updating Impeccable for the current project...",
+      "updateHint": "Update available: v{{version}}. Click Update to sync the project skills.",
+      "status": {
+        "loading": "Checking",
+        "ready": "Ready",
+        "missing": "Not Installed",
+        "partial": "Needs Repair",
+        "unsupported": "Unsupported",
+        "error": "Error"
+      },
+      "groups": {
+        "setup": "Setup",
+        "review": "Review",
+        "refine": "Refine",
+        "creative": "Creative"
+      },
+      "commands": {
+        "teach-impeccable": "Load Impeccable guidance and bootstrap the design vocabulary before deeper work.",
+        "audit": "Run a technical UI quality audit across accessibility, performance, theming, and responsiveness.",
+        "critique": "Critique the current interface direction and surface design issues with prioritized feedback.",
+        "clarify": "Clarify ambiguous design goals, constraints, and tradeoffs before making UI changes.",
+        "normalize": "Normalize inconsistent UI patterns into a cleaner, more systematic design baseline.",
+        "harden": "Harden an interface for production with stronger states, accessibility, and resilience details.",
+        "polish": "Polish an existing screen with tighter spacing, hierarchy, and interaction details.",
+        "typeset": "Improve typography, copy flow, and layout readability for dense product interfaces.",
+        "arrange": "Reorganize layouts, sections, and content hierarchy into a clearer structure.",
+        "extract": "Extract reusable patterns or design rules from a screen or component set.",
+        "adapt": "Adapt an existing design direction to a new product context or brand constraint.",
+        "distill": "Condense complex design feedback into a compact decision-ready summary.",
+        "optimize": "Optimize UI implementation choices for maintainability and production delivery.",
+        "quieter": "Reduce visual noise and unnecessary emphasis in busy interfaces.",
+        "bolder": "Push the visual direction into a more opinionated and expressive design.",
+        "colorize": "Rework color usage and visual contrast with a stronger palette strategy.",
+        "delight": "Add tasteful moments of delight without turning the UI into decorative noise.",
+        "animate": "Improve motion design with more deliberate transitions and state changes.",
+        "overdrive": "Explore a maximal redesign direction when you want a more radical visual push.",
+        "onboard": "Design onboarding and first-run flows with clearer guidance and activation steps.",
+        "frontend-design": "Load Impeccable design principles and anti-pattern guidance."
+      }
+    },
     "gitNexus": {
       "title": "GitNexus",
       "selectAria": "Select a GitNexus starter prompt",

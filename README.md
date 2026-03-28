@@ -1,8 +1,8 @@
 <div align="center">
 
-# CC GUI（Claude or Codex）
+# CC AI Toolkit
 
-> Originally Claude Code GUI
+> Formerly CC GUI / Claude Code GUI
 
 <img width="120" alt="Image" src="./docs/images/idea-claude-code-gui-logo.png" />
 
@@ -14,10 +14,9 @@
 
 </div>
 
-> To mitigate Claude trademark risks, this project has been renamed to CC GUI (originally Claude Code GUI). The logo has also been updated to reduce Chinese-specific elements. Regarding security, a        
-  /security-review audit will be conducted before each minor version release, and a comprehensive claude-code-security audit will be performed every 10 minor versions. 
+> To mitigate Claude trademark risks, the project branding was adjusted from the older CC GUI / Claude Code GUI naming to **CC AI Toolkit** for distribution and Marketplace publishing.
 
-A powerful IntelliJ IDEA plugin that provides a visual interface for **Claude Code** and **OpenAI Codex** dual AI tools, making AI-assisted programming more efficient and intuitive.
+An IntelliJ IDEA plugin that unifies **Claude Code**, **OpenAI Codex**, **BMad**, **Design**, and **GitNexus** workflows in one tool window.
 
 <img width="850" alt="Image" src="/docs/img/banner.png" />
 
@@ -25,7 +24,13 @@ A powerful IntelliJ IDEA plugin that provides a visual interface for **Claude Co
 
 ## Installation
 
-[IDEA Claude Code GUI Installation](https://plugins.jetbrains.com/plugin/30666-cc-gui)
+The self-published Marketplace listing URL should be added here after your new plugin entry is approved.
+
+Before the listing is live:
+
+1. Run `./gradlew buildPlugin`
+2. Install the generated ZIP from `build/distributions/`
+3. In JetBrains IDE, open `Settings | Plugins | Install Plugin from Disk...`
 
 ---
 
@@ -46,6 +51,11 @@ A powerful IntelliJ IDEA plugin that provides a visual interface for **Claude Co
 - Built-in Agent system for automated complex tasks
 - Skills slash command system (/init, /review, etc.)
 - MCP server support to extend AI capabilities
+
+### Integrated Workflows
+- **BMad** - planning, product, architecture, development, and QA workflow commands
+- **Design** - design prompt workflows for dashboards, landing pages, audits, and reviews
+- **GitNexus** - repository exploration, impact analysis, and call-chain inspection inside the IDE
 
 ### Developer Experience
 - Comprehensive permission management and security controls

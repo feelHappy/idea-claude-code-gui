@@ -7,8 +7,8 @@ import { STORAGE_KEYS, validateCodexCustomModels } from '../../types/provider';
 import type { CodexCustomModel } from '../../types/provider';
 import { readClaudeModelMapping } from '../../utils/claudeModelMapping';
 import { BmadCommandBar } from './BmadCommandBar.js';
+import { DesignToolkitBar } from './DesignToolkitBar.js';
 import { GitNexusBar } from './GitNexusBar.js';
-import { UiUxProBar } from './UiUxProBar.js';
 
 type AddonPanelId = 'bmad' | 'gitNexus' | 'uiUxPro';
 
@@ -98,6 +98,7 @@ export const ButtonArea = ({
   bmad,
   gitNexus,
   uiUxPro,
+  impeccable,
 }: ButtonAreaProps) => {
   const { t } = useTranslation();
   // const fileInputRef = useRef<HTMLInputElement>(null);
@@ -266,12 +267,12 @@ export const ButtonArea = ({
       });
     }
 
-    if (uiUxPro) {
+    if (uiUxPro || impeccable) {
       items.push({
         id: 'uiUxPro',
-        label: 'UI UX Pro Max',
+        label: 'Design',
         icon: 'codicon-symbol-color',
-        content: <UiUxProBar {...uiUxPro} />,
+        content: <DesignToolkitBar uiUxPro={uiUxPro} impeccable={impeccable} />,
       });
     }
 
@@ -285,7 +286,7 @@ export const ButtonArea = ({
     }
 
     return items;
-  }, [bmad, gitNexus, uiUxPro]);
+  }, [bmad, gitNexus, impeccable, uiUxPro]);
 
   const [activeAddon, setActiveAddon] = useState<AddonPanelId | null>(addonItems[0]?.id ?? null);
 

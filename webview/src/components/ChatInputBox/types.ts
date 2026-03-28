@@ -594,6 +594,8 @@ export interface ButtonAreaProps {
   gitNexus?: GitNexusToolbarProps;
   /** UI UX Pro Max bar props */
   uiUxPro?: UiUxToolbarProps;
+  /** Impeccable command bar props */
+  impeccable?: ImpeccableToolbarProps;
 }
 
 /**
@@ -725,6 +727,27 @@ export interface UiUxToolbarProps {
   onInstall: () => void;
   onUpdate: () => void;
   promptDisabled?: boolean;
+  installDisabled?: boolean;
+  updateDisabled?: boolean;
+}
+
+/**
+ * Impeccable command bar toolbar props
+ * Used by ImpeccableBar component
+ */
+export interface ImpeccableToolbarProps {
+  presets: import('./impeccableCommands.js').ImpeccableCommandPreset[];
+  selectedPresetId: string;
+  status: import('./impeccableCommands.js').ImpeccableStatus;
+  installLog: string;
+  operation?: 'install' | 'update' | null;
+  onPresetChange: (id: string) => void;
+  onInsert: () => void;
+  onInsertAndSend: () => void;
+  onRefresh: () => void;
+  onInstall: () => void;
+  onUpdate: () => void;
+  commandDisabled?: boolean;
   installDisabled?: boolean;
   updateDisabled?: boolean;
 }

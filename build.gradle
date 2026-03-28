@@ -41,7 +41,7 @@ ext.getReleaseProperty = { String key, String envKey = null, String defaultValue
 
 // Get custom JDK path from local properties (support both property names)
 def localJavaHome = getLocalProperty('java.home') ?: getLocalProperty('org.gradle.java.home')
-def releasePluginId = getReleaseProperty('marketplace.plugin.id', 'MARKETPLACE_PLUGIN_ID', 'com.github.idea-claude-code-gui')
+def releasePluginId = getReleaseProperty('marketplace.plugin.id', 'MARKETPLACE_PLUGIN_ID', 'io.github.feelhappy.cc-ai-toolkit')
 def releasePluginName = getReleaseProperty('marketplace.plugin.name', 'MARKETPLACE_PLUGIN_NAME', 'CC AI Toolkit')
 def releaseVendorName = getReleaseProperty('marketplace.vendor.name', 'MARKETPLACE_VENDOR_NAME', 'Jordan')
 def releaseVendorEmail = getReleaseProperty('marketplace.vendor.email', 'MARKETPLACE_VENDOR_EMAIL')
@@ -55,7 +55,7 @@ checkstyle {
 }
 
 group = 'com.github.idea-claude-code-gui'
-version = '1.0.1'
+version = '1.0.2'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -623,7 +623,7 @@ tasks.named('buildPlugin') {
 tasks.register('marketplaceCheck') {
     group = 'verification'
     description = 'Runs Marketplace-oriented validation and compatibility checks.'
-    dependsOn('verifyPluginConfiguration', 'verifyPlugin', 'runPluginVerifier')
+    dependsOn('verifyPluginProjectConfiguration', 'verifyPluginStructure', 'verifyPlugin')
 }
 
 tasks.register('marketplaceBuild') {

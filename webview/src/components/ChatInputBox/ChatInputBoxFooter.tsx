@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import type { BmadToolbarProps, DropdownItemData, DropdownPosition, GitNexusToolbarProps, PermissionMode, ReasoningEffort, SelectedAgent, UiUxToolbarProps } from './types.js';
+import type { BmadToolbarProps, DropdownItemData, DropdownPosition, GitNexusToolbarProps, ImpeccableToolbarProps, PermissionMode, ReasoningEffort, SelectedAgent, UiUxToolbarProps } from './types.js';
 import type { TooltipState } from './hooks/useTooltip.js';
 import { ButtonArea } from './ButtonArea.js';
 import { CompletionDropdown } from './Dropdown/index.js';
@@ -52,6 +52,7 @@ export function ChatInputBoxFooter({
   bmad,
   gitNexus,
   uiUxPro,
+  impeccable,
 }: {
   disabled: boolean;
   hasInputContent: boolean;
@@ -96,6 +97,7 @@ export function ChatInputBoxFooter({
   bmad?: BmadToolbarProps;
   gitNexus?: GitNexusToolbarProps;
   uiUxPro?: UiUxToolbarProps;
+  impeccable?: ImpeccableToolbarProps;
 }) {
   return (
     <>
@@ -128,6 +130,7 @@ export function ChatInputBoxFooter({
         bmad={bmad}
         gitNexus={gitNexus}
         uiUxPro={uiUxPro}
+        impeccable={impeccable}
       />
 
       {/* @ file reference dropdown menu */}

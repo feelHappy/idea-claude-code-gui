@@ -1,8 +1,8 @@
 <div align="center">
 
-# CC GUI（Claude or Codex）
+# CC AI Toolkit
 
-> 原名：Claude Code GUI
+> 原名：CC GUI / Claude Code GUI
 
 <img width="120" alt="Image" src="./docs/images/idea-claude-code-gui-logo.png" />
 
@@ -14,9 +14,9 @@
 
 </div>
 
-> 为规避Claude商标风险，本项目名称修改为CC GUI（原名：Claude Code GUI）；并更换LOGO减少中国元素；对于安全方面，后续每个小版本发版前都进行 /security-review 审查，每隔10个小版本进行一次整体的 claude-code-security 审查
+> 为了更适合独立发布和 Marketplace 上架，当前对外分发名称统一为 **CC AI Toolkit**，历史名称为 CC GUI / Claude Code GUI。
 
-一个功能强大的 IntelliJ IDEA 插件，为开发者提供 **Claude Code** 和 **OpenAI Codex** 双 AI 工具的可视化操作界面，让 AI 辅助编程变得更加高效和直观。
+这是一个 IntelliJ IDEA 插件，在同一个工具窗口内统一接入 **Claude Code**、**OpenAI Codex**、**BMad**、**Design** 和 **GitNexus** 工作流。
 
 <img width="850" alt="Image" src="/docs/img/banner.png" />
 
@@ -24,7 +24,13 @@
 
 ## 插件下载
 
-[IDEA Claude Code GUI 下载](https://plugins.jetbrains.com/plugin/30666-cc-gui)
+新的 Marketplace 页面通过审核后，再把你的上架链接补到这里。
+
+在 Marketplace 链接生效前：
+
+1. 执行 `./gradlew buildPlugin`
+2. 从 `build/distributions/` 取出生成的 ZIP
+3. 在 JetBrains IDE 中打开 `设置 | 插件 | 从磁盘安装插件`
 
 ---
 
@@ -45,6 +51,11 @@
 - 内置 Agent 系统，自动化执行复杂任务
 - Skills 斜杠命令系统（/init, /review 等）
 - MCP 服务器支持，扩展 AI 能力边界
+
+### 集成工作流
+- **BMad** - 产品、规划、架构、开发、测试等工作流命令
+- **Design** - 仪表盘、落地页、设计审查、设计提示词等设计工作流
+- **GitNexus** - 仓库结构分析、调用链追踪、改动影响评估
 
 ### 开发者体验
 - 完善的权限管理和安全控制

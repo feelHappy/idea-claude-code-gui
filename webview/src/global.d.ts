@@ -613,6 +613,21 @@ interface Window {
   uiUxProInstallResult?: (json: string) => void;
 
   /**
+   * Update Impeccable onboarding status
+   */
+  updateImpeccableStatus?: (json: string) => void;
+
+  /**
+   * Impeccable install progress callback
+   */
+  impeccableInstallProgress?: (json: string) => void;
+
+  /**
+   * Impeccable install result callback
+   */
+  impeccableInstallResult?: (json: string) => void;
+
+  /**
    * Update GitNexus onboarding status
    */
   updateGitNexusStatus?: (json: string) => void;

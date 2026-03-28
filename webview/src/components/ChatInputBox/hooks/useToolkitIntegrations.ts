@@ -18,7 +18,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { sendBridgeEvent, sendToJava } from '../../../utils/bridge.js';
-import type { BmadToolbarProps, GitNexusToolbarProps, UiUxToolbarProps } from '../types.js';
+import type {
+  BmadToolbarProps,
+  GitNexusToolbarProps,
+  ImpeccableToolbarProps,
+  UiUxToolbarProps,
+} from '../types.js';
 import {
   type BmadCommandPreset,
   type BmadStatus,
@@ -42,6 +47,14 @@ import {
   isUiUxProviderSupported,
   UI_UX_PRO_PROMPT_PRESETS,
 } from '../uiUxProPrompts.js';
+import {
+  type ImpeccableCommandPreset,
+  type ImpeccableStatus,
+  createDefaultImpeccableStatus,
+  formatImpeccableCommand,
+  getImpeccableCommandPresets,
+  isImpeccableProviderSupported,
+} from '../impeccableCommands.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -51,6 +64,7 @@ export interface ToolkitIntegrationsResult {
   bmad: BmadToolbarProps | undefined;
   gitNexus: GitNexusToolbarProps | undefined;
   uiUxPro: UiUxToolbarProps | undefined;
+  impeccable: ImpeccableToolbarProps | undefined;
 }
 
 interface UseToolkitIntegrationsOptions {
@@ -68,6 +82,7 @@ const STATUS_BOOTSTRAP_RETRY_DELAYS_MS = [200, 900, 2500];
 type BmadOperation = 'install' | 'update' | null;
 type GitNexusOperation = 'install' | 'update' | 'reindex' | null;
 type UiUxOperation = 'install' | 'update' | null;
+type ImpeccableOperation = 'install' | 'update' | null;
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -125,9 +140,14 @@ export function useToolkitIntegrations({
   const [uiUxInstallLog, setUiUxInstallLog] = useState('');
   const [uiUxOperation, setUiUxOperation] = useState<UiUxOperation>(null);
   const [uiUxSelectedPresetId, setUiUxSelectedPresetId] = useState('');
+  const [impeccableStatus, setImpeccableStatus] = useState<ImpeccableStatus>(() => createDefaultImpeccableStatus(currentProvider));
+  const [impeccableInstallLog, setImpeccableInstallLog] = useState('');
+  const [impeccableOperation, setImpeccableOperation] = useState<ImpeccableOperation>(null);
+  const [impeccableSelectedPresetId, setImpeccableSelectedPresetId] = useState('');
   const bmadRequestOperationRef = useRef<BmadOperation>(null);
   const gitNexusRequestOperationRef = useRef<GitNexusOperation>(null);
   const uiUxRequestOperationRef = useRef<UiUxOperation>(null);
+  const impeccableRequestOperationRef = useRef<ImpeccableOperation>(null);
 
   // Refs for latest state in callbacks
   const bmadSelectedRef = useRef(bmadSelectedPresetId);
@@ -136,12 +156,16 @@ export function useToolkitIntegrations({
   gitNexusSelectedRef.current = gitNexusSelectedPresetId;
   const uiUxSelectedRef = useRef(uiUxSelectedPresetId);
   uiUxSelectedRef.current = uiUxSelectedPresetId;
+  const impeccableSelectedRef = useRef(impeccableSelectedPresetId);
+  impeccableSelectedRef.current = impeccableSelectedPresetId;
   const bmadStateRef = useRef<BmadStatus['state']>(bmadStatus.state);
   bmadStateRef.current = bmadStatus.state;
   const gitNexusStateRef = useRef<GitNexusStatus['state']>(gitNexusStatus.state);
   gitNexusStateRef.current = gitNexusStatus.state;
   const uiUxStateRef = useRef<UiUxStatus['state']>(uiUxStatus.state);
   uiUxStateRef.current = uiUxStatus.state;
+  const impeccableStateRef = useRef<ImpeccableStatus['state']>(impeccableStatus.state);
+  impeccableStateRef.current = impeccableStatus.state;
 
   // =========================================================================
   // Derived presets lists
@@ -153,6 +177,10 @@ export function useToolkitIntegrations({
 
   const gitNexusPresets: GitNexusPromptPreset[] = GIT_NEXUS_PROMPT_PRESETS;
   const uiUxPresets: UiUxPromptPreset[] = UI_UX_PRO_PROMPT_PRESETS;
+  const impeccablePresets: ImpeccableCommandPreset[] = useMemo(
+    () => getImpeccableCommandPresets(impeccableStatus.availableCommands),
+    [impeccableStatus.availableCommands],
+  );
 
   // =========================================================================
   // Provider support checks
@@ -160,6 +188,7 @@ export function useToolkitIntegrations({
   const bmadSupported = isBmadProviderSupported(currentProvider);
   const gitNexusSupported = isGitNexusProviderSupported(currentProvider);
   const uiUxSupported = isUiUxProviderSupported(currentProvider);
+  const impeccableSupported = isImpeccableProviderSupported(currentProvider);
   const toolkitUiLanguage = i18n.resolvedLanguage || i18n.language || 'en';
 
   useEffect(() => {
@@ -200,6 +229,19 @@ export function useToolkitIntegrations({
       setUiUxSelectedPresetId(uiUxPresets[0].id);
     }
   }, [uiUxPresets, uiUxSelectedPresetId]);
+
+  useEffect(() => {
+    if (impeccablePresets.length === 0) {
+      if (impeccableSelectedPresetId) {
+        setImpeccableSelectedPresetId('');
+      }
+      return;
+    }
+
+    if (!impeccablePresets.some((preset) => preset.id === impeccableSelectedPresetId)) {
+      setImpeccableSelectedPresetId(impeccablePresets[0].id);
+    }
+  }, [impeccablePresets, impeccableSelectedPresetId]);
 
   // =========================================================================
   // Window callback registration (Java → JS)
@@ -428,6 +470,9 @@ export function useToolkitIntegrations({
     const previousUpdateUiUxProStatus = window.updateUiUxProStatus;
     const previousUiUxProInstallProgress = window.uiUxProInstallProgress;
     const previousUiUxProInstallResult = window.uiUxProInstallResult;
+    const previousUpdateImpeccableStatus = window.updateImpeccableStatus;
+    const previousImpeccableInstallProgress = window.impeccableInstallProgress;
+    const previousImpeccableInstallResult = window.impeccableInstallResult;
     window.updateUiUxProStatus = (json: string) => {
       const data = safeParse<Partial<UiUxStatus>>(json);
       if (data) {
@@ -526,6 +571,106 @@ export function useToolkitIntegrations({
       }
     };
 
+    // --- Impeccable ---
+    window.updateImpeccableStatus = (json: string) => {
+      const data = safeParse<Partial<ImpeccableStatus>>(json);
+      if (data) {
+        const providerId = typeof data.provider === 'string' ? data.provider : currentProvider;
+        if (!isCurrentProvider(providerId)) {
+          return;
+        }
+        setImpeccableStatus({
+          ...createDefaultImpeccableStatus(providerId),
+          ...data,
+        });
+        if (data.state && data.state !== 'loading' && !impeccableRequestOperationRef.current) {
+          setImpeccableOperation(null);
+        }
+      }
+      if (previousUpdateImpeccableStatus && previousUpdateImpeccableStatus !== window.updateImpeccableStatus) {
+        previousUpdateImpeccableStatus(json);
+      }
+    };
+    window.impeccableInstallProgress = (json: string) => {
+      const data = safeParse<{ provider?: string; log?: string }>(json);
+      if (!isCurrentProvider(data?.provider)) {
+        return;
+      }
+      if (data?.log) {
+        setImpeccableInstallLog((prev) => (prev ? prev + '\n' + data.log : data.log!));
+      }
+      if (previousImpeccableInstallProgress && previousImpeccableInstallProgress !== window.impeccableInstallProgress) {
+        previousImpeccableInstallProgress(json);
+      }
+    };
+    window.impeccableInstallResult = (json: string) => {
+      const data = safeParse<{ success: boolean; busy?: boolean; provider?: string; error?: string; message?: string; logs?: string }>(json);
+      if (!isCurrentProvider(data?.provider)) {
+        return;
+      }
+      if (data) {
+        const operation = impeccableRequestOperationRef.current;
+        const providerId = typeof data.provider === 'string' ? data.provider : currentProvider;
+        const providerLabel = t(`providers.${providerId}.label`, { defaultValue: providerId });
+        const detailMessage = data.logs?.trim() || data.message || data.error || '';
+        impeccableRequestOperationRef.current = null;
+        setImpeccableOperation(null);
+        if (detailMessage) {
+          setImpeccableInstallLog(detailMessage);
+        }
+        if (data.busy) {
+          addToast?.(
+            t('chat.impeccable.installBusy', {
+              defaultValue: 'Another Impeccable task is already running. Please wait and retry.',
+            }),
+            'info',
+          );
+          sendJsonBridgeEvent('get_impeccable_status', { provider: currentProvider, language: toolkitUiLanguage });
+          return;
+        }
+        if (data.success) {
+          addToast?.(
+            t(operation === 'update' ? 'chat.impeccable.updateSuccess' : 'chat.impeccable.installSuccess', {
+              defaultValue: operation === 'update'
+                ? 'Impeccable has been updated for {{provider}}.'
+                : 'Impeccable is ready for {{provider}}.',
+              provider: providerLabel,
+            }),
+            'success',
+          );
+          sendToJava('refresh_slash_commands');
+        } else {
+          addToast?.(
+            detailMessage
+              ? t('chat.impeccable.installFailedWithReason', {
+                  defaultValue: 'Impeccable task failed: {{reason}}',
+                  reason: detailMessage,
+                })
+              : t('chat.impeccable.installFailed', {
+                  defaultValue: 'Impeccable task failed',
+                }),
+            'error',
+          );
+        }
+        if (!data.busy) {
+          sendJsonBridgeEvent('get_impeccable_status', { provider: currentProvider, language: toolkitUiLanguage });
+        }
+      } else {
+        impeccableRequestOperationRef.current = null;
+        setImpeccableOperation(null);
+        addToast?.(
+          t('chat.impeccable.resultParseFailed', {
+            defaultValue: 'Failed to process the Impeccable task result.',
+          }),
+          'error',
+        );
+        sendJsonBridgeEvent('get_impeccable_status', { provider: currentProvider, language: toolkitUiLanguage });
+      }
+      if (previousImpeccableInstallResult && previousImpeccableInstallResult !== window.impeccableInstallResult) {
+        previousImpeccableInstallResult(json);
+      }
+    };
+
     return () => {
       window.updateBmadStatus = previousUpdateBmadStatus;
       window.bmadInstallProgress = previousBmadInstallProgress;
@@ -536,6 +681,9 @@ export function useToolkitIntegrations({
       window.updateUiUxProStatus = previousUpdateUiUxProStatus;
       window.uiUxProInstallProgress = previousUiUxProInstallProgress;
       window.uiUxProInstallResult = previousUiUxProInstallResult;
+      window.updateImpeccableStatus = previousUpdateImpeccableStatus;
+      window.impeccableInstallProgress = previousImpeccableInstallProgress;
+      window.impeccableInstallResult = previousImpeccableInstallResult;
     };
   }, [addToast, currentProvider, sendJsonBridgeEvent, t, toolkitUiLanguage]);
 
@@ -608,10 +756,26 @@ export function useToolkitIntegrations({
       setUiUxOperation(null);
       uiUxRequestOperationRef.current = null;
     }
+    if (impeccableSupported) {
+      const nextStatus = createDefaultImpeccableStatus(currentProvider);
+      setImpeccableStatus(nextStatus);
+      impeccableStateRef.current = nextStatus.state;
+      setImpeccableInstallLog('');
+      setImpeccableOperation(null);
+      impeccableRequestOperationRef.current = null;
+      bootstrapStatusRequest('get_impeccable_status', { provider: currentProvider, language: toolkitUiLanguage }, impeccableStateRef);
+    } else {
+      const nextStatus = createDefaultImpeccableStatus(currentProvider);
+      setImpeccableStatus(nextStatus);
+      impeccableStateRef.current = nextStatus.state;
+      setImpeccableInstallLog('');
+      setImpeccableOperation(null);
+      impeccableRequestOperationRef.current = null;
+    }
     return () => {
       cleanupFns.forEach((cleanup) => cleanup());
     };
-  }, [currentProvider, bmadSupported, gitNexusSupported, sendJsonBridgeEvent, toolkitUiLanguage, uiUxSupported]);
+  }, [currentProvider, bmadSupported, gitNexusSupported, impeccableSupported, sendJsonBridgeEvent, toolkitUiLanguage, uiUxSupported]);
 
   // =========================================================================
   // BMad callbacks
@@ -749,6 +913,47 @@ export function useToolkitIntegrations({
   }, [uiUxPresets, insertTextAndSend, t]);
 
   // =========================================================================
+  // Impeccable callbacks
+  // =========================================================================
+  const impeccableRefresh = useCallback(() => {
+    sendJsonBridgeEvent('get_impeccable_status', { provider: currentProvider, language: toolkitUiLanguage });
+  }, [currentProvider, sendJsonBridgeEvent, toolkitUiLanguage]);
+
+  const impeccableInstall = useCallback(() => {
+    if (!impeccableSupported || impeccableOperation !== null || impeccableRequestOperationRef.current) {
+      return;
+    }
+    impeccableRequestOperationRef.current = 'install';
+    setImpeccableOperation('install');
+    setImpeccableInstallLog('');
+    sendJsonBridgeEvent('install_impeccable', { provider: currentProvider, language: toolkitUiLanguage });
+  }, [currentProvider, impeccableOperation, impeccableSupported, sendJsonBridgeEvent, toolkitUiLanguage]);
+
+  const impeccableUpdate = useCallback(() => {
+    if (!impeccableSupported || impeccableOperation !== null || impeccableRequestOperationRef.current || impeccableStatus.hasUpdate !== true) {
+      return;
+    }
+    impeccableRequestOperationRef.current = 'update';
+    setImpeccableOperation('update');
+    setImpeccableInstallLog('');
+    sendJsonBridgeEvent('update_impeccable', { provider: currentProvider, language: toolkitUiLanguage });
+  }, [currentProvider, impeccableOperation, impeccableStatus.hasUpdate, impeccableSupported, sendJsonBridgeEvent, toolkitUiLanguage]);
+
+  const impeccableInsert = useCallback(() => {
+    const preset = findSelectedPreset(impeccablePresets, impeccableSelectedRef.current);
+    if (preset) {
+      insertText(`${formatImpeccableCommand(preset.command, currentProvider)} `);
+    }
+  }, [currentProvider, impeccablePresets, insertText]);
+
+  const impeccableInsertAndSend = useCallback(() => {
+    const preset = findSelectedPreset(impeccablePresets, impeccableSelectedRef.current);
+    if (preset) {
+      insertTextAndSend(formatImpeccableCommand(preset.command, currentProvider));
+    }
+  }, [currentProvider, impeccablePresets, insertTextAndSend]);
+
+  // =========================================================================
   // Assemble props objects (memoised to avoid unnecessary re-renders)
   // =========================================================================
   const bmadProps: BmadToolbarProps | undefined = useMemo(() => {
@@ -826,5 +1031,42 @@ export function useToolkitIntegrations({
     uiUxInstall, uiUxOperation, uiUxUpdate,
   ]);
 
-  return { bmad: bmadProps, gitNexus: gitNexusProps, uiUxPro: uiUxProProps };
+  const impeccableProps: ImpeccableToolbarProps | undefined = useMemo(() => {
+    if (!impeccableSupported) return undefined;
+    return {
+      presets: impeccablePresets,
+      selectedPresetId: impeccableSelectedPresetId,
+      status: impeccableStatus,
+      installLog: impeccableInstallLog,
+      operation: impeccableOperation,
+      onPresetChange: setImpeccableSelectedPresetId,
+      onInsert: impeccableInsert,
+      onInsertAndSend: impeccableInsertAndSend,
+      onRefresh: impeccableRefresh,
+      onInstall: impeccableInstall,
+      onUpdate: impeccableUpdate,
+      commandDisabled: impeccableStatus.state !== 'ready',
+      installDisabled: impeccableOperation !== null,
+      updateDisabled: impeccableOperation !== null || impeccableStatus.hasUpdate !== true,
+    };
+  }, [
+    impeccableInstall,
+    impeccableInsert,
+    impeccableInsertAndSend,
+    impeccableInstallLog,
+    impeccableOperation,
+    impeccablePresets,
+    impeccableRefresh,
+    impeccableSelectedPresetId,
+    impeccableStatus,
+    impeccableSupported,
+    impeccableUpdate,
+  ]);
+
+  return {
+    bmad: bmadProps,
+    gitNexus: gitNexusProps,
+    uiUxPro: uiUxProProps,
+    impeccable: impeccableProps,
+  };
 }

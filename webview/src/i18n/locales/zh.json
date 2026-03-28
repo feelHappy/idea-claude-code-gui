@@ -269,6 +269,82 @@
         }
       }
     },
+    "designToolkit": {
+      "title": "设计",
+      "ariaLabel": "设计工具模式",
+      "modes": {
+        "uiUxPro": "UI UX Pro Max",
+        "impeccable": "Impeccable"
+      }
+    },
+    "impeccable": {
+      "title": "Impeccable",
+      "selectAria": "选择一个 Impeccable 命令",
+      "insert": "插入",
+      "insertAndSend": "发送",
+      "install": "安装",
+      "repair": "修复",
+      "update": "更新",
+      "installing": "安装中...",
+      "refresh": "刷新",
+      "preview": "用途",
+      "statusTitle": "状态",
+      "searchPlaceholder": "搜索命令或说明",
+      "searchEmpty": "没有匹配的 Impeccable 命令。",
+      "readyHint": "Impeccable 更适合做设计审计、规范统一和有边界的界面优化。",
+      "missingHint": "当前项目还没接入 Impeccable，点击“安装”即可复制官方技能。",
+      "partialHint": "检测到 Impeccable 安装不完整，点击“修复”同步官方技能包。",
+      "loadingHint": "正在检查当前项目中的 Impeccable...",
+      "unsupportedHint": "Impeccable 目前只支持 Claude Code 和 Codex。",
+      "errorHint": "Impeccable 状态检查失败，可先点击刷新，必要时重新安装。",
+      "detailHint": "更适合管理系统和现有产品界面的审计、收敛与强化，而不是无约束的大改版。",
+      "installBusy": "已有一个 Impeccable 任务正在运行，请稍后再试。",
+      "installSuccess": "{{provider}} 的 Impeccable 已可用。",
+      "updateSuccess": "{{provider}} 的 Impeccable 已更新。",
+      "installFailed": "Impeccable 安装失败。",
+      "installFailedWithReason": "Impeccable 安装失败：{{reason}}",
+      "resultParseFailed": "处理 Impeccable 安装结果失败。",
+      "installingHint": "正在为当前项目安装 Impeccable...",
+      "updatingHint": "正在为当前项目更新 Impeccable...",
+      "updateHint": "发现新版本 v{{version}}，点击“更新”即可同步项目技能。",
+      "status": {
+        "loading": "检查中",
+        "ready": "可用",
+        "missing": "未安装",
+        "partial": "需修复",
+        "unsupported": "不支持",
+        "error": "异常"
+      },
+      "groups": {
+        "setup": "准备",
+        "review": "审查",
+        "refine": "收敛优化",
+        "creative": "扩展探索"
+      },
+      "commands": {
+        "teach-impeccable": "加载 Impeccable 的方法说明和设计语境，适合作为进入命令前的准备步骤。",
+        "audit": "对当前界面做技术型设计审计，覆盖可访问性、性能、主题和响应式问题。",
+        "critique": "批判性评审当前界面方向，输出有优先级的设计问题和建议。",
+        "clarify": "先澄清目标、约束和权衡，再继续做界面设计或改造。",
+        "normalize": "把不一致的 UI 模式整理成更统一、更可维护的界面基线。",
+        "harden": "把界面强化到更接近生产可用，包括状态、可访问性和鲁棒性细节。",
+        "polish": "对现有页面做精修，重点改善间距、层级和交互细节。",
+        "typeset": "优化排版、文案节奏和高密度界面的阅读体验。",
+        "arrange": "重新梳理布局、分区和信息层级，让结构更清晰。",
+        "extract": "从现有页面或组件中提炼可复用的设计模式和规则。",
+        "adapt": "把已有设计方向适配到新的产品场景或品牌约束中。",
+        "distill": "把复杂设计反馈压缩成适合决策的简洁摘要。",
+        "optimize": "从实现和交付角度优化界面方案，提高可维护性和落地性。",
+        "quieter": "降低视觉噪音，减少不必要的强调和装饰。",
+        "bolder": "把当前视觉方向推得更鲜明、更有态度。",
+        "colorize": "重做配色和对比策略，形成更明确的色彩语言。",
+        "delight": "增加克制但有效的愉悦感细节，而不是堆砌装饰。",
+        "animate": "优化动效和状态过渡，让交互反馈更有节奏。",
+        "overdrive": "在需要时探索更激进的视觉改版方向。",
+        "onboard": "设计首屏引导和 onboarding 流程，让用户更快进入使用状态。",
+        "frontend-design": "加载 Impeccable 的设计原则和反模式约束。"
+      }
+    },
     "gitNexus": {
       "title": "GitNexus",
       "selectAria": "选择一个 GitNexus 起步问题",

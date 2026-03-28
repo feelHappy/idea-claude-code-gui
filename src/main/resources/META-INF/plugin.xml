@@ -1,5 +1,5 @@
 <idea-plugin url="https://github.com/feelHappy/idea-claude-code-gui">
-    <id>com.github.idea-claude-code-gui</id>
+    <id>io.github.feelhappy.cc-ai-toolkit</id>
     <name>CC AI Toolkit</name>
     <vendor url="https://github.com/feelHappy">Jordan</vendor>
 
@@ -12,7 +12,7 @@
         <ul>
             <li><strong>Claude Code</strong> Anthropic 官方 AI 编程助手（支持 Opus 4.6 等多模型）</li>
             <li><strong>OpenAI Codex</strong> - OpenAI 强大的代码生成引擎</li>
-            <li><strong>BMad / UI UX Pro Max / GitNexus</strong> - 可视化接入常用工作流与仓库分析能力</li>
+            <li><strong>BMad / Design / GitNexus</strong> - 可视化接入常用工作流与仓库分析能力</li>
         </ul>
 
         <p><strong>Connection &amp; proxy disclosure / 连接与代理说明：</strong></p>

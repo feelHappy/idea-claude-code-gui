@@ -112,6 +112,52 @@
   padding-left: 6px;
 }
 
+.design-toolkit-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.design-toolkit-modes {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.design-toolkit-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 10px;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.design-toolkit-mode:hover {
+  color: var(--text-primary);
+  border-color: var(--input-focus-border);
+}
+
+.design-toolkit-mode.active {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--input-focus-border);
+}
+
+.design-toolkit-content {
+  width: 100%;
+  min-width: 0;
+}
+
 .button-divider {
   width: 1px;
   height: 16px;
@@ -461,6 +507,317 @@
   color: var(--text-secondary);
   font-size: 10px;
   line-height: 1.35;
+}
+
+.impeccable-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-color);
+  position: relative;
+}
+
+.impeccable-main {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  min-width: 0;
+}
+
+.impeccable-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.impeccable-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.impeccable-badge.subtle {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-color);
+}
+
+.impeccable-badge.state-ready {
+  color: #0d7b44;
+  background: rgba(59, 193, 116, 0.16);
+  border-color: rgba(59, 193, 116, 0.28);
+}
+
+.impeccable-badge.state-missing,
+.impeccable-badge.state-partial {
+  color: #a96a08;
+  background: rgba(245, 166, 35, 0.16);
+  border-color: rgba(245, 166, 35, 0.28);
+}
+
+.impeccable-badge.state-loading {
+  color: var(--accent-color);
+  background: rgba(82, 164, 255, 0.14);
+  border-color: rgba(82, 164, 255, 0.24);
+}
+
+.impeccable-badge.state-error,
+.impeccable-badge.state-unsupported {
+  color: #bd3d3d;
+  background: rgba(224, 71, 71, 0.14);
+  border-color: rgba(224, 71, 71, 0.24);
+}
+
+.impeccable-picker-wrap {
+  position: relative;
+  flex: 0 1 240px;
+  min-width: 180px;
+  max-width: 280px;
+  overflow: visible;
+}
+
+.impeccable-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  height: 28px;
+  padding: 0 9px;
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.14);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.impeccable-picker:hover:not(:disabled),
+.impeccable-picker.open {
+  border-color: var(--input-focus-border);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.impeccable-picker:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.impeccable-picker-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.impeccable-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 10020;
+  width: min(420px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--dropdown-bg);
+  border: 1px solid var(--dropdown-border);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.impeccable-menu-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--dropdown-border);
+  border-radius: 6px;
+}
+
+.impeccable-menu-search .codicon {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.impeccable-search-input {
+  width: 100%;
+  padding: 0;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 12px;
+}
+
+.impeccable-search-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.impeccable-menu-group + .impeccable-menu-group {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--dropdown-border);
+}
+
+.impeccable-group-label {
+  padding: 2px 8px 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.impeccable-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.impeccable-option:hover {
+  background: var(--dropdown-hover);
+}
+
+.impeccable-option.active {
+  background: var(--dropdown-selected);
+  border-color: var(--input-focus-border);
+}
+
+.impeccable-option-title {
+  font-family: var(--font-family-mono, monospace);
+  font-size: 12px;
+}
+
+.impeccable-option-desc {
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.impeccable-menu-empty {
+  padding: 10px 8px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-align: center;
+}
+
+.impeccable-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 10px;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.impeccable-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--input-focus-border);
+}
+
+.impeccable-button.primary {
+  color: #fff;
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.impeccable-button.primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.impeccable-button:disabled,
+.impeccable-picker:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.impeccable-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.impeccable-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 240px;
+  min-width: 220px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.impeccable-name {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  font-family: var(--font-family-mono, monospace);
+}
+
+.impeccable-summary-text,
+.impeccable-detail-text,
+.impeccable-preview-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.impeccable-detail,
+.impeccable-preview {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.impeccable-detail-label,
+.impeccable-preview-label {
+  white-space: nowrap;
 }
 
 .uiux-pro-bar {
@@ -1203,9 +1560,17 @@
   .gitnexus-summary {
     flex-basis: 100%;
   }
+
+  .impeccable-summary {
+    flex-basis: 100%;
+  }
 }
 
 @media (max-width: 720px) {
+  .design-toolkit-modes {
+    width: 100%;
+  }
+
   .button-area-top {
     align-items: stretch;
   }
@@ -1278,6 +1643,43 @@
 
   .uiux-pro-detail,
   .uiux-pro-preview {
+    align-items: flex-start;
+  }
+
+  .impeccable-main {
+    align-items: stretch;
+  }
+
+  .impeccable-picker-wrap,
+  .impeccable-picker,
+  .impeccable-summary {
+    width: 100%;
+    max-width: none;
+  }
+
+  .impeccable-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+
+  .impeccable-menu {
+    width: min(420px, calc(100vw - 24px));
+  }
+
+  .impeccable-summary {
+    align-items: flex-start;
+  }
+
+  .impeccable-summary-text,
+  .impeccable-detail-text,
+  .impeccable-preview-text {
+    white-space: normal;
+  }
+
+  .impeccable-detail,
+  .impeccable-preview {
     align-items: flex-start;
   }
 
