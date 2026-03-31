@@ -2,7 +2,7 @@
 
 # CC AI Toolkit
 
-> Formerly CC GUI / Claude Code GUI
+> Formerly CC GUI / Claude Code GUI 感谢
 
 <img width="120" alt="Image" src="./docs/images/idea-claude-code-gui-logo.png" />
 
