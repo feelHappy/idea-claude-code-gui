@@ -71,7 +71,7 @@ public class RunConfigMonitorService implements ProjectActivity {
 
     private void monitorRunConfigurations(@NotNull Project project) {
         // Listen for Run ToolWindow changes
-        project.getMessageBus().connect().subscribe(ToolWindowManagerListener.TOPIC, new ToolWindowManagerListener() {
+        project.getMessageBus().connect(project).subscribe(ToolWindowManagerListener.TOPIC, new ToolWindowManagerListener() {
             @Override
             public void stateChanged(@NotNull ToolWindowManager toolWindowManager) {
                 setupRunListener(project);

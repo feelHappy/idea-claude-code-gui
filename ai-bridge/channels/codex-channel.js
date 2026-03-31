@@ -1,8 +1,11 @@
 /**
  * Codex channel command handler – keeps Codex specific logic separated.
  */
-import { sendMessage as codexSendMessage } from '../services/codex/message-service.js';
-import { getMcpServerTools as codexGetMcpServerTools } from '../services/codex/message-service.js';
+import {
+  sendMessage as codexSendMessage,
+  getMcpServerStatus as codexGetMcpServerStatus,
+  getMcpServerTools as codexGetMcpServerTools
+} from '../services/codex/message-service.js';
 
 /**
  * Execute a Codex command.
@@ -49,11 +52,17 @@ export async function handleCodexCommand(command, args, stdinData) {
       break;
     }
 
+    case 'getMcpServerStatus': {
+      const servers = stdinData?.servers || null;
+      await codexGetMcpServerStatus(servers);
+      break;
+    }
+
     default:
       throw new Error(`Unknown Codex command: ${command}`);
   }
 }
 
 export function getCodexCommandList() {
-  return ['send', 'getMcpServerTools'];
+  return ['send', 'getMcpServerStatus', 'getMcpServerTools'];
 }

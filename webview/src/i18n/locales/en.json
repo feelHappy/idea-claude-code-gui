@@ -472,6 +472,72 @@
         "placeholder": "e.g. project1 or leave empty to use project root",
         "hint": "Specify the directory where Claude works. Can use relative path (relative to project root) or absolute path. Leave empty to use project root."
       },
+      "databaseBinding": {
+        "label": "Development Database",
+        "description": "Bind one development database to the current project. Saving will generate a project-scoped Claude MCP launcher and a project-named Codex MCP launcher.",
+        "enabled": "Enable database MCP for this project",
+        "safeWhere": "Require confirmation for UPDATE/DELETE without safe WHERE semantics",
+        "hint": "The plugin writes the db-mcp config to {{path}} and keeps Claude scoped to the current project. Codex receives a project-named global launcher because its current config format is global.",
+        "generatedConfig": "Generated config",
+        "bundledServer": "Using bundled db-mcp-server",
+        "resolvedInstallDir": "Resolved server directory",
+        "fields": {
+          "dbMcpServerPath": {
+            "label": "db-mcp-server path",
+            "placeholder": "Leave blank to use the bundled server, or enter installDist root/bin/lib path",
+            "optionalHint": "Optional. If left blank, the plugin will use its bundled db-mcp-server."
+          },
+          "sourceId": {
+            "label": "Source ID",
+            "placeholder": "main"
+          },
+          "dialect": {
+            "label": "Dialect",
+            "options": {
+              "postgresql": "PostgreSQL",
+              "mysql": "MySQL",
+              "oracle": "Oracle"
+            }
+          },
+          "mode": {
+            "label": "Mode",
+            "options": {
+              "devWrite": "Development Write",
+              "readOnly": "Read Only"
+            }
+          },
+          "jdbcUrl": {
+            "label": "JDBC URL",
+            "placeholder": "jdbc:postgresql://host:5432/dbname"
+          },
+          "schema": {
+            "label": "Schema",
+            "placeholder": "public / app / leave blank to infer"
+          },
+          "username": {
+            "label": "Username",
+            "placeholder": "db user"
+          },
+          "password": {
+            "label": "Password",
+            "placeholder": "db password"
+          },
+          "usernameEnv": {
+            "label": "Username env",
+            "placeholder": "optional, e.g. APP_DB_USER"
+          },
+          "passwordEnv": {
+            "label": "Password env",
+            "placeholder": "optional, e.g. APP_DB_PASSWORD"
+          },
+          "maxRows": {
+            "label": "Max rows"
+          },
+          "maxAffectedRows": {
+            "label": "Max affected rows"
+          }
+        }
+      },
       "fontSize": {
         "label": "Font Size",
         "level1": "Small (80%)",

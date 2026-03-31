@@ -437,6 +437,93 @@
   margin-bottom: 24px;
 }
 
+.databaseSection {
+  margin-bottom: 24px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.sectionHint {
+  margin: 0 0 10px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.4;
+
+  input {
+    margin: 0;
+  }
+}
+
+.databaseGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin-bottom: 10px;
+}
+
+.databaseField {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 4px;
+  min-width: 0;
+}
+
+.databaseFieldWide {
+  grid-column: 1 / -1;
+}
+
+.databaseFieldLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.databaseFieldControl {
+  min-width: 0;
+}
+
+.databaseFieldMeta {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+
+.databaseInput,
+.databaseSelect {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.databaseActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.databaseMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* 🔧 流式传输开关样式 */
 .streamingSection {
   margin-bottom: 24px;
@@ -798,5 +885,22 @@
     width: 100%;
     padding: 8px 12px;
     font-size: 12px;
+  }
+
+  .databaseGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .databaseField {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .databaseFieldWide {
+    grid-column: auto;
+  }
+
+  .databaseActions {
+    justify-content: stretch;
   }
 }

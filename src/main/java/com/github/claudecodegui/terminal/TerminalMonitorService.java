@@ -77,7 +77,7 @@ public class TerminalMonitorService implements ProjectActivity {
 
     private void monitorTerminals(@NotNull Project project) {
         // Listen for Terminal ToolWindow changes to attach to the window when it appears
-        project.getMessageBus().connect().subscribe(ToolWindowManagerListener.TOPIC, new ToolWindowManagerListener() {
+        project.getMessageBus().connect(project).subscribe(ToolWindowManagerListener.TOPIC, new ToolWindowManagerListener() {
             @Override
             public void stateChanged(@NotNull ToolWindowManager toolWindowManager) {
                 // Check if Terminal window is available (e.g. after being hidden/shown or registered)
@@ -117,23 +117,71 @@ public class TerminalMonitorService implements ProjectActivity {
 
     private void checkForNewWidgets(@NotNull Project project) {
         try {
-            Class<?> viewClass = Class.forName("org.jetbrains.plugins.terminal.TerminalView");
+            // Try multiple class paths for Terminal API compatibility across IDE versions.
+            // IntelliJ 2025.1+ refactored TerminalView into TerminalToolWindowManager.
+            Class<?> viewClass = resolveTerminalViewClass();
+            if (viewClass == null) {
+                LOG.debug("Terminal view class not found. Terminal monitoring disabled for this IDE version.");
+                return;
+            }
+
             Object view = viewClass.getMethod("getInstance", Project.class).invoke(null, project);
             if (view == null) return;
-            
-            Object result = viewClass.getMethod("getWidgets").invoke(view);
+
+            // Try multiple method names for widget retrieval (API changed across versions)
+            Object result = invokeWidgetListMethod(view);
+            if (result == null) {
+                LOG.debug("Could not retrieve terminal widgets — API may have changed in this IDE version.");
+                return;
+            }
+
             List<Object> widgets = convertResultToList(result);
             for (Object widget : widgets) {
                 if (!monitoredWidgets.contains(widget)) {
                     attachToWidget(widget);
                 }
             }
-        } catch (ClassNotFoundException e) {
-            // Gracefully handle if Terminal plugin is not enabled/loaded
-            LOG.warn("Terminal plugin classes not found. Monitoring disabled.");
         } catch (Exception e) {
-            LOG.error("Error checking for terminal widgets", e);
+            // Use debug level to avoid flooding logs on incompatible IDE versions
+            LOG.debug("Error checking for terminal widgets: " + e.getMessage());
         }
+    }
+
+    /**
+     * Resolve the terminal view class across different IDE versions.
+     * IntelliJ 2025.1+ may use TerminalToolWindowManager instead of TerminalView.
+     */
+    private static Class<?> resolveTerminalViewClass() {
+        String[] candidateClassNames = {
+            "org.jetbrains.plugins.terminal.TerminalView",
+            "org.jetbrains.plugins.terminal.TerminalToolWindowManager"
+        };
+        for (String className : candidateClassNames) {
+            try {
+                return Class.forName(className);
+            } catch (ClassNotFoundException e) {
+                // Try next candidate
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Invoke the method to get terminal widgets, trying multiple method names
+     * for cross-version compatibility.
+     */
+    private static Object invokeWidgetListMethod(@NotNull Object view) {
+        String[] candidateMethodNames = {"getWidgets", "getTerminalWidgets", "getOpenTerminals"};
+        for (String methodName : candidateMethodNames) {
+            try {
+                return view.getClass().getMethod(methodName).invoke(view);
+            } catch (NoSuchMethodException e) {
+                // Try next candidate
+            } catch (Exception e) {
+                LOG.debug("Method " + methodName + " invocation failed: " + e.getMessage());
+            }
+        }
+        return null;
     }
 
     private void attachToWidget(@NotNull Object widget) {
@@ -210,11 +258,15 @@ public class TerminalMonitorService implements ProjectActivity {
      */
     public static List<Object> getWidgets(@NotNull Project project) {
         try {
-            Class<?> viewClass = Class.forName("org.jetbrains.plugins.terminal.TerminalView");
+            Class<?> viewClass = resolveTerminalViewClass();
+            if (viewClass == null) return List.of();
+
             Object view = viewClass.getMethod("getInstance", Project.class).invoke(null, project);
             if (view == null) return List.of();
 
-            Object result = viewClass.getMethod("getWidgets").invoke(view);
+            Object result = invokeWidgetListMethod(view);
+            if (result == null) return List.of();
+
             List<Object> widgets = convertResultToList(result);
             
             // Sort widgets based on their visual tab order in the tool window

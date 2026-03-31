@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, useEffect } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ButtonAreaProps, ModelInfo, PermissionMode, ReasoningEffort } from './types';
 import { ConfigSelect, ModelSelect, ModeSelect, ProviderSelect, ReasoningSelect } from './selectors';
@@ -289,11 +289,17 @@ export const ButtonArea = ({
   }, [bmad, gitNexus, impeccable, uiUxPro]);
 
   const [activeAddon, setActiveAddon] = useState<AddonPanelId | null>(addonItems[0]?.id ?? null);
+  const [toolkitMenuOpen, setToolkitMenuOpen] = useState(false);
+  const toolkitButtonRef = useRef<HTMLButtonElement>(null);
+  const toolkitDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (addonItems.length === 0) {
       if (activeAddon !== null) {
         setActiveAddon(null);
+      }
+      if (toolkitMenuOpen) {
+        setToolkitMenuOpen(false);
       }
       return;
     }
@@ -301,9 +307,45 @@ export const ButtonArea = ({
     if (!activeAddon || !addonItems.some(item => item.id === activeAddon)) {
       setActiveAddon(addonItems[0].id);
     }
-  }, [activeAddon, addonItems]);
+  }, [activeAddon, addonItems, toolkitMenuOpen]);
+
+  useEffect(() => {
+    if (!toolkitMenuOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        toolkitDropdownRef.current
+        && !toolkitDropdownRef.current.contains(event.target as Node)
+        && toolkitButtonRef.current
+        && !toolkitButtonRef.current.contains(event.target as Node)
+      ) {
+        setToolkitMenuOpen(false);
+      }
+    };
+
+    const timer = window.setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [toolkitMenuOpen]);
 
   const activeAddonItem = addonItems.find(item => item.id === activeAddon) ?? addonItems[0];
+
+  const handleToolkitToggle = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    setToolkitMenuOpen(prev => !prev);
+  }, []);
+
+  const handleAddonSelect = useCallback((addonId: AddonPanelId) => {
+    setActiveAddon(addonId);
+    setToolkitMenuOpen(false);
+  }, []);
 
   return (
     <>
@@ -328,6 +370,59 @@ export const ButtonArea = ({
           <ModelSelect value={selectedModel} onChange={handleModelSelect} models={availableModels} currentProvider={currentProvider} onAddModel={onAddModel} />
           {currentProvider === 'codex' && (
             <ReasoningSelect value={reasoningEffort} onChange={handleReasoningChange} />
+          )}
+          {addonItems.length > 0 && (
+            <div className="toolkit-selector-wrap">
+              <button
+                ref={toolkitButtonRef}
+                type="button"
+                className={`selector-button toolkit-selector${toolkitMenuOpen ? ' open' : ''}`}
+                onClick={handleToolkitToggle}
+                aria-haspopup="menu"
+                aria-expanded={toolkitMenuOpen}
+                title={activeAddonItem ? `工具: ${activeAddonItem.label}` : '工具'}
+              >
+                <span className="codicon codicon-tools" />
+                <span className="selector-button-text">工具</span>
+                <span className={`codicon codicon-chevron-${toolkitMenuOpen ? 'up' : 'down'}`} style={{ fontSize: '10px', marginLeft: '2px' }} />
+              </button>
+
+              {toolkitMenuOpen && (
+                <div
+                  ref={toolkitDropdownRef}
+                  className="selector-dropdown toolkit-selector-dropdown"
+                  role="menu"
+                  aria-label="Toolkit selector"
+                  style={{
+                    position: 'absolute',
+                    bottom: '100%',
+                    left: 0,
+                    marginBottom: '4px',
+                    zIndex: 10000,
+                  }}
+                >
+                  {addonItems.map((item) => {
+                    const isSelected = item.id === activeAddonItem?.id;
+                    return (
+                      <div
+                        key={item.id}
+                        className={`selector-option${isSelected ? ' selected' : ''}`}
+                        role="menuitemradio"
+                        aria-checked={isSelected}
+                        onClick={() => handleAddonSelect(item.id)}
+                        title={item.label}
+                      >
+                        <span className={`codicon ${item.icon}`} />
+                        <span className="toolkit-selector-option-label">{item.label}</span>
+                        {isSelected && (
+                          <span className="codicon codicon-check check-mark" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
@@ -370,26 +465,6 @@ export const ButtonArea = ({
       {activeAddonItem && (
         <div className="button-area-bottom">
           <div className="addon-panel">
-            {addonItems.length > 1 && (
-              <div className="addon-tabs" role="tablist" aria-label="Toolkit add-on panels">
-                {addonItems.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`addon-tab${item.id === activeAddonItem.id ? ' active' : ''}`}
-                    role="tab"
-                    aria-selected={item.id === activeAddonItem.id}
-                    aria-label={item.label}
-                    title={item.label}
-                    onClick={() => setActiveAddon(item.id)}
-                  >
-                    <span className={`addon-tab-icon codicon ${item.icon}`} aria-hidden="true" />
-                    <span className="addon-tab-label">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
             <div className={`addon-content${activeAddonItem.contentClassName ? ` ${activeAddonItem.contentClassName}` : ''}`}>
               {activeAddonItem.content}
             </div>

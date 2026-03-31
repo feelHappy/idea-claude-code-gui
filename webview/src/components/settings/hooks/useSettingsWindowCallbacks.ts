@@ -6,6 +6,10 @@ import type { AgentConfig } from '../../../types/agent';
 import type { PromptConfig } from '../../../types/prompt';
 import type { AlertType } from '../../AlertDialog';
 import type { ToastMessage } from '../../Toast';
+import {
+  normalizeProjectDatabaseBinding,
+  type ProjectDatabaseBinding,
+} from '../projectDatabaseBinding';
 
 const sendToJava = (message: string) => {
   if (window.sendToJava) {
@@ -23,6 +27,8 @@ export interface SettingsWindowCallbacksDeps {
   setSavingWorkingDirectory: (saving: boolean) => void;
   setCommitPrompt: (prompt: string) => void;
   setSavingCommitPrompt: (saving: boolean) => void;
+  setProjectDatabaseBinding: (binding: ProjectDatabaseBinding) => void;
+  setSavingProjectDatabaseBinding: (saving: boolean) => void;
   setEditorFontConfig: (config: { fontFamily: string; fontSize: number; lineSpacing: number } | undefined) => void;
   setIdeTheme: (theme: 'light' | 'dark' | null) => void;
   setLocalStreamingEnabled: (enabled: boolean) => void;
@@ -111,6 +117,7 @@ export function useSettingsWindowCallbacks(deps: SettingsWindowCallbacksDeps) {
       d().setSavingNodePath(false);
       d().setSavingWorkingDirectory(false);
       d().setSavingCommitPrompt(false);
+      d().setSavingProjectDatabaseBinding(false);
     };
 
     window.showSwitchSuccess = (message: string) => {
@@ -141,6 +148,17 @@ export function useSettingsWindowCallbacks(deps: SettingsWindowCallbacksDeps) {
       } catch (error) {
         console.error('[SettingsView] Failed to parse working directory:', error);
         d().setSavingWorkingDirectory(false);
+      }
+    };
+
+    window.updateProjectDatabaseBinding = (jsonStr: string) => {
+      try {
+        const data = JSON.parse(jsonStr);
+        d().setProjectDatabaseBinding(normalizeProjectDatabaseBinding(data));
+      } catch (error) {
+        console.error('[SettingsView] Failed to parse development database config:', error);
+      } finally {
+        d().setSavingProjectDatabaseBinding(false);
       }
     };
 
@@ -379,6 +397,7 @@ export function useSettingsWindowCallbacks(deps: SettingsWindowCallbacksDeps) {
     d().loadPrompts?.();
     sendToJava('get_node_path:');
     sendToJava('get_working_directory:');
+    sendToJava('get_project_database_binding:');
     sendToJava('get_editor_font_config:');
     sendToJava('get_streaming_enabled:');
     sendToJava('get_codex_sandbox_mode:');
@@ -395,6 +414,7 @@ export function useSettingsWindowCallbacks(deps: SettingsWindowCallbacksDeps) {
       window.showSwitchSuccess = undefined;
       window.updateNodePath = undefined;
       window.updateWorkingDirectory = undefined;
+      window.updateProjectDatabaseBinding = undefined;
       window.showSuccess = undefined;
       window.showSuccessI18n = undefined;
       window.onEditorFontConfigReceived = undefined;

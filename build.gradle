@@ -55,7 +55,7 @@ checkstyle {
 }
 
 group = 'com.github.idea-claude-code-gui'
-version = '1.0.2'
+version = '1.0.4'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -117,6 +117,14 @@ intellijPlatform {
         ides {
             recommended()
         }
+        // Suppress verification warnings for optional plugin dependencies.
+        // PythonContextCollector and JavaContextCollector depend on optional plugins
+        // (com.intellij.modules.python, com.intellij.java) that are loaded via reflection
+        // at runtime. These classes are never accessed when the optional plugin is absent.
+        freeArgs.addAll(
+            '-mute',
+            'PackageNotFoundProblem'
+        )
     }
 }
 
@@ -321,8 +329,9 @@ tasks.named('runIde') {
 // Unified AI Bridge (merging Claude and Codex)
 def aiBridgeDir = file("ai-bridge")
 def aiBridgePackDir = layout.buildDirectory.dir('ai-bridge-pack').get().asFile
-def aiBridgeArchive = new File(aiBridgePackDir, 'ai-bridge.zip')
+def aiBridgeArchive = new File(aiBridgePackDir, 'ai-bridge-bundled.zip')
 def aiBridgeHashFile = new File(aiBridgePackDir, 'ai-bridge.hash')
+def bundledDbMcpInstallDirProvider = project(':db-mcp-server').layout.buildDirectory.dir('install/db-mcp-server')
 
 // Build webview automatically
 def webviewDir = file('webview')
@@ -506,16 +515,21 @@ tasks.register('packageAiBridge', Exec) {
 def pluginName = project.name
 
 tasks.matching { it.name.startsWith('prepareSandbox') }.configureEach {
-    dependsOn('buildWebview', 'packageAiBridge')
+    dependsOn('buildWebview', 'packageAiBridge', ':db-mcp-server:installDist')
     def sandboxRootProvider = layout.buildDirectory.dir('idea-sandbox')
     // Capture needed file references during configuration phase
     def archiveSource = aiBridgeArchive
     def hashSource = aiBridgeHashFile
     def bridgeDir = aiBridgeDir
+    def bundledDbMcpSourceProvider = bundledDbMcpInstallDirProvider
 
     doLast {
         if (!bridgeDir.exists() && !archiveSource.exists()) {
             throw new GradleException('ai-bridge directory does not exist. Please ensure it has been pulled and dependencies installed.')
+        }
+        def bundledDbMcpSource = bundledDbMcpSourceProvider.get().asFile
+        if (!bundledDbMcpSource.exists()) {
+            throw new GradleException("Bundled db-mcp-server installDist was not generated: ${bundledDbMcpSource.absolutePath}")
         }
         def sandboxRoot = sandboxRootProvider.get().asFile
 
@@ -549,6 +563,7 @@ tasks.matching { it.name.startsWith('prepareSandbox') }.configureEach {
             def extractedDir = new File(pluginDir, 'ai-bridge')
             def archiveTarget = new File(pluginDir, 'ai-bridge.zip')
             def hashTarget = new File(pluginDir, 'ai-bridge.hash')
+            def bundledDbMcpTarget = new File(pluginDir, 'db-mcp-server')
 
             // Ensure plugin directory exists
             pluginDir.mkdirs()
@@ -557,30 +572,43 @@ tasks.matching { it.name.startsWith('prepareSandbox') }.configureEach {
             ant.delete(dir: extractedDir, failonerror: false)
             ant.delete(file: archiveTarget, failonerror: false)
             ant.delete(file: hashTarget, failonerror: false)
-            ant.copy(file: archiveSource, todir: pluginDir)
+            ant.delete(dir: bundledDbMcpTarget, failonerror: false)
+            ant.copy(file: archiveSource, tofile: archiveTarget)
             if (hashSource.exists()) {
                 ant.copy(file: hashSource, todir: pluginDir)
             }
+            ant.mkdir(dir: bundledDbMcpTarget)
+            ant.copy(todir: bundledDbMcpTarget) {
+                fileset(dir: bundledDbMcpSource)
+            }
 
             println "✓ ai-bridge.zip copied to: ${archiveTarget.absolutePath}"
+            println "✓ db-mcp-server copied to: ${bundledDbMcpTarget.absolutePath}"
         }
     }
 }
 
 // Configure tasks after prepareSandbox to ensure ai-bridge.zip is included
 tasks.matching { it.name == 'preparePluginForDistribution' || it.name == 'composedJar' }.configureEach {
-    dependsOn('packageAiBridge')
+    dependsOn('packageAiBridge', ':db-mcp-server:installDist')
 }
 
 tasks.named('buildPlugin') {
-    dependsOn('packageAiBridge', 'checkstyleMain')
+    dependsOn('packageAiBridge', ':db-mcp-server:installDist', 'checkstyleMain')
     archiveBaseName.set('cc-ai-toolkit')
     archiveVersion.set(project.version.toString())
 
     doLast {
         // Unzip the plugin zip, add ai-bridge.zip and ai-bridge.hash, then repackage
         def distributionFile = archiveFile.get().asFile
-        if (distributionFile.exists() && aiBridgeArchive.exists()) {
+        def bundledDbMcpSource = bundledDbMcpInstallDirProvider.get().asFile
+        if (distributionFile.exists()) {
+            if (!aiBridgeArchive.exists()) {
+                throw new GradleException("Packaging failed: ai-bridge.zip was not generated at ${aiBridgeArchive.absolutePath}")
+            }
+            if (!bundledDbMcpSource.exists()) {
+                throw new GradleException("Packaging failed: bundled db-mcp-server installDist was not generated at ${bundledDbMcpSource.absolutePath}")
+            }
             def tempDir = file("${layout.buildDirectory.get()}/tmp/plugin-repack")
             delete(tempDir)
 
@@ -594,9 +622,19 @@ tasks.named('buildPlugin') {
             def pluginDir = new File(tempDir, pluginName)
             if (pluginDir.exists()) {
                 copy {
+                    into pluginDir
                     from aiBridgeArchive
+                    rename { 'ai-bridge.zip' }
+                }
+                copy {
                     from aiBridgeHashFile
                     into pluginDir
+                }
+                def bundledDbMcpTarget = new File(pluginDir, 'db-mcp-server')
+                delete(bundledDbMcpTarget)
+                copy {
+                    from bundledDbMcpSource
+                    into bundledDbMcpTarget
                 }
 
                 // Delete searchableOptions jar if present
@@ -612,7 +650,7 @@ tasks.named('buildPlugin') {
                 ant.zip(destfile: distributionFile) {
                     fileset(dir: tempDir)
                 }
-                println "Added ai-bridge.zip and ai-bridge.hash to plugin package and removed searchableOptions jar"
+                println "Added ai-bridge assets and bundled db-mcp-server to plugin package and removed searchableOptions jar"
             }
 
             delete(tempDir)

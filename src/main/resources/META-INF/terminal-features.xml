@@ -5,6 +5,6 @@
     -->
     <extensions defaultExtensionNs="com.intellij">
         <!-- Monitor Terminal Output - Only active when Terminal plugin is installed -->
-        <postStartupActivity implementation="com.github.claudecodegui.terminal.TerminalMonitorService"/>
+        <backgroundPostStartupActivity implementation="com.github.claudecodegui.terminal.TerminalMonitorService"/>
     </extensions>
 </idea-plugin>

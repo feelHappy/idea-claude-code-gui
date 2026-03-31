@@ -1,3 +1,63 @@
+##### **2026年3月31日（v1.0.4-fix）**
+
+English:
+
+🐛 Fixes
+- Fix IntelliJ IDEA 2025.1+ compatibility: migrate 4 `postStartupActivity` extension points to `backgroundPostStartupActivity` to resolve deprecated EP warnings and "needs fix" prompts in plugin marketplace
+- Fix 5 MessageBus memory leaks: bind `connect()` to parent `Disposable` (project/this) in TerminalMonitorService, RunConfigMonitorService, EditorContextTracker, PromptFileWatcher, and InteractiveDiffManager to prevent leaked connections on project close
+- Fix TerminalMonitorService crash on IDEA 2025.1+: replace hardcoded `TerminalView` reflection with multi-candidate class/method resolution (`TerminalView` / `TerminalToolWindowManager`, `getWidgets` / `getTerminalWidgets` / `getOpenTerminals`), downgrade `LOG.error` to `LOG.debug` to prevent log flooding on incompatible IDE versions
+- Fix deprecated `ReadAction.compute(ThrowableComputable)` usage in SessionHandler: migrate to `ApplicationManager.runReadAction(Computable)`
+- Fix `EditorContextTracker` resource leak: implement `Disposable` interface, bind `Alarm` and `MessageBusConnection` to component lifecycle
+- Fix plugin verifier `PackageNotFoundProblem` for optional Python plugin dependency: add `-mute PackageNotFoundProblem` to suppress false-positive binary incompatibility warnings from reflection-loaded optional classes
+
+中文：
+
+🐛 Fixes
+- 修复 IntelliJ IDEA 2025.1+ 兼容性问题：将 4 处 `postStartupActivity` 扩展点迁移为 `backgroundPostStartupActivity`，解决插件市场中 deprecated EP 警告和"需要修复"提示
+- 修复 5 处 MessageBus 内存泄漏：在 TerminalMonitorService、RunConfigMonitorService、EditorContextTracker、PromptFileWatcher、InteractiveDiffManager 中将 `connect()` 绑定到父级 `Disposable`（project/this），防止项目关闭时连接泄漏
+- 修复 TerminalMonitorService 在 IDEA 2025.1+ 上崩溃：将硬编码的 `TerminalView` 反射替换为多候选类名/方法名解析（`TerminalView` / `TerminalToolWindowManager`，`getWidgets` / `getTerminalWidgets` / `getOpenTerminals`），日志级别从 `LOG.error` 降为 `LOG.debug`，防止在不兼容 IDE 版本上刷日志
+- 修复 SessionHandler 中已弃用的 `ReadAction.compute(ThrowableComputable)` 用法：迁移至 `ApplicationManager.runReadAction(Computable)`
+- 修复 `EditorContextTracker` 资源泄漏：实现 `Disposable` 接口，将 `Alarm` 和 `MessageBusConnection` 绑定到组件生命周期
+- 修复插件验证器对可选 Python 插件依赖的 `PackageNotFoundProblem` 误报：添加 `-mute PackageNotFoundProblem` 抑制反射加载的可选类的二进制不兼容警告
+
+---
+
+##### **2026年3月30日（v1.0.4）**
+
+English:
+
+✨ Features
+- Add project-level development database binding in Settings > Environment, including PostgreSQL, MySQL, and Oracle connection fields, source ID, mode, schema, and safety limits
+- Add automatic MCP launcher generation for development databases: write generated server configs to `~/.codemoss/project-db-mcp`, register Claude project-scoped launchers, and create project-named Codex launchers
+- Add standalone `db-mcp-server` module with bundled JDBC drivers and built-in tools: `db_ping`, `db_list_tables`, `db_describe_table`, `db_select`, `db_execute_change`, and `db_execute_ddl`
+
+🔧 Improvements
+- Normalize project database binding defaults and validation rules to reduce misconfiguration risk before launch
+- Enforce development-safe guardrails for generated database launchers, including timeouts, row limits, and optional UPDATE/DELETE WHERE protections
+- Fix development database settings panel localization so it follows the selected UI language, including Chinese resources
+- Compact the development database settings form into a denser row-based layout to reduce field height and scrolling
+- Fix Windows save failure for development database launchers caused by invalid `lib/*` classpath path construction
+- Bundle `db-mcp-server` into the plugin package and allow the path field to be left blank for zero-config startup
+- Show the effective development database server directory in Settings and surface when the bundled server is being used
+
+中文：
+
+✨ Features
+- 在 Settings > Environment 中新增项目级开发库绑定，支持 PostgreSQL、MySQL、Oracle 的连接信息、Source ID、模式、Schema 与安全阈值配置
+- 新增开发库 MCP 启动器自动生成功能：将服务配置写入 `~/.codemoss/project-db-mcp`，为 Claude 注册项目级 MCP，并为 Codex 生成带项目名的启动器
+- 新增独立 `db-mcp-server` 模块，内置 JDBC 驱动与常用工具：`db_ping`、`db_list_tables`、`db_describe_table`、`db_select`、`db_execute_change`、`db_execute_ddl`
+
+🔧 Improvements
+- 统一项目数据库绑定的默认值与校验规则，降低接入时的配置错误风险
+- 为生成的数据库启动器增加开发环境安全保护，包括超时、返回行数限制以及可选的 UPDATE/DELETE 无安全 WHERE 保护
+- 修复开发数据库设置面板未跟随界面语言的问题，补齐中文语言资源
+- 将开发数据库设置表单调整为更紧凑的行式布局，减少字段高度和滚动长度
+- 修复 Windows 下开发数据库启动器保存失败的问题，原因是 `lib/*` classpath 拼接方式不合法
+- 将 `db-mcp-server` 随插件一并打包，数据库路径支持留空后直接零配置启用
+- 在设置页展示实际生效的数据库服务目录，并明确提示当前是否正在使用内置服务
+
+---
+
 ##### **2026年3月23日（v0.3.1）**
 
 English:

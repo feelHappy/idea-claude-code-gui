@@ -108,14 +108,19 @@ public class CodexMcpServerHandler extends BaseMessageHandler {
 
     /**
      * Get Codex MCP server connection status.
-     * Validates server configuration and checks availability.
-     * Runs in a background thread because status checks involve network I/O and process spawning
-     * that can block for seconds per server (HTTP timeouts, `which` command execution).
+     * Uses the ai-bridge verifier so the settings UI matches the actual Codex MCP probing logic.
      */
     private void handleGetMcpServerStatus() {
-        CompletableFuture.runAsync(() -> {
-            try {
-                List<JsonObject> statusList = codexMcpServerManager.getMcpServerStatus();
+        CompletableFuture
+            .supplyAsync(() -> {
+                try {
+                    return codexMcpServerManager.getMcpServers();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }, AppExecutorUtil.getAppExecutorService())
+            .thenCompose(servers -> context.getCodexSDKBridge().getMcpServerStatus(servers))
+            .thenAccept(statusList -> {
                 Gson gson = new Gson();
                 String statusJson = gson.toJson(statusList);
 
@@ -131,16 +136,15 @@ public class CodexMcpServerHandler extends BaseMessageHandler {
                 ApplicationManager.getApplication().invokeLater(() -> {
                     callJavaScript("window.updateCodexMcpServerStatus", escapeJs(statusJson));
                 });
-            } catch (Exception e) {
-                LOG.error("[CodexMcpServerHandler] Failed to get Codex MCP server status: " + e.getMessage(), e);
+            })
+            .exceptionally(ex -> {
+                Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                LOG.error("[CodexMcpServerHandler] Failed to get Codex MCP server status: " + cause.getMessage(), cause);
                 ApplicationManager.getApplication().invokeLater(() -> {
                     callJavaScript("window.updateCodexMcpServerStatus", escapeJs("[]"));
                 });
-            }
-        }, AppExecutorUtil.getAppExecutorService()).exceptionally(ex -> {
-            LOG.error("[CodexMcpServerHandler] Unexpected error in handleGetMcpServerStatus: " + ex.getMessage(), ex);
-            return null;
-        });
+                return null;
+            });
     }
 
     /**

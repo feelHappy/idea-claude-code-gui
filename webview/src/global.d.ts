@@ -266,6 +266,11 @@ interface Window {
   updateWorkingDirectory?: (json: string) => void;
 
   /**
+   * Update project development database binding
+   */
+  updateProjectDatabaseBinding?: (json: string) => void;
+
+  /**
    * Show success message
    */
   showSuccess?: (message: string) => void;

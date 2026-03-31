@@ -18,6 +18,8 @@ describe('useSettingsWindowCallbacks', () => {
     setSavingWorkingDirectory: vi.fn(),
     setCommitPrompt: vi.fn(),
     setSavingCommitPrompt: vi.fn(),
+    setProjectDatabaseBinding: vi.fn(),
+    setSavingProjectDatabaseBinding: vi.fn(),
     setEditorFontConfig: vi.fn(),
     setIdeTheme: vi.fn(),
     setLocalStreamingEnabled: vi.fn(),
@@ -62,6 +64,7 @@ describe('useSettingsWindowCallbacks', () => {
     expect(window.sendToJava).not.toHaveBeenCalledWith('get_current_claude_config:');
     expect(window.sendToJava).toHaveBeenCalledWith('get_node_path:');
     expect(window.sendToJava).toHaveBeenCalledWith('get_working_directory:');
+    expect(window.sendToJava).toHaveBeenCalledWith('get_project_database_binding:');
     expect(window.sendToJava).toHaveBeenCalledWith('get_editor_font_config:');
     expect(window.sendToJava).toHaveBeenCalledWith('get_streaming_enabled:');
     expect(window.sendToJava).toHaveBeenCalledWith('get_codex_sandbox_mode:');

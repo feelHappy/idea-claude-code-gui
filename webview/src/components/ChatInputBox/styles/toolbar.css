@@ -49,37 +49,68 @@
   width: 100%;
   min-width: 0;
   overflow: visible;
+  padding-top: 2px;
 }
 
 .addon-panel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   width: 100%;
   min-width: 0;
   overflow: visible;
 }
 
+.toolkit-selector-wrap {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.toolkit-selector.open {
+  background: var(--button-hover);
+  color: var(--text-primary);
+}
+
+.toolkit-selector-dropdown {
+  min-width: 156px;
+}
+
+.toolkit-selector-option-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.addon-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
 .addon-tabs {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .addon-tab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 26px;
-  padding: 0 10px;
+  height: 24px;
+  padding: 0 9px;
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.025);
   border: 1px solid var(--border-color);
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
 }
 
 .addon-tab-icon {
@@ -102,14 +133,50 @@
   border-color: var(--input-focus-border);
 }
 
+.addon-strip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.addon-strip-toggle:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--border-color);
+}
+
+.addon-strip-toggle.expanded {
+  color: var(--text-primary);
+}
+
+.addon-strip-toggle-text {
+  white-space: nowrap;
+}
+
+.addon-strip-toggle-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
 .addon-content {
   width: 100%;
   min-width: 0;
   overflow: visible;
+  padding-top: 0;
 }
 
 .addon-content-bmad {
-  padding-left: 6px;
+  padding-left: 2px;
 }
 
 .design-toolkit-bar {
@@ -1569,6 +1636,15 @@
 @media (max-width: 720px) {
   .design-toolkit-modes {
     width: 100%;
+  }
+
+  .addon-strip {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .addon-strip-toggle {
+    margin-left: auto;
   }
 
   .button-area-top {

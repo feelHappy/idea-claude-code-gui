@@ -385,6 +385,72 @@
         "placeholder": "e.g. project1 or leave empty to use project root",
         "hint": "Specify the directory where Claude works. Can use relative path (relative to project root) or absolute path. Leave empty to use project root."
       },
+      "databaseBinding": {
+        "label": "開發資料庫",
+        "description": "為目前專案綁定一個開發資料庫。儲存後會產生目前專案專屬的 Claude MCP 啟動器，以及帶專案名稱的 Codex MCP 啟動器。",
+        "enabled": "為此專案啟用資料庫 MCP",
+        "safeWhere": "對缺少安全 WHERE 條件的 UPDATE/DELETE 要求確認",
+        "hint": "外掛會將 db-mcp 設定寫入 {{path}}，並將 Claude 限制在目前專案範圍內。由於 Codex 目前的設定格式仍為全域，因此會產生一個帶專案名稱的全域啟動器。",
+        "generatedConfig": "產生的設定",
+        "bundledServer": "使用外掛內建 db-mcp-server",
+        "resolvedInstallDir": "實際服務目錄",
+        "fields": {
+          "dbMcpServerPath": {
+            "label": "db-mcp-server 路徑",
+            "placeholder": "留空使用內建服務，或填寫 installDist 根目錄、bin / lib 路徑",
+            "optionalHint": "此欄位可留空。留空後會自動使用外掛內建的 db-mcp-server。"
+          },
+          "sourceId": {
+            "label": "資料來源 ID",
+            "placeholder": "main"
+          },
+          "dialect": {
+            "label": "資料庫類型",
+            "options": {
+              "postgresql": "PostgreSQL",
+              "mysql": "MySQL",
+              "oracle": "Oracle"
+            }
+          },
+          "mode": {
+            "label": "模式",
+            "options": {
+              "devWrite": "開發可寫",
+              "readOnly": "唯讀"
+            }
+          },
+          "jdbcUrl": {
+            "label": "JDBC URL",
+            "placeholder": "例如 jdbc:postgresql://host:5432/dbname"
+          },
+          "schema": {
+            "label": "Schema",
+            "placeholder": "例如 public / app，留空則自動推斷"
+          },
+          "username": {
+            "label": "使用者名稱",
+            "placeholder": "資料庫使用者"
+          },
+          "password": {
+            "label": "密碼",
+            "placeholder": "資料庫密碼"
+          },
+          "usernameEnv": {
+            "label": "使用者名稱環境變數",
+            "placeholder": "可選，例如 APP_DB_USER"
+          },
+          "passwordEnv": {
+            "label": "密碼環境變數",
+            "placeholder": "可選，例如 APP_DB_PASSWORD"
+          },
+          "maxRows": {
+            "label": "最大返回列數"
+          },
+          "maxAffectedRows": {
+            "label": "最大影響列數"
+          }
+        }
+      },
       "fontSize": {
         "label": "字體大小",
         "level1": "小（80%）",

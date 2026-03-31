@@ -47,6 +47,7 @@ public class CodemossSettingsService {
     private final McpServerManager mcpServerManager;
     private final ProviderManager providerManager;
     private final CodexProviderManager codexProviderManager;
+    private final ProjectDatabaseBindingManager projectDatabaseBindingManager;
 
     public CodemossSettingsService() {
         this.gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
@@ -163,6 +164,26 @@ public class CodemossSettingsService {
                 },
                 pathManager,
                 codexSettingsManager
+        );
+
+        this.projectDatabaseBindingManager = new ProjectDatabaseBindingManager(
+                pathManager,
+                (ignored) -> {
+                    try {
+                        return readConfig();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                },
+                (config) -> {
+                    try {
+                        writeConfig(config);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                },
+                mcpServerManager,
+                codexMcpServerManager
         );
     }
 
@@ -545,6 +566,16 @@ public class CodemossSettingsService {
 
     private String getDefaultCodexSandboxMode() {
         return CODEX_SANDBOX_MODE_DANGER_FULL_ACCESS;
+    }
+
+    // ==================== Project Database Binding Management ====================
+
+    public JsonObject getProjectDatabaseBinding(String projectPath) throws IOException {
+        return projectDatabaseBindingManager.getProjectDatabaseBinding(projectPath);
+    }
+
+    public JsonObject upsertProjectDatabaseBinding(String projectPath, JsonObject binding) throws IOException {
+        return projectDatabaseBindingManager.upsertProjectDatabaseBinding(projectPath, binding);
     }
 
     // ==================== Provider Management ====================

@@ -367,6 +367,103 @@ public class McpServerManager {
     }
 
     /**
+     * Upsert a project-scoped MCP server into ~/.claude.json.
+     * Unlike {@link #upsertMcpServer(JsonObject, String)}, this stores the server spec under
+     * projects[projectPath].mcpServers so it is only visible inside the target project.
+     */
+    public void upsertProjectScopedMcpServer(JsonObject server, String projectPath) throws IOException {
+        if (projectPath == null || projectPath.isBlank()) {
+            throw new IllegalArgumentException("Project path is required for project-scoped MCP servers");
+        }
+        if (!server.has("id")) {
+            throw new IllegalArgumentException("Server must have an id");
+        }
+
+        String serverId = server.get("id").getAsString();
+        boolean isEnabled = !server.has("enabled") || server.get("enabled").getAsBoolean();
+
+        try {
+            String homeDir = PlatformUtils.getHomeDirectory();
+            Path claudeJsonPath = Paths.get(homeDir, ".claude.json");
+            File claudeJsonFile = claudeJsonPath.toFile();
+
+            JsonObject claudeJson;
+            if (claudeJsonFile.exists()) {
+                try (FileReader reader = new FileReader(claudeJsonFile, StandardCharsets.UTF_8)) {
+                    claudeJson = JsonParser.parseReader(reader).getAsJsonObject();
+                }
+            } else {
+                claudeJson = new JsonObject();
+            }
+
+            if (!claudeJson.has("projects") || !claudeJson.get("projects").isJsonObject()) {
+                claudeJson.add("projects", new JsonObject());
+            }
+            JsonObject projects = claudeJson.getAsJsonObject("projects");
+            if (!projects.has(projectPath) || !projects.get(projectPath).isJsonObject()) {
+                projects.add(projectPath, new JsonObject());
+            }
+            JsonObject projectConfig = projects.getAsJsonObject(projectPath);
+
+            if (!projectConfig.has("mcpServers") || !projectConfig.get("mcpServers").isJsonObject()) {
+                projectConfig.add("mcpServers", new JsonObject());
+            }
+            JsonObject projectMcpServers = projectConfig.getAsJsonObject("mcpServers");
+
+            JsonObject serverSpec;
+            if (server.has("server") && server.get("server").isJsonObject()) {
+                serverSpec = server.getAsJsonObject("server").deepCopy();
+            } else {
+                serverSpec = new JsonObject();
+            }
+
+            if (projectMcpServers.has(serverId) && projectMcpServers.get(serverId).isJsonObject()) {
+                JsonObject existingSpec = projectMcpServers.getAsJsonObject(serverId).deepCopy();
+                for (String key : serverSpec.keySet()) {
+                    existingSpec.add(key, serverSpec.get(key));
+                }
+                serverSpec = existingSpec;
+            }
+            projectMcpServers.add(serverId, serverSpec);
+
+            if (!projectConfig.has("disabledMcpServers") || !projectConfig.get("disabledMcpServers").isJsonArray()) {
+                projectConfig.add("disabledMcpServers", new JsonArray());
+            }
+            JsonArray disabledArray = projectConfig.getAsJsonArray("disabledMcpServers");
+            JsonArray newDisabled = new JsonArray();
+            for (JsonElement element : disabledArray) {
+                if (!serverId.equals(element.getAsString())) {
+                    newDisabled.add(element);
+                }
+            }
+            if (!isEnabled) {
+                newDisabled.add(serverId);
+            }
+            projectConfig.add("disabledMcpServers", newDisabled);
+
+            try (FileWriter writer = new FileWriter(claudeJsonFile, StandardCharsets.UTF_8)) {
+                gson.toJson(claudeJson, writer);
+                writer.flush();
+            }
+
+            LOG.info("[McpServerManager] Upserted project-scoped MCP server in ~/.claude.json: "
+                    + serverId + " for " + projectPath + " (enabled: " + isEnabled + ")");
+
+            try {
+                claudeSettingsManager.syncMcpToClaudeSettings();
+            } catch (Exception syncError) {
+                LOG.warn("[McpServerManager] Failed to sync project-scoped MCP to settings.json: "
+                        + syncError.getMessage());
+            }
+            return;
+        } catch (Exception e) {
+            LOG.warn("[McpServerManager] Failed to update project-scoped MCP server in ~/.claude.json: "
+                    + e.getMessage());
+            throw new IOException("Failed to persist project-scoped MCP server", e);
+        }
+    }
+
+    /**
      * Delete an MCP server.
      * Prefers deleting from ~/.claude.json (standard Claude CLI location),
      * falling back to ~/.codemoss/config.json.

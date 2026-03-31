@@ -7,3 +7,4 @@ pluginManagement {
 }
 
 rootProject.name = 'cc-ai-toolkit'
+include 'db-mcp-server'

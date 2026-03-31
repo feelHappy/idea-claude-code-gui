@@ -18,7 +18,10 @@
  */
 
 import { CodexPermissionMapper } from '../../utils/permission-mapper.js';
-import { getMcpServerTools as getMcpServerToolsImpl } from '../claude/mcp-status/index.js';
+import {
+  verifyMcpServerStatus as verifyMcpServerStatusImpl,
+  getMcpServerTools as getMcpServerToolsImpl
+} from '../claude/mcp-status/index.js';
 import {
   logDebug, logInfo, logWarn,
   ensureCodexSdk,
@@ -294,6 +297,38 @@ export async function sendMessage(
 }
 
 // ---------------------------------------------------------------------------
+// getMcpServerStatus
+// ---------------------------------------------------------------------------
+
+/**
+ * Gets connection status for Codex MCP servers by reusing the shared verifier.
+ * This keeps Codex settings status aligned with the actual bridge probing logic.
+ *
+ * @param {Array} rawServers
+ */
+export async function getMcpServerStatus(rawServers) {
+  try {
+    const servers = Array.isArray(rawServers) ? rawServers : [];
+    const statuses = await Promise.all(servers.map(verifyCodexServerStatus));
+
+    const resultJson = JSON.stringify({
+      success: true,
+      servers: statuses
+    });
+    console.log('[MCP_SERVER_STATUS]' + resultJson);
+    console.log(resultJson);
+  } catch (error) {
+    const resultJson = JSON.stringify({
+      success: false,
+      error: error?.message || String(error),
+      servers: []
+    });
+    console.log('[MCP_SERVER_STATUS]' + resultJson);
+    console.log(resultJson);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // getMcpServerTools
 // ---------------------------------------------------------------------------
 
@@ -402,4 +437,52 @@ function normalizeCodexMcpConfig(raw) {
   }
 
   return normalized;
+}
+
+function getCodexServerDisplayName(server) {
+  if (server && typeof server.name === 'string' && server.name.trim() !== '') {
+    return server.name;
+  }
+  if (server && typeof server.id === 'string' && server.id.trim() !== '') {
+    return server.id;
+  }
+  return 'unknown';
+}
+
+async function verifyCodexServerStatus(server) {
+  const serverName = getCodexServerDisplayName(server);
+
+  if (!server || typeof server !== 'object') {
+    return {
+      name: serverName,
+      status: 'failed',
+      error: 'Invalid config: missing server entry'
+    };
+  }
+
+  if (server.enabled === false) {
+    return {
+      name: serverName,
+      status: 'failed',
+      error: 'Server is disabled'
+    };
+  }
+
+  if (!server.server || typeof server.server !== 'object') {
+    return {
+      name: serverName,
+      status: 'failed',
+      error: 'Invalid config: missing server configuration'
+    };
+  }
+
+  try {
+    return await verifyMcpServerStatusImpl(serverName, normalizeCodexMcpConfig(server.server));
+  } catch (error) {
+    return {
+      name: serverName,
+      status: 'failed',
+      error: error?.message || String(error)
+    };
+  }
 }

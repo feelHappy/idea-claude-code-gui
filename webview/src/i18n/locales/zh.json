@@ -472,6 +472,72 @@
         "placeholder": "例如 project1 或留空使用项目根目录",
         "hint": "指定 Claude 工作的目录。可以使用相对路径（相对于项目根目录）或绝对路径。留空则使用项目根目录。"
       },
+      "databaseBinding": {
+        "label": "开发数据库",
+        "description": "为当前项目绑定一个开发数据库。保存后会生成当前项目专属的 Claude MCP 启动器，以及带项目名的 Codex MCP 启动器。",
+        "enabled": "为当前项目启用数据库 MCP",
+        "safeWhere": "对缺少安全 WHERE 条件的 UPDATE/DELETE 要求确认",
+        "hint": "插件会将 db-mcp 配置写入 {{path}}，并将 Claude 限制在当前项目范围内。由于 Codex 当前配置仍是全局格式，因此会生成一个带项目名的全局启动器。",
+        "generatedConfig": "生成的配置",
+        "bundledServer": "使用插件内置 db-mcp-server",
+        "resolvedInstallDir": "实际服务目录",
+        "fields": {
+          "dbMcpServerPath": {
+            "label": "db-mcp-server 路径",
+            "placeholder": "留空使用内置服务，或填写 installDist 根目录、bin / lib 路径",
+            "optionalHint": "该项可留空。留空后将自动使用插件内置的 db-mcp-server。"
+          },
+          "sourceId": {
+            "label": "数据源 ID",
+            "placeholder": "main"
+          },
+          "dialect": {
+            "label": "数据库类型",
+            "options": {
+              "postgresql": "PostgreSQL",
+              "mysql": "MySQL",
+              "oracle": "Oracle"
+            }
+          },
+          "mode": {
+            "label": "模式",
+            "options": {
+              "devWrite": "开发可写",
+              "readOnly": "只读"
+            }
+          },
+          "jdbcUrl": {
+            "label": "JDBC URL",
+            "placeholder": "例如 jdbc:postgresql://host:5432/dbname"
+          },
+          "schema": {
+            "label": "Schema",
+            "placeholder": "例如 public / app，留空则自动推断"
+          },
+          "username": {
+            "label": "用户名",
+            "placeholder": "数据库用户名"
+          },
+          "password": {
+            "label": "密码",
+            "placeholder": "数据库密码"
+          },
+          "usernameEnv": {
+            "label": "用户名环境变量",
+            "placeholder": "可选，例如 APP_DB_USER"
+          },
+          "passwordEnv": {
+            "label": "密码环境变量",
+            "placeholder": "可选，例如 APP_DB_PASSWORD"
+          },
+          "maxRows": {
+            "label": "最大返回行数"
+          },
+          "maxAffectedRows": {
+            "label": "最大影响行数"
+          }
+        }
+      },
       "fontSize": {
         "label": "字体大小",
         "level1": "小（80%）",

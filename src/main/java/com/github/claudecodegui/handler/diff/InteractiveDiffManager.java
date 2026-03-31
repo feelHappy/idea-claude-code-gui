@@ -179,7 +179,7 @@ public class InteractiveDiffManager {
         AtomicReference<ScheduledFuture<?>> rejectFutureRef = new AtomicReference<>();
 
         // Set up window event listener first (before creating buttons that reference connection)
-        MessageBusConnection connection = project.getMessageBus().connect();
+        MessageBusConnection connection = project.getMessageBus().connect(project);
 
         // Create Apply/Reject actions for toolbar (ApplyAlways only for permission review)
         final DocumentContent finalProposedContent = proposedDiffContent;

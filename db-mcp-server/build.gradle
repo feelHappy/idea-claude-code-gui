@@ -1,0 +1,51 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.github.idea-claude-code-gui'
+version = '0.1.0-SNAPSHOT'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'io.modelcontextprotocol.sdk:mcp:1.1.1'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.slf4j:slf4j-api:2.0.17'
+    runtimeOnly 'org.slf4j:slf4j-simple:2.0.17'
+    runtimeOnly 'org.postgresql:postgresql:42.7.10'
+    runtimeOnly 'com.mysql:mysql-connector-j:9.6.0'
+    runtimeOnly 'com.oracle.database.jdbc:ojdbc11:23.8.0.25.04'
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'com.h2database:h2:2.3.232'
+    testImplementation platform('org.testcontainers:testcontainers-bom:2.0.4')
+    testImplementation 'org.testcontainers:testcontainers'
+    testImplementation 'org.testcontainers:testcontainers-postgresql'
+    testImplementation 'org.testcontainers:testcontainers-mysql'
+    testImplementation 'org.testcontainers:testcontainers-oracle-free'
+}
+
+application {
+    mainClass = 'com.github.claudecodegui.dbmcp.DbMcpServerMain'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release.set(17)
+}
+
+tasks.withType(Test).configureEach {
+    useJUnit()
+}

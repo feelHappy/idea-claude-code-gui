@@ -1,5 +1,9 @@
 // hooks/useSettingsBasicActions.ts
 import { useState, useEffect, useCallback } from 'react';
+import {
+  createEmptyProjectDatabaseBinding,
+  type ProjectDatabaseBinding,
+} from '../projectDatabaseBinding';
 
 const sendToJava = (message: string) => {
   if (window.sendToJava) {
@@ -45,6 +49,8 @@ export interface UseSettingsBasicActionsReturn {
   localAutoOpenFileEnabled: boolean;
   commitPrompt: string;
   savingCommitPrompt: boolean;
+  projectDatabaseBinding: ProjectDatabaseBinding;
+  savingProjectDatabaseBinding: boolean;
   soundNotificationEnabled: boolean;
   soundOnlyWhenUnfocused: boolean;
   selectedSound: string;
@@ -69,6 +75,11 @@ export interface UseSettingsBasicActionsReturn {
   handleTestSound: () => void;
   handleBrowseSound: () => void;
   handleSaveCommitPrompt: () => void;
+  handleProjectDatabaseBindingChange: <K extends keyof ProjectDatabaseBinding>(
+    key: K,
+    value: ProjectDatabaseBinding[K]
+  ) => void;
+  handleSaveProjectDatabaseBinding: () => void;
 
   // =========================================================================
   // @internal — State setters used only by useSettingsWindowCallbacks.
@@ -95,6 +106,8 @@ export interface UseSettingsBasicActionsReturn {
   /** @internal */ setLocalAutoOpenFileEnabled: (enabled: boolean) => void;
   /** @internal */ setCommitPrompt: (prompt: string) => void;
   /** @internal */ setSavingCommitPrompt: (saving: boolean) => void;
+  /** @internal */ setProjectDatabaseBinding: (binding: ProjectDatabaseBinding) => void;
+  /** @internal */ setSavingProjectDatabaseBinding: (saving: boolean) => void;
   /** @internal */ setSoundNotificationEnabled: (enabled: boolean) => void;
   /** @internal */ setSoundOnlyWhenUnfocused: (enabled: boolean) => void;
   /** @internal */ setSelectedSound: (soundId: string) => void;
@@ -150,6 +163,10 @@ export function useSettingsBasicActions({
   // Commit AI prompt configuration
   const [commitPrompt, setCommitPrompt] = useState('');
   const [savingCommitPrompt, setSavingCommitPrompt] = useState(false);
+  const [projectDatabaseBinding, setProjectDatabaseBinding] = useState<ProjectDatabaseBinding>(
+    createEmptyProjectDatabaseBinding()
+  );
+  const [savingProjectDatabaseBinding, setSavingProjectDatabaseBinding] = useState(false);
 
   // Sound notification configuration
   const [soundNotificationEnabled, setSoundNotificationEnabled] = useState<boolean>(false);
@@ -290,6 +307,21 @@ export function useSettingsBasicActions({
     sendToJava(`set_commit_prompt:${JSON.stringify(payload)}`);
   }, [commitPrompt]);
 
+  const handleProjectDatabaseBindingChange = useCallback(<K extends keyof ProjectDatabaseBinding>(
+    key: K,
+    value: ProjectDatabaseBinding[K]
+  ) => {
+    setProjectDatabaseBinding((previous) => ({
+      ...previous,
+      [key]: value,
+    }));
+  }, []);
+
+  const handleSaveProjectDatabaseBinding = useCallback(() => {
+    setSavingProjectDatabaseBinding(true);
+    sendToJava(`set_project_database_binding:${JSON.stringify(projectDatabaseBinding)}`);
+  }, [projectDatabaseBinding]);
+
   return {
     nodePath,
     setNodePath,
@@ -320,6 +352,10 @@ export function useSettingsBasicActions({
     setCommitPrompt,
     savingCommitPrompt,
     setSavingCommitPrompt,
+    projectDatabaseBinding,
+    setProjectDatabaseBinding,
+    savingProjectDatabaseBinding,
+    setSavingProjectDatabaseBinding,
     soundNotificationEnabled,
     setSoundNotificationEnabled,
     soundOnlyWhenUnfocused,
@@ -346,5 +382,7 @@ export function useSettingsBasicActions({
     handleTestSound,
     handleBrowseSound,
     handleSaveCommitPrompt,
+    handleProjectDatabaseBindingChange,
+    handleSaveProjectDatabaseBinding,
   };
 }

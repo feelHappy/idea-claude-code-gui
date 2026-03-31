@@ -73,13 +73,13 @@
                     canCloseContents="true"/>
 
         <!-- Pre-extract AI Bridge on project open to avoid EDT freeze -->
-        <postStartupActivity implementation="com.github.claudecodegui.startup.BridgePreloader"/>
+        <backgroundPostStartupActivity implementation="com.github.claudecodegui.startup.BridgePreloader"/>
 
         <!-- Cleanup old ai-bridge cache when plugin version changes -->
-        <postStartupActivity implementation="com.github.claudecodegui.startup.PluginUpdateListener"/>
+        <backgroundPostStartupActivity implementation="com.github.claudecodegui.startup.PluginUpdateListener"/>
 
         <!-- Monitor Run/Debug Service Output -->
-        <postStartupActivity implementation="com.github.claudecodegui.service.RunConfigMonitorService"/>
+        <backgroundPostStartupActivity implementation="com.github.claudecodegui.service.RunConfigMonitorService"/>
 
         <!-- StatusBar widget for task notification -->
         <statusBarWidgetFactory id="ClaudeStatusBarWidget"

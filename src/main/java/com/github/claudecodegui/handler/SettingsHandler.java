@@ -35,6 +35,8 @@ public class SettingsHandler extends BaseMessageHandler {
         "get_usage_statistics",
         "get_working_directory",
         "set_working_directory",
+        "get_project_database_binding",
+        "set_project_database_binding",
         "get_editor_font_config",
         "get_streaming_enabled",
         "set_streaming_enabled",
@@ -126,6 +128,12 @@ public class SettingsHandler extends BaseMessageHandler {
                 return true;
             case "set_working_directory":
                 projectConfigHandler.handleSetWorkingDirectory(content);
+                return true;
+            case "get_project_database_binding":
+                projectConfigHandler.handleGetProjectDatabaseBinding();
+                return true;
+            case "set_project_database_binding":
+                projectConfigHandler.handleSetProjectDatabaseBinding(content);
                 return true;
             case "get_editor_font_config":
                 projectConfigHandler.handleGetEditorFontConfig();

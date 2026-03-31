@@ -42,6 +42,7 @@ public class CodexSDKBridge extends BaseSDKBridge {
     private static final String ENV_CODEX_SANDBOX = "CODEX_SANDBOX";
     private static final String ENV_CODEX_CI = "CODEX_CI";
     private static final String ENV_CODEX_SANDBOX_NETWORK_DISABLED = "CODEX_SANDBOX_NETWORK_DISABLED";
+    private static final long MCP_STATUS_TIMEOUT_MS = 65_000;
     private static final long MCP_TOOLS_TIMEOUT_MS = 65_000;
 
     public CodexSDKBridge() {
@@ -321,6 +322,7 @@ public class CodexSDKBridge extends BaseSDKBridge {
                 Map<String, String> env = pb.environment();
                 envConfigurator.configureTempDir(env, processTempDir);
                 env.put("CODEX_USE_STDIN", "true");
+                envConfigurator.configureProjectPath(env, cwd);
 
                 // Set model via environment variable if specified
                 if (model != null && !model.isEmpty()) {
@@ -364,6 +366,7 @@ public class CodexSDKBridge extends BaseSDKBridge {
 
                 pb.redirectErrorStream(true);
                 envConfigurator.updateProcessEnvironment(pb, node);
+                envConfigurator.configureProjectScopedCodexHome(env, cwd);
 
                 // Configure Codex-specific env vars from ~/.codex/config.toml
                 envConfigurator.configureCodexEnv(env);
@@ -454,6 +457,123 @@ public class CodexSDKBridge extends BaseSDKBridge {
     public List<JsonObject> getSessionMessages(String sessionId, String cwd) {
         LOG.info("getSessionMessages not supported by Codex SDK");
         return new ArrayList<>();
+    }
+
+    /**
+     * Gets the connection status for the specified Codex MCP servers.
+     */
+    public CompletableFuture<List<JsonObject>> getMcpServerStatus(List<JsonObject> servers) {
+        return CompletableFuture.supplyAsync(() -> {
+            Process process = null;
+            long startTime = System.currentTimeMillis();
+            int serverCount = servers == null ? 0 : servers.size();
+            LOG.info("[CodexMcpStatus] Starting getMcpServerStatus, servers=" + serverCount);
+
+            try {
+                String node = nodeDetector.findNodeExecutable();
+                File bridgeDir = getDirectoryResolver().findSdkDir();
+                if (bridgeDir == null || !bridgeDir.exists()) {
+                    LOG.warn("[CodexMcpStatus] Bridge directory not ready");
+                    return new ArrayList<>();
+                }
+
+                JsonObject stdinInput = new JsonObject();
+                JsonArray serversJson = new JsonArray();
+                if (servers != null) {
+                    for (JsonObject server : servers) {
+                        serversJson.add(server != null ? server : new JsonObject());
+                    }
+                }
+                stdinInput.add("servers", serversJson);
+                String stdinJson = gson.toJson(stdinInput);
+
+                List<String> command = new ArrayList<>();
+                command.add(node);
+                command.add(new File(bridgeDir, CHANNEL_SCRIPT).getAbsolutePath());
+                command.add("codex");
+                command.add("getMcpServerStatus");
+
+                ProcessBuilder pb = new ProcessBuilder(command);
+                pb.directory(bridgeDir);
+                pb.redirectErrorStream(true);
+                envConfigurator.updateProcessEnvironment(pb, node);
+                pb.environment().put("CODEX_USE_STDIN", "true");
+
+                process = pb.start();
+                processManager.registerProcess("__codex_mcp_status__", process);
+                final Process finalProcess = process;
+
+                try (java.io.OutputStream stdin = process.getOutputStream()) {
+                    stdin.write(stdinJson.getBytes(StandardCharsets.UTF_8));
+                    stdin.flush();
+                }
+
+                final boolean[] found = {false};
+                final boolean[] readerDone = {false};
+                final String[] statusJson = {null};
+                final StringBuilder output = new StringBuilder();
+
+                Thread readerThread = new Thread(() -> {
+                    try (BufferedReader reader = new BufferedReader(
+                            new InputStreamReader(finalProcess.getInputStream(), StandardCharsets.UTF_8))) {
+                        String line;
+                        while (!found[0] && (line = reader.readLine()) != null) {
+                            output.append(line).append("\n");
+                            if (line.startsWith("[MCP_SERVER_STATUS]")) {
+                                statusJson[0] = line.substring("[MCP_SERVER_STATUS]".length()).trim();
+                                found[0] = true;
+                                break;
+                            }
+                        }
+                    } catch (Exception e) {
+                        LOG.debug("[CodexMcpStatus] Reader thread exception: " + e.getMessage());
+                    } finally {
+                        readerDone[0] = true;
+                    }
+                });
+                readerThread.start();
+
+                long deadline = System.currentTimeMillis() + MCP_STATUS_TIMEOUT_MS;
+                while (!found[0] && !readerDone[0] && System.currentTimeMillis() < deadline) {
+                    Thread.sleep(100);
+                }
+
+                long elapsed = System.currentTimeMillis() - startTime;
+                if (process.isAlive()) {
+                    PlatformUtils.terminateProcess(process);
+                }
+
+                List<JsonObject> markerResult = parseMcpServerStatusResponse(statusJson[0]);
+                if (markerResult != null) {
+                    LOG.info("[CodexMcpStatus] Got status for " + markerResult.size() + " servers in " + elapsed + "ms");
+                    return markerResult;
+                }
+
+                String outputStr = output.toString().trim();
+                String jsonStr = extractLastJsonLine(outputStr);
+                List<JsonObject> fallbackResult = parseMcpServerStatusResponse(jsonStr);
+                if (fallbackResult != null) {
+                    LOG.info("[CodexMcpStatus] Parsed fallback status for " + fallbackResult.size() + " servers in " + elapsed + "ms");
+                    return fallbackResult;
+                }
+
+                LOG.warn("[CodexMcpStatus] Failed to parse MCP server status response");
+                return new ArrayList<>();
+            } catch (Exception e) {
+                LOG.error("[CodexMcpStatus] Exception: " + e.getMessage(), e);
+                return new ArrayList<>();
+            } finally {
+                if (process != null) {
+                    try {
+                        if (process.isAlive()) {
+                            PlatformUtils.terminateProcess(process);
+                        }
+                    } finally {
+                        processManager.unregisterProcess("__codex_mcp_status__", process);
+                    }
+                }
+            }
+        });
     }
 
     /**
@@ -588,6 +708,47 @@ public class CodexSDKBridge extends BaseSDKBridge {
                 }
             }
         });
+    }
+
+    /**
+     * Parse the Codex MCP status bridge response into a list of server status objects.
+     */
+    private List<JsonObject> parseMcpServerStatusResponse(String jsonStr) {
+        if (jsonStr == null || jsonStr.isEmpty()) {
+            return null;
+        }
+
+        try {
+            JsonObject response = gson.fromJson(jsonStr, JsonObject.class);
+            if (response != null && response.has("servers") && response.get("servers").isJsonArray()) {
+                List<JsonObject> servers = new ArrayList<>();
+                for (JsonElement server : response.getAsJsonArray("servers")) {
+                    if (server != null && server.isJsonObject()) {
+                        servers.add(server.getAsJsonObject());
+                    }
+                }
+                return servers;
+            }
+        } catch (Exception e) {
+            LOG.debug("[CodexMcpStatus] Object parse failed: " + e.getMessage());
+        }
+
+        try {
+            JsonArray response = gson.fromJson(jsonStr, JsonArray.class);
+            if (response != null) {
+                List<JsonObject> servers = new ArrayList<>();
+                for (JsonElement server : response) {
+                    if (server != null && server.isJsonObject()) {
+                        servers.add(server.getAsJsonObject());
+                    }
+                }
+                return servers;
+            }
+        } catch (Exception e) {
+            LOG.debug("[CodexMcpStatus] Array parse failed: " + e.getMessage());
+        }
+
+        return null;
     }
 
     /**

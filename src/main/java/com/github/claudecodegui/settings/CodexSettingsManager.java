@@ -35,9 +35,17 @@ public class CodexSettingsManager {
     private final Path codexDir;
 
     public CodexSettingsManager(Gson gson) {
+        this(gson, defaultCodexDir());
+    }
+
+    public CodexSettingsManager(Gson gson, Path codexDir) {
         this.gson = gson;
+        this.codexDir = codexDir;
+    }
+
+    private static Path defaultCodexDir() {
         String userHome = PlatformUtils.getHomeDirectory();
-        this.codexDir = Paths.get(userHome, ".codex");
+        return Paths.get(userHome, ".codex");
     }
 
     /**

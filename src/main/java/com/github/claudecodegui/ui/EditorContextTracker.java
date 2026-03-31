@@ -13,6 +13,7 @@ import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.util.Alarm;
@@ -23,7 +24,7 @@ import org.jetbrains.annotations.NotNull;
  * Tracks editor context (active file, selection) and notifies the frontend.
  * Handles auto-open file setting, .gitignore filtering, and debounced updates.
  */
-public class EditorContextTracker {
+public class EditorContextTracker implements Disposable {
 
     private static final Logger LOG = Logger.getInstance(EditorContextTracker.class);
 
@@ -50,8 +51,8 @@ public class EditorContextTracker {
      * Register editor event listeners for file switching and text selection.
      */
     public void registerListeners() {
-        contextUpdateAlarm = new Alarm(Alarm.ThreadToUse.SWING_THREAD);
-        connection = project.getMessageBus().connect();
+        contextUpdateAlarm = new Alarm(Alarm.ThreadToUse.SWING_THREAD, this);
+        connection = project.getMessageBus().connect(this);
 
         // Monitor file switching
         connection.subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, new FileEditorManagerListener() {
@@ -165,7 +166,9 @@ public class EditorContextTracker {
 
     /**
      * Dispose alarm and message bus connection.
+     * Both are also bound to this Disposable's lifecycle for automatic cleanup.
      */
+    @Override
     public void dispose() {
         disposed = true;
         if (connection != null) {

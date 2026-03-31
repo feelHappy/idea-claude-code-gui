@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import AppearanceTab from './AppearanceTab';
 import BehaviorTab from './BehaviorTab';
 import EnvironmentTab from './EnvironmentTab';
+import type { ProjectDatabaseBinding } from '../projectDatabaseBinding';
 
 type BasicTab = 'appearance' | 'behavior' | 'environment';
 
@@ -28,6 +29,13 @@ interface BasicConfigSectionProps {
   onWorkingDirectoryChange?: (dir: string) => void;
   onSaveWorkingDirectory?: () => void;
   savingWorkingDirectory?: boolean;
+  projectDatabaseBinding?: ProjectDatabaseBinding;
+  onProjectDatabaseBindingChange?: <K extends keyof ProjectDatabaseBinding>(
+    key: K,
+    value: ProjectDatabaseBinding[K]
+  ) => void;
+  onSaveProjectDatabaseBinding?: () => void;
+  savingProjectDatabaseBinding?: boolean;
   editorFontConfig?: {
     fontFamily: string;
     fontSize: number;
@@ -139,6 +147,10 @@ const BasicConfigSection = (props: BasicConfigSectionProps) => {
           onWorkingDirectoryChange={props.onWorkingDirectoryChange}
           onSaveWorkingDirectory={props.onSaveWorkingDirectory}
           savingWorkingDirectory={props.savingWorkingDirectory}
+          projectDatabaseBinding={props.projectDatabaseBinding}
+          onProjectDatabaseBindingChange={props.onProjectDatabaseBindingChange}
+          onSaveProjectDatabaseBinding={props.onSaveProjectDatabaseBinding}
+          savingProjectDatabaseBinding={props.savingProjectDatabaseBinding}
         />
       )}
     </div>

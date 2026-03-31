@@ -121,6 +121,10 @@ const SettingsView = ({
     setCommitPrompt,
     savingCommitPrompt,
     setSavingCommitPrompt,
+    projectDatabaseBinding,
+    setProjectDatabaseBinding,
+    savingProjectDatabaseBinding,
+    setSavingProjectDatabaseBinding,
     soundNotificationEnabled,
     setSoundNotificationEnabled,
     soundOnlyWhenUnfocused,
@@ -147,6 +151,8 @@ const SettingsView = ({
     handleTestSound,
     handleBrowseSound,
     handleSaveCommitPrompt,
+    handleProjectDatabaseBindingChange,
+    handleSaveProjectDatabaseBinding,
   } = useSettingsBasicActions({
     streamingEnabledProp,
     onStreamingEnabledChangeProp,
@@ -246,6 +252,8 @@ const SettingsView = ({
     setSavingWorkingDirectory,
     setCommitPrompt,
     setSavingCommitPrompt,
+    setProjectDatabaseBinding,
+    setSavingProjectDatabaseBinding,
     setEditorFontConfig,
     setIdeTheme,
     setLocalStreamingEnabled,
@@ -397,6 +405,10 @@ const SettingsView = ({
               onWorkingDirectoryChange={setWorkingDirectory}
               onSaveWorkingDirectory={handleSaveWorkingDirectory}
               savingWorkingDirectory={savingWorkingDirectory}
+              projectDatabaseBinding={projectDatabaseBinding}
+              onProjectDatabaseBindingChange={handleProjectDatabaseBindingChange}
+              onSaveProjectDatabaseBinding={handleSaveProjectDatabaseBinding}
+              savingProjectDatabaseBinding={savingProjectDatabaseBinding}
               editorFontConfig={editorFontConfig}
               streamingEnabled={streamingEnabled}
               onStreamingEnabledChange={handleStreamingEnabledChange}

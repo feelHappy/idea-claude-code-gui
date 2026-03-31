@@ -90,6 +90,46 @@ public class ProjectConfigHandler {
         }
     }
 
+    public void handleGetProjectDatabaseBinding() {
+        try {
+            String projectPath = context.getProject() != null ? context.getProject().getBasePath() : null;
+            JsonObject response = settingsService.getProjectDatabaseBinding(projectPath);
+            String json = gson.toJson(response);
+            ApplicationManager.getApplication().invokeLater(() ->
+                    context.callJavaScript("window.updateProjectDatabaseBinding", context.escapeJs(json)));
+        } catch (Exception e) {
+            LOG.error("[ProjectConfigHandler] Failed to get project database binding: " + e.getMessage(), e);
+            ApplicationManager.getApplication().invokeLater(() ->
+                    context.callJavaScript("window.showError", context.escapeJs("Failed to load development database config: "
+                            + e.getMessage())));
+        }
+    }
+
+    public void handleSetProjectDatabaseBinding(String content) {
+        try {
+            String projectPath = context.getProject() != null ? context.getProject().getBasePath() : null;
+            if (projectPath == null || projectPath.isBlank()) {
+                ApplicationManager.getApplication().invokeLater(() ->
+                        context.callJavaScript("window.showError", context.escapeJs("Failed to resolve current project path")));
+                return;
+            }
+
+            JsonObject payload = gson.fromJson(content, JsonObject.class);
+            JsonObject response = settingsService.upsertProjectDatabaseBinding(projectPath, payload);
+            String json = gson.toJson(response);
+
+            ApplicationManager.getApplication().invokeLater(() -> {
+                context.callJavaScript("window.updateProjectDatabaseBinding", context.escapeJs(json));
+                context.callJavaScript("window.showSuccessI18n", "toast.saveSuccess");
+            });
+        } catch (Exception e) {
+            LOG.error("[ProjectConfigHandler] Failed to save project database binding: " + e.getMessage(), e);
+            ApplicationManager.getApplication().invokeLater(() ->
+                    context.callJavaScript("window.showError", context.escapeJs("Failed to save development database config: "
+                            + e.getMessage())));
+        }
+    }
+
     public void handleGetStreamingEnabled() {
         try {
             String projectPath = context.getProject().getBasePath();

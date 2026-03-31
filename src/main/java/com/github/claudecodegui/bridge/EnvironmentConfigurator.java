@@ -1,5 +1,6 @@
 package com.github.claudecodegui.bridge;
 
+import com.github.claudecodegui.settings.CodexProjectHomeManager;
 import com.github.claudecodegui.util.PlatformUtils;
 import com.github.claudecodegui.util.ShellExecutor;
 import com.intellij.openapi.diagnostic.Logger;
@@ -36,6 +37,7 @@ public class EnvironmentConfigurator {
 
     // Cache for Codex env_key values from config.toml
     private volatile Map<String, String> cachedCodexEnvVars = null;
+    private final CodexProjectHomeManager codexProjectHomeManager = new CodexProjectHomeManager();
 
     /**
      * Updates the process environment variables, ensuring PATH includes the Node.js directory.
@@ -299,6 +301,24 @@ public class EnvironmentConfigurator {
     }
 
     /**
+     * Switch CODEX_HOME to a project-scoped view so Codex only sees the current
+     * project's generated database MCP server.
+     */
+    public void configureProjectScopedCodexHome(Map<String, String> env, String cwd) {
+        if (env == null || cwd == null || cwd.isEmpty() || "undefined".equals(cwd) || "null".equals(cwd)) {
+            return;
+        }
+        String codexHome = env.get(CODEX_HOME_ENV);
+        if (codexHome == null || codexHome.trim().isEmpty()) {
+            return;
+        }
+        String projectScopedHome = codexProjectHomeManager.prepareProjectScopedHome(cwd, codexHome);
+        if (projectScopedHome != null && !projectScopedHome.isBlank()) {
+            env.put(CODEX_HOME_ENV, projectScopedHome);
+        }
+    }
+
+    /**
      * Configures attachment-related environment variables.
      */
     public void configureAttachmentEnv(Map<String, String> env, boolean hasAttachments) {
@@ -335,7 +355,7 @@ public class EnvironmentConfigurator {
 
         try {
             // 1. Find all env_key names from ~/.codex/config.toml
-            Set<String> envKeyNames = parseCodexConfigEnvKeys();
+            Set<String> envKeyNames = parseCodexConfigEnvKeys(resolveCodexConfigPath(env));
             if (envKeyNames.isEmpty()) {
                 LOG.debug("[Codex] No custom env_key found in config.toml");
                 return;
@@ -371,14 +391,11 @@ public class EnvironmentConfigurator {
      *
      * @return Set of environment variable names referenced by env_key
      */
-    private Set<String> parseCodexConfigEnvKeys() {
+    private Set<String> parseCodexConfigEnvKeys(Path configPath) {
         Set<String> envKeys = new HashSet<>();
-        String home = PlatformUtils.getHomeDirectory();
-        if (home == null || home.isEmpty()) {
+        if (configPath == null) {
             return envKeys;
         }
-
-        Path configPath = Paths.get(home, ".codex", "config.toml");
         if (!Files.exists(configPath)) {
             LOG.debug("[Codex] config.toml not found: " + configPath);
             return envKeys;
@@ -402,6 +419,23 @@ public class EnvironmentConfigurator {
         }
 
         return envKeys;
+    }
+
+    private Path resolveCodexConfigPath(Map<String, String> env) {
+        String codexHome = env != null ? env.get(CODEX_HOME_ENV) : null;
+        if (codexHome != null && !codexHome.trim().isEmpty()) {
+            try {
+                return Paths.get(codexHome).resolve("config.toml");
+            } catch (Exception e) {
+                LOG.warn("[Codex] Invalid CODEX_HOME path: " + codexHome);
+            }
+        }
+
+        String home = PlatformUtils.getHomeDirectory();
+        if (home == null || home.isEmpty()) {
+            return null;
+        }
+        return Paths.get(home, ".codex", "config.toml");
     }
 
     /**
