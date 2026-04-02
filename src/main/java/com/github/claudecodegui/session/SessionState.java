@@ -234,6 +234,21 @@ public class SessionState {
     }
 
     /**
+     * Truncate messages from the given index (inclusive).
+     * Returns the removed messages for content extraction.
+     */
+    public List<ClaudeSession.Message> truncateMessagesFrom(int fromIndex) {
+        if (fromIndex < 0 || fromIndex >= messages.size()) {
+            return new ArrayList<>();
+        }
+        List<ClaudeSession.Message> removed = new ArrayList<>(
+            messages.subList(fromIndex, messages.size())
+        );
+        messages.subList(fromIndex, messages.size()).clear();
+        return removed;
+    }
+
+    /**
      * Update the last modified time to the current time.
      */
     public void updateLastModifiedTime() {

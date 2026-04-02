@@ -24,6 +24,14 @@ export function registerSessionAndSdkCallbacks(
     setIsRewinding,
     setRewindDialogOpen,
     setCurrentRewindRequest,
+    setIsRewriting,
+    setRewriteDialogOpen,
+    setCurrentRewriteRequest,
+    setMessages,
+    setLoading,
+    setLoadingStartTime,
+    setStreamingActive,
+    chatInputRef,
     customSessionTitleRef,
     currentSessionIdRef,
     updateHistoryTitle,
@@ -116,6 +124,79 @@ export function registerSessionAndSdkCallbacks(
       setRewindDialogOpen(false);
       setCurrentRewindRequest(null);
       window.addToast?.(tRef.current('rewind.parseError'), 'error');
+    }
+  };
+
+  // =========================================================================
+  // Rewrite Result Callback
+  // =========================================================================
+
+  window.onRewriteResult = (json: string) => {
+    try {
+      const result = JSON.parse(json);
+      setIsRewriting(false);
+      if (result.success) {
+        setRewriteDialogOpen(false);
+        // Truncate frontend messages
+        const truncateAt: number | undefined = result.truncateAtIndex;
+        if (truncateAt !== undefined && truncateAt >= 0) {
+          setMessages((prev) => prev.slice(0, truncateAt));
+        }
+        // Refill the input box with original content from the stored request
+        const request = (window as unknown as { __currentRewriteRequest?: { originalText?: string; originalAttachments?: unknown[] } }).__currentRewriteRequest;
+        const originalText = request?.originalText || '';
+        const originalAttachments = request?.originalAttachments || [];
+        if (chatInputRef?.current?.refill) {
+          chatInputRef.current.refill(originalText, originalAttachments as import('../../../components/ChatInputBox/types').Attachment[]);
+        }
+        setCurrentRewriteRequest(null);
+        window.addToast?.(tRef.current('rewrite.success'), 'success');
+      } else {
+        window.addToast?.(result.message || tRef.current('rewrite.failed'), 'error');
+      }
+    } catch (error) {
+      console.error('[Frontend] Failed to parse rewrite result:', error);
+      setIsRewriting(false);
+      setRewriteDialogOpen(false);
+      setCurrentRewriteRequest(null);
+      window.addToast?.(tRef.current('rewrite.parseError'), 'error');
+    }
+  };
+
+  // =========================================================================
+  // Retract Result Callback
+  // =========================================================================
+
+  window.onRetractResult = (json: string) => {
+    try {
+      const result = JSON.parse(json);
+      if (result.success) {
+        // Remove the last user message from frontend and capture its content for refill
+        setMessages((prev) => {
+          if (prev.length > 0 && prev[prev.length - 1].type === 'user') {
+            const lastMsg = prev[prev.length - 1];
+            const text = lastMsg.content || '';
+            // Schedule refill after state update (microtask to avoid calling during render)
+            queueMicrotask(() => {
+              if (chatInputRef?.current?.refill && text) {
+                chatInputRef.current.refill(text);
+              }
+            });
+            return prev.slice(0, -1);
+          }
+          return prev;
+        });
+        // Stop loading state
+        setLoading(false);
+        setLoadingStartTime(null);
+        setStreamingActive(false);
+        window.addToast?.(tRef.current('rewrite.retractSuccess'), 'success');
+      } else {
+        window.addToast?.(result.message || tRef.current('rewrite.retractFailed'), 'error');
+      }
+    } catch (error) {
+      console.error('[Frontend] Failed to parse retract result:', error);
+      window.addToast?.(tRef.current('rewrite.parseError'), 'error');
     }
   };
 }

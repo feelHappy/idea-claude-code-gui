@@ -32,6 +32,7 @@ export interface MessageItemProps {
   extractMarkdownContent: (message: ClaudeMessage) => string;
   onNodeRef?: (id: string, node: HTMLDivElement | null) => void;
   onNavigateToProviderSettings?: () => void;
+  onRewriteClick?: (messageIndex: number, message: ClaudeMessage) => void;
 }
 
 type GroupedBlock =
@@ -46,6 +47,13 @@ const CopyIcon = () => (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M4 4l0 8a2 2 0 0 0 2 2l8 0a2 2 0 0 0 2 -2l0 -8a2 2 0 0 0 -2 -2l-8 0a2 2 0 0 0 -2 2zm2 0l8 0l0 8l-8 0l0 -8z" fill="currentColor" fillOpacity="0.9"/>
     <path d="M2 2l0 8l-2 0l0 -8a2 2 0 0 1 2 -2l8 0l0 2l-8 0z" fill="currentColor" fillOpacity="0.6"/>
+  </svg>
+);
+
+/** Rewrite (edit/pencil) icon SVG */
+const RewriteIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M13.23 1h-1.46L3.52 9.25l-.16.22L1 13.59 2.41 15l4.12-2.36.22-.16L15 4.23V2.77L13.23 1zM2.41 13.59l1.51-3 1.45 1.45-2.96 1.55zm3.83-2.06L4.47 9.76l8-8 1.77 1.77-8 8z" fill="currentColor" fillOpacity="0.9"/>
   </svg>
 );
 
@@ -207,6 +215,7 @@ export const MessageItem = memo(function MessageItem({
   extractMarkdownContent,
   onNodeRef,
   onNavigateToProviderSettings,
+  onRewriteClick,
 }: MessageItemProps): React.ReactElement {
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
   const [showStreamingConnectHint, setShowStreamingConnectHint] = useState(false);
@@ -522,12 +531,23 @@ export const MessageItem = memo(function MessageItem({
       ref={anchorRefCallback}
       data-message-anchor-id={message.type === 'user' ? messageKey : undefined}
     >
-      {/* Timestamp and copy button for user messages */}
+      {/* Timestamp, rewrite and copy buttons for user messages */}
       {message.type === 'user' && message.timestamp && (
         <div className="message-header-row">
           <div className="message-timestamp-header">
             {formatTime(message.timestamp)}
           </div>
+          {onRewriteClick && !streamingActive && (
+            <button
+              type="button"
+              className="message-copy-btn message-copy-btn-inline message-rewrite-btn"
+              onClick={(e) => { e.stopPropagation(); onRewriteClick(messageIndex, message); }}
+              title={t('rewrite.tooltip')}
+              aria-label={t('rewrite.tooltip')}
+            >
+              <span className="copy-icon"><RewriteIcon /></span>
+            </button>
+          )}
           <CopyButton
             className="message-copy-btn-inline"
             isCopied={copiedMessageIndex === messageIndex}

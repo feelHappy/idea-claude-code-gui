@@ -1,6 +1,7 @@
 import { memo, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { TFunction } from 'i18next';
 import type { ClaudeMessage, ClaudeContentBlock, ToolResultBlock } from '../types';
+import type { MessageItemProps } from './MessageItem';
 import { getMessageKey } from '../utils/messageUtils';
 import { MessageItem } from './MessageItem';
 import WaitingIndicator from './WaitingIndicator';
@@ -26,6 +27,7 @@ interface MessageListProps {
   /** Notify parent when the number of collapsed (hidden) messages changes. */
   onCollapsedCountChange?: (count: number) => void;
   onNavigateToProviderSettings?: () => void;
+  onRewriteClick?: MessageItemProps['onRewriteClick'];
 }
 
 export const MessageList = memo(function MessageList({
@@ -43,6 +45,7 @@ export const MessageList = memo(function MessageList({
   onMessageNodeRef,
   onCollapsedCountChange,
   onNavigateToProviderSettings,
+  onRewriteClick,
 }: MessageListProps) {
   const [showAll, setShowAll] = useState(false);
 
@@ -118,6 +121,7 @@ export const MessageList = memo(function MessageList({
             extractMarkdownContent={extractMarkdownContent}
             onNodeRef={onMessageNodeRef}
             onNavigateToProviderSettings={onNavigateToProviderSettings}
+            onRewriteClick={onRewriteClick}
           />
         );
       })}

@@ -209,6 +209,14 @@ public class ClaudeSession {
     }
 
     /**
+     * Provides direct access to the underlying SessionState for operations
+     * that need full state manipulation (e.g., message truncation for rewrite).
+     */
+    public SessionState getState() {
+        return state;
+    }
+
+    /**
      * Set session ID and working directory (used for session restoration).
      */
     public void setSessionInfo(String sessionId, String cwd) {

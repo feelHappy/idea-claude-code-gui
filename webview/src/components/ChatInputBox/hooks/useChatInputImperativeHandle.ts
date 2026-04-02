@@ -1,6 +1,6 @@
 import { useImperativeHandle } from 'react';
 import type { ForwardedRef, MutableRefObject } from 'react';
-import type { ChatInputBoxHandle, FileTagInfo } from '../types.js';
+import type { Attachment, ChatInputBoxHandle, FileTagInfo } from '../types.js';
 
 export interface UseChatInputImperativeHandleOptions {
   ref: ForwardedRef<ChatInputBoxHandle>;
@@ -14,6 +14,8 @@ export interface UseChatInputImperativeHandleOptions {
   clearInput: () => void;
   hasContent: boolean;
   extractFileTags: () => FileTagInfo[];
+  setAttachments: (attachments: Attachment[]) => void;
+  onInput?: (content: string) => void;
 }
 
 /**
@@ -33,6 +35,8 @@ export function useChatInputImperativeHandle({
   clearInput,
   hasContent,
   extractFileTags,
+  setAttachments,
+  onInput,
 }: UseChatInputImperativeHandleOptions): void {
   useImperativeHandle(
     ref,
@@ -64,6 +68,28 @@ export function useChatInputImperativeHandle({
       clear: clearInput,
       hasContent: () => hasContent,
       getFileTags: extractFileTags,
+      refill: (text: string, attachments?: Attachment[]) => {
+        if (!editableRef.current) return;
+        isExternalUpdateRef.current = true;
+        editableRef.current.innerText = text;
+        setHasContent(!!text.trim() || (Array.isArray(attachments) && attachments.length > 0));
+        adjustHeight();
+        invalidateCache();
+        if (attachments && attachments.length > 0) {
+          setAttachments(attachments);
+        }
+        onInput?.(text);
+        if (text) {
+          const range = document.createRange();
+          const selection = window.getSelection();
+          if (!selection) return;
+          range.selectNodeContents(editableRef.current);
+          range.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+        focusInput();
+      },
     }),
     [
       getTextContent,
@@ -76,6 +102,8 @@ export function useChatInputImperativeHandle({
       clearInput,
       hasContent,
       extractFileTags,
+      setAttachments,
+      onInput,
     ]
   );
 }

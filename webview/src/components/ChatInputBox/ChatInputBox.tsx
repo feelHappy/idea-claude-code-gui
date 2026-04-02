@@ -432,6 +432,8 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       ctxMenu,
       onClearContext,
       onAutoOpenFileEnabledChange,
+      setAttachments: setInternalAttachments,
+      onInput,
     });
 
     const { onKeyDown: handleKeyDown, onKeyUp: handleKeyUp } = useKeyboardHandler({

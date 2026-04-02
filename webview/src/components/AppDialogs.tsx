@@ -6,6 +6,7 @@ import AskUserQuestionDialog from './AskUserQuestionDialog';
 import PlanApprovalDialog from './PlanApprovalDialog';
 import RewindDialog from './RewindDialog';
 import RewindSelectDialog, { type RewindableMessage } from './RewindSelectDialog';
+import RewriteConfirmDialog from './RewriteConfirmDialog';
 import ChangelogDialog from './ChangelogDialog';
 import FeatureGuideDialog from './FeatureGuideDialog';
 import CustomModelDialog from './settings/CustomModelDialog';
@@ -71,6 +72,11 @@ export interface AppDialogsProps {
   isRewinding: boolean;
   onRewindConfirm: ComponentProps<typeof RewindDialog>['onConfirm'];
   onRewindCancel: ComponentProps<typeof RewindDialog>['onCancel'];
+  rewriteDialogOpen?: boolean;
+  currentRewriteRequest?: ComponentProps<typeof RewriteConfirmDialog>['request'];
+  isRewriting?: boolean;
+  onRewriteConfirm?: ComponentProps<typeof RewriteConfirmDialog>['onConfirm'];
+  onRewriteCancel?: ComponentProps<typeof RewriteConfirmDialog>['onCancel'];
   showFeatureGuideDialog: boolean;
   onCloseFeatureGuide: () => void;
   onOpenChangelogFromFeatureGuide: () => void;
@@ -133,6 +139,15 @@ export const AppDialogs = (props: AppDialogsProps) => (
       onConfirm={props.onRewindConfirm}
       onCancel={props.onRewindCancel}
     />
+    {props.onRewriteConfirm && props.onRewriteCancel && (
+      <RewriteConfirmDialog
+        isOpen={!!props.rewriteDialogOpen}
+        request={props.currentRewriteRequest ?? null}
+        isLoading={props.isRewriting}
+        onConfirm={props.onRewriteConfirm}
+        onCancel={props.onRewriteCancel}
+      />
+    )}
     <FeatureGuideDialog
       isOpen={props.showFeatureGuideDialog}
       onClose={props.onCloseFeatureGuide}

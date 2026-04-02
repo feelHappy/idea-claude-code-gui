@@ -416,6 +416,8 @@ export interface ChatInputBoxHandle {
   hasContent: () => boolean;
   /** Get file tags from input (for Codex context injection) */
   getFileTags: () => FileTagInfo[];
+  /** Refill input with text and attachments (for message rewrite) */
+  refill: (text: string, attachments?: Attachment[]) => void;
 }
 
 // ============================================================

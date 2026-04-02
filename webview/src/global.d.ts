@@ -543,6 +543,16 @@ interface Window {
   onRewindResult?: (json: string) => void;
 
   /**
+   * Rewrite result callback - returns the result of a message rewrite operation
+   */
+  onRewriteResult?: (json: string) => void;
+
+  /**
+   * Retract result callback - returns the result of a message retract operation
+   */
+  onRetractResult?: (json: string) => void;
+
+  /**
    * Undo file result callback - returns the result of a single-file undo operation
    */
   onUndoFileResult?: (json: string) => void;

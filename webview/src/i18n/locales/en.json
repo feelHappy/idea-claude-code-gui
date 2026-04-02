@@ -1853,6 +1853,23 @@
     "notAvailable": "Rewind not available for this session",
     "parseError": "Failed to parse result"
   },
+  "rewrite": {
+    "title": "Rewrite Message",
+    "tooltip": "Rewrite",
+    "retractTooltip": "Retract",
+    "confirmTitle": "Rewrite this message?",
+    "confirmDescription": "This will remove this message and all subsequent messages, and restore files to their previous state.",
+    "confirmDescriptionCodex": "This will remove this message and all subsequent messages. Note: file changes will NOT be automatically restored in Codex mode.",
+    "messagesWillBeRemoved": "{{count}} message(s) will be removed",
+    "confirmButton": "Rewrite",
+    "rewriting": "Rewriting...",
+    "success": "Message content restored to input box",
+    "retractSuccess": "Message retracted",
+    "failed": "Failed to rewrite message",
+    "retractFailed": "Failed to retract message",
+    "notAvailable": "Rewrite not available for this session",
+    "parseError": "Failed to parse result"
+  },
   "reasoning": {
     "title": "Select reasoning depth",
     "low": {

@@ -13,6 +13,7 @@ import {
   useStreamingMessages,
   useWindowCallbacks,
   useRewindHandlers,
+  useRewriteHandlers,
   useHistoryLoader,
   useFileChanges,
   useSubagents,
@@ -61,6 +62,8 @@ const App = () => {
     handlePlanApprovalApprove, handlePlanApprovalReject,
     rewindDialogOpen, setRewindDialogOpen, currentRewindRequest, setCurrentRewindRequest,
     isRewinding, setIsRewinding, rewindSelectDialogOpen, setRewindSelectDialogOpen,
+    rewriteDialogOpen, setRewriteDialogOpen, currentRewriteRequest, setCurrentRewriteRequest,
+    isRewriting, setIsRewriting,
   } = useDialogManagement({ t });
 
   // ── Core state (shared across multiple hooks) ──
@@ -237,6 +240,8 @@ const App = () => {
     setSendShortcut, setAutoOpenFileEnabled,
     setSdkStatus, setSdkStatusLoaded,
     setIsRewinding, setRewindDialogOpen, setCurrentRewindRequest,
+    setIsRewriting, setRewriteDialogOpen, setCurrentRewriteRequest,
+    chatInputRef,
     setContextInfo, setSelectedAgent,
     currentProviderRef, messagesContainerRef, isUserAtBottomRef, userPausedRef,
     suppressNextStatusToastRef,
@@ -367,6 +372,17 @@ const App = () => {
     t, addToast, currentSessionId, mergedMessages, getMessageText,
     setCurrentRewindRequest, setRewindDialogOpen, setRewindSelectDialogOpen,
     setIsRewinding, isRewinding,
+  });
+
+  // ── Rewrite handlers ──
+  const {
+    handleRewriteClick, handleRewriteConfirm, handleRewriteCancel,
+  } = useRewriteHandlers({
+    t, addToast, currentSessionId,
+    currentProvider, mergedMessages, loading,
+    getMessageText,
+    setCurrentRewriteRequest, setRewriteDialogOpen,
+    setIsRewriting, isRewriting,
   });
 
   // ── Computed values ──
@@ -511,6 +527,7 @@ const App = () => {
                 messagesEndRef={messagesEndRef}
                 onMessageNodeRef={handleMessageNodeRef}
                 onCollapsedCountChange={setAnchorCollapsedCount}
+                onRewriteClick={handleRewriteClick}
                 onNavigateToProviderSettings={() => {
                   setSettingsInitialTab('providers');
                   setCurrentView('settings');
@@ -646,6 +663,11 @@ const App = () => {
         isRewinding={isRewinding}
         onRewindConfirm={handleRewindConfirm}
         onRewindCancel={handleRewindCancel}
+        rewriteDialogOpen={rewriteDialogOpen}
+        currentRewriteRequest={currentRewriteRequest}
+        isRewriting={isRewriting}
+        onRewriteConfirm={handleRewriteConfirm}
+        onRewriteCancel={handleRewriteCancel}
         showFeatureGuideDialog={showFeatureGuideDialog}
         onCloseFeatureGuide={handleCloseFeatureGuide}
         onOpenChangelogFromFeatureGuide={handleOpenChangelogFromFeatureGuide}

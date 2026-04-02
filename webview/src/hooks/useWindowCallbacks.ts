@@ -8,6 +8,7 @@ import type { PermissionRequest } from '../components/PermissionDialog';
 import type { AskUserQuestionRequest } from '../components/AskUserQuestionDialog';
 import type { PlanApprovalRequest } from '../components/PlanApprovalDialog';
 import type { RewindRequest } from '../components/RewindDialog';
+import type { RewriteRequest } from '../components/RewriteConfirmDialog';
 import { registerWindowCallbacks } from './windowCallbacks/registerCallbacks';
 
 // Re-export from messageSync to avoid duplicate definition
@@ -54,6 +55,10 @@ export interface UseWindowCallbacksOptions {
   setIsRewinding: (loading: boolean) => void;
   setRewindDialogOpen: (open: boolean) => void;
   setCurrentRewindRequest: (request: RewindRequest | null) => void;
+  setIsRewriting: (loading: boolean) => void;
+  setRewriteDialogOpen: (open: boolean) => void;
+  setCurrentRewriteRequest: (request: RewriteRequest | null) => void;
+  chatInputRef: React.RefObject<{ refill: (text: string, attachments?: import('../components/ChatInputBox/types').Attachment[]) => void } | null>;
   setContextInfo: React.Dispatch<React.SetStateAction<ContextInfo | null>>;
   setSelectedAgent: React.Dispatch<React.SetStateAction<SelectedAgent | null>>;
 

@@ -169,6 +169,31 @@ export const rewindFiles = (sessionId: string, userMessageId: string) => {
 };
 
 /**
+ * Rewrite a user message: truncate conversation history and refill input
+ * @param sessionId - Session ID
+ * @param userMessageId - UUID of the user message to rewrite
+ * @param provider - Current provider ('claude' or 'codex')
+ * @param messageIndex - Index of the message in the conversation
+ */
+export const rewriteMessage = (
+  sessionId: string,
+  userMessageId: string,
+  provider: string,
+  messageIndex: number
+) => {
+  sendToJava('rewrite_message', { sessionId, userMessageId, provider, messageIndex });
+};
+
+/**
+ * Retract the last user message (before AI responds)
+ * @param sessionId - Session ID
+ * @param provider - Current provider ('claude' or 'codex')
+ */
+export const retractMessage = (sessionId: string, provider: string) => {
+  sendToJava('retract_message', { sessionId, provider });
+};
+
+/**
  * Undo changes for a single file
  * @param filePath - Absolute path to the file
  * @param status - File status: 'A' (added) or 'M' (modified)

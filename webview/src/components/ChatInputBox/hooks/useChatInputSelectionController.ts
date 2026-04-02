@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { ForwardedRef, MutableRefObject, RefObject } from 'react';
 import { cutSelection } from '../../../hooks/useContextMenu.js';
-import type { ChatInputBoxHandle, FileTagInfo } from '../types.js';
+import type { Attachment, ChatInputBoxHandle, FileTagInfo } from '../types.js';
 import { useChatInputImperativeHandle } from './useChatInputImperativeHandle.js';
 
 interface InlineCompletionController {
@@ -30,6 +30,8 @@ interface UseChatInputSelectionControllerOptions {
   ctxMenu: ContextMenuSelectionState;
   onClearContext?: () => void;
   onAutoOpenFileEnabledChange?: (enabled: boolean) => void;
+  setAttachments: (attachments: Attachment[]) => void;
+  onInput?: (content: string) => void;
 }
 
 export function useChatInputSelectionController({
@@ -48,6 +50,8 @@ export function useChatInputSelectionController({
   ctxMenu,
   onClearContext,
   onAutoOpenFileEnabledChange,
+  setAttachments,
+  onInput,
 }: UseChatInputSelectionControllerOptions) {
   const focusInput = useCallback(() => {
     editableRef.current?.focus();
@@ -97,6 +101,8 @@ export function useChatInputSelectionController({
     clearInput,
     hasContent,
     extractFileTags,
+    setAttachments,
+    onInput,
   });
 
   return {

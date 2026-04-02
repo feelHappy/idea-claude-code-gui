@@ -4,6 +4,7 @@ import type { PermissionRequest } from '../components/PermissionDialog';
 import type { AskUserQuestionRequest } from '../components/AskUserQuestionDialog';
 import type { PlanApprovalRequest } from '../components/PlanApprovalDialog';
 import type { RewindRequest } from '../components/RewindDialog';
+import type { RewriteRequest } from '../components/RewriteConfirmDialog';
 import { sendBridgeEvent } from '../utils/bridge';
 
 interface UseDialogManagementOptions {
@@ -44,6 +45,14 @@ interface UseDialogManagementReturn {
   // Rewind select dialog
   rewindSelectDialogOpen: boolean;
   setRewindSelectDialogOpen: (open: boolean) => void;
+
+  // Rewrite dialog
+  rewriteDialogOpen: boolean;
+  setRewriteDialogOpen: (open: boolean) => void;
+  currentRewriteRequest: RewriteRequest | null;
+  setCurrentRewriteRequest: (request: RewriteRequest | null) => void;
+  isRewriting: boolean;
+  setIsRewriting: (loading: boolean) => void;
 }
 
 /**
@@ -78,6 +87,11 @@ export function useDialogManagement({ t }: UseDialogManagementOptions): UseDialo
 
   // Rewind select dialog state
   const [rewindSelectDialogOpen, setRewindSelectDialogOpen] = useState(false);
+
+  // Rewrite dialog state
+  const [rewriteDialogOpen, setRewriteDialogOpen] = useState(false);
+  const [currentRewriteRequest, setCurrentRewriteRequest] = useState<RewriteRequest | null>(null);
+  const [isRewriting, setIsRewriting] = useState(false);
 
   // Sync refs with state
   useEffect(() => {
@@ -326,5 +340,13 @@ export function useDialogManagement({ t }: UseDialogManagementOptions): UseDialo
     // Rewind select dialog
     rewindSelectDialogOpen,
     setRewindSelectDialogOpen,
+
+    // Rewrite dialog
+    rewriteDialogOpen,
+    setRewriteDialogOpen,
+    currentRewriteRequest,
+    setCurrentRewriteRequest,
+    isRewriting,
+    setIsRewriting,
   };
 }
