@@ -189,81 +189,89 @@ public class PromptEnhancerHandler extends BaseMessageHandler {
      * @return a JsonObject containing context information, or null if unavailable
      */
     private JsonObject collectEditorContext() {
-        AtomicReference<JsonObject> contextRef = new AtomicReference<>(null);
+        // Step 1: Get editor reference on EDT (minimal, fast)
+        AtomicReference<Editor> editorRef = new AtomicReference<>();
+        AtomicReference<VirtualFile> fileRef = new AtomicReference<>();
 
         try {
-            // Use ReadAction to safely access the editor from the read thread
             ApplicationManager.getApplication().invokeAndWait(() -> {
-                ApplicationManager.getApplication().runReadAction(() -> {
-                    try {
-                        JsonObject contextObj = new JsonObject();
-                        boolean hasContext = false;
-
-                        FileEditorManager fileEditorManager = FileEditorManager.getInstance(context.getProject());
-                        FileEditor selectedEditor = fileEditorManager.getSelectedEditor();
-
-                        if (selectedEditor instanceof TextEditor) {
-                            Editor editor = ((TextEditor) selectedEditor).getEditor();
-                            Document document = editor.getDocument();
-                            VirtualFile virtualFile = FileDocumentManager.getInstance().getFile(document);
-
-                            if (virtualFile != null) {
-                                // 1. Current file information
-                                JsonObject currentFile = new JsonObject();
-                                currentFile.addProperty("path", virtualFile.getPath());
-                                currentFile.addProperty("language", getLanguageFromExtension(virtualFile.getExtension()));
-                                contextObj.add("currentFile", currentFile);
-                                hasContext = true;
-
-                                // 2. Selected code
-                                SelectionModel selectionModel = editor.getSelectionModel();
-                                if (selectionModel.hasSelection()) {
-                                    String selectedText = selectionModel.getSelectedText();
-                                    if (selectedText != null && !selectedText.trim().isEmpty()) {
-                                        contextObj.addProperty("selectedCode", selectedText);
-
-                                        // Line number range of selected code
-                                        int startLine = document.getLineNumber(selectionModel.getSelectionStart()) + 1;
-                                        int endLine = document.getLineNumber(selectionModel.getSelectionEnd()) + 1;
-
-                                        JsonObject selectionRange = new JsonObject();
-                                        selectionRange.addProperty("startLine", startLine);
-                                        selectionRange.addProperty("endLine", endLine);
-                                        contextObj.add("selectionRange", selectionRange);
-                                    }
-                                }
-
-                                // 3. Cursor position
-                                int caretOffset = editor.getCaretModel().getOffset();
-                                int caretLine = document.getLineNumber(caretOffset) + 1;
-                                int caretColumn = caretOffset - document.getLineStartOffset(caretLine - 1) + 1;
-
-                                JsonObject cursorPosition = new JsonObject();
-                                cursorPosition.addProperty("line", caretLine);
-                                cursorPosition.addProperty("column", caretColumn);
-                                contextObj.add("cursorPosition", cursorPosition);
-
-                                // 4. Code surrounding the cursor (if no code is selected)
-                                if (!selectionModel.hasSelection() || selectionModel.getSelectedText() == null || selectionModel.getSelectedText().trim().isEmpty()) {
-                                    String cursorContext = getCursorContext(document, caretLine - 1);
-                                    if (cursorContext != null && !cursorContext.isEmpty()) {
-                                        contextObj.addProperty("cursorContext", cursorContext);
-                                    }
-                                }
-                            }
-                        }
-
-                        if (hasContext) {
-                            contextRef.set(contextObj);
-                        }
-                    } catch (Exception e) {
-                        LOG.warn("[PromptEnhancer] Failed to get editor context: " + e.getMessage());
+                try {
+                    FileEditorManager fem = FileEditorManager.getInstance(context.getProject());
+                    FileEditor selectedEditor = fem.getSelectedEditor();
+                    if (selectedEditor instanceof TextEditor) {
+                        Editor editor = ((TextEditor) selectedEditor).getEditor();
+                        editorRef.set(editor);
+                        fileRef.set(FileDocumentManager.getInstance().getFile(editor.getDocument()));
                     }
-                });
+                } catch (Exception e) {
+                    LOG.warn("[PromptEnhancer] Failed to get editor on EDT: " + e.getMessage());
+                }
             });
         } catch (Exception e) {
-            LOG.warn("[PromptEnhancer] ReadAction invocation failed: " + e.getMessage());
+            LOG.warn("[PromptEnhancer] EDT invocation failed: " + e.getMessage());
+            return null;
         }
+
+        Editor editor = editorRef.get();
+        VirtualFile virtualFile = fileRef.get();
+        if (editor == null || virtualFile == null) {
+            return null;
+        }
+
+        // Step 2: Collect context in ReadAction on current (background) thread
+        AtomicReference<JsonObject> contextRef = new AtomicReference<>(null);
+        ApplicationManager.getApplication().runReadAction(() -> {
+            try {
+                JsonObject contextObj = new JsonObject();
+                Document document = editor.getDocument();
+
+                // 1. Current file information
+                JsonObject currentFile = new JsonObject();
+                currentFile.addProperty("path", virtualFile.getPath());
+                currentFile.addProperty("language", getLanguageFromExtension(virtualFile.getExtension()));
+                contextObj.add("currentFile", currentFile);
+
+                // 2. Selected code
+                SelectionModel selectionModel = editor.getSelectionModel();
+                if (selectionModel.hasSelection()) {
+                    String selectedText = selectionModel.getSelectedText();
+                    if (selectedText != null && !selectedText.trim().isEmpty()) {
+                        contextObj.addProperty("selectedCode", selectedText);
+
+                        // Line number range of selected code
+                        int startLine = document.getLineNumber(selectionModel.getSelectionStart()) + 1;
+                        int endLine = document.getLineNumber(selectionModel.getSelectionEnd()) + 1;
+
+                        JsonObject selectionRange = new JsonObject();
+                        selectionRange.addProperty("startLine", startLine);
+                        selectionRange.addProperty("endLine", endLine);
+                        contextObj.add("selectionRange", selectionRange);
+                    }
+                }
+
+                // 3. Cursor position
+                int caretOffset = editor.getCaretModel().getOffset();
+                int caretLine = document.getLineNumber(caretOffset) + 1;
+                int caretColumn = caretOffset - document.getLineStartOffset(caretLine - 1) + 1;
+
+                JsonObject cursorPosition = new JsonObject();
+                cursorPosition.addProperty("line", caretLine);
+                cursorPosition.addProperty("column", caretColumn);
+                contextObj.add("cursorPosition", cursorPosition);
+
+                // 4. Code surrounding the cursor (if no code is selected)
+                if (!selectionModel.hasSelection() || selectionModel.getSelectedText() == null || selectionModel.getSelectedText().trim().isEmpty()) {
+                    String cursorContext = getCursorContext(document, caretLine - 1);
+                    if (cursorContext != null && !cursorContext.isEmpty()) {
+                        contextObj.addProperty("cursorContext", cursorContext);
+                    }
+                }
+
+                contextRef.set(contextObj);
+            } catch (Exception e) {
+                LOG.warn("[PromptEnhancer] Failed to get editor context: " + e.getMessage());
+            }
+        });
 
         return contextRef.get();
     }

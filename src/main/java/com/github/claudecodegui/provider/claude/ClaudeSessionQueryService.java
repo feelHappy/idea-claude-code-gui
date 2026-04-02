@@ -13,6 +13,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
@@ -78,7 +79,9 @@ class ClaudeSessionQueryService {
                 }
             }
 
-            process.waitFor();
+            if (!process.waitFor(60, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+            }
 
             String outputStr = output.toString().trim();
             log.info("[getSessionMessages] Raw output length: " + outputStr.length());

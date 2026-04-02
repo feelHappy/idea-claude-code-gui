@@ -594,9 +594,9 @@ public class DaemonBridge {
 
         int attempts = restartAttempts.incrementAndGet();
         if (attempts <= MAX_RESTART_ATTEMPTS) {
-            LOG.info("[DaemonBridge] Attempting restart (" + attempts + "/" + MAX_RESTART_ATTEMPTS
+            LOG.info("[DaemonBridge] Attempting async restart (" + attempts + "/" + MAX_RESTART_ATTEMPTS
                     + ", last uptime=" + uptime + "ms)");
-            start();
+            CompletableFuture.runAsync(this::start);
         } else {
             LOG.error("[DaemonBridge] Max restart attempts reached (" + attempts
                     + " within " + RESTART_WINDOW_MS + "ms window). Daemon will not be restarted.");

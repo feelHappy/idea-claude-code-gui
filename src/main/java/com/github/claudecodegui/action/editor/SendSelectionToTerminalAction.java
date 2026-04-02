@@ -189,16 +189,12 @@ public class SendSelectionToTerminalAction extends AnAction implements DumbAware
                 if (!toolWindow.isVisible()) {
                     // Activate the window
                     toolWindow.activate(() -> {
-                        // After window activation, add a short delay to ensure the UI is fully loaded, then send content
-                        ApplicationManager.getApplication().invokeLater(() -> {
-                            try {
-                                Thread.sleep(300); // Wait 300ms to ensure the UI is fully loaded
+                        // After window activation, use Alarm to delay 300ms ensuring UI is fully loaded
+                        new com.intellij.util.Alarm(com.intellij.util.Alarm.ThreadToUse.SWING_THREAD)
+                            .addRequest(() -> {
                                 ClaudeSDKToolWindow.addSelectionFromExternal(project, text);
                                 LOG.info("窗口已激活并发送内容到项目: " + project.getName());
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                            }
-                        });
+                            }, 300);
                     }, true);
                 } else {
                     // Window is already open, send content directly

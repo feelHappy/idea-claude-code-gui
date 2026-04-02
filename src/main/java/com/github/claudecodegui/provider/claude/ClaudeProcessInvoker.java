@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
@@ -154,7 +155,9 @@ class ClaudeProcessInvoker {
                     );
 
                     log.debug("[ProcessInvoker] Output loop ended, waiting for process to exit...");
-                    process.waitFor();
+                    if (!process.waitFor(5, TimeUnit.MINUTES)) {
+                        process.destroyForcibly();
+                    }
 
                     int exitCode = process.exitValue();
                     boolean wasInterrupted = processManager.wasInterrupted(channelId);

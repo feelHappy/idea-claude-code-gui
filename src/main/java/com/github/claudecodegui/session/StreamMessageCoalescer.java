@@ -195,6 +195,22 @@ public class StreamMessageCoalescer {
         }
 
         ApplicationManager.getApplication().executeOnPooledThread(() -> {
+            // Check disposed and stale BEFORE expensive serialization
+            if (callbackTarget.isDisposed()) {
+                if (afterSendOnEdt != null) {
+                    ApplicationManager.getApplication().invokeLater(afterSendOnEdt);
+                }
+                return;
+            }
+            synchronized (lock) {
+                if (sequence != updateSequence) {
+                    if (afterSendOnEdt != null) {
+                        ApplicationManager.getApplication().invokeLater(afterSendOnEdt);
+                    }
+                    return;
+                }
+            }
+
             final String escapedMessagesJson;
             try {
                 escapedMessagesJson = JsUtils.escapeJs(MessageJsonConverter.convertMessagesToJson(messages));
@@ -208,10 +224,6 @@ public class StreamMessageCoalescer {
 
             ApplicationManager.getApplication().invokeLater(() -> {
                 if (callbackTarget.isDisposed()) {
-                    // FIX: Still run afterSendOnEdt even when disposed, so that
-                    // onStreamEnd/showLoading(false) callbacks execute and clear
-                    // streaming state. Without this, a dispose race leaves the
-                    // frontend permanently stuck in "responding" state.
                     if (afterSendOnEdt != null) {
                         afterSendOnEdt.run();
                     }
@@ -220,9 +232,6 @@ public class StreamMessageCoalescer {
 
                 synchronized (lock) {
                     if (sequence != updateSequence) {
-                        // Message is stale — skip the webview push, but still
-                        // run the after-send callback (e.g. onStreamEnd cleanup)
-                        // so the frontend is not stuck in streaming state.
                         if (afterSendOnEdt != null) {
                             afterSendOnEdt.run();
                         }

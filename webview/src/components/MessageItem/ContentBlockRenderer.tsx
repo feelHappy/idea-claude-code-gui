@@ -1,3 +1,4 @@
+import React from 'react';
 import type { TFunction } from 'i18next';
 import type { ClaudeContentBlock, ToolResultBlock } from '../../types';
 
@@ -46,7 +47,7 @@ export interface ContentBlockRendererProps {
   findToolResult: (toolId: string | undefined, messageIndex: number) => ToolResultBlock | null | undefined;
 }
 
-export function ContentBlockRenderer({
+export const ContentBlockRenderer = React.memo(function ContentBlockRenderer({
   block,
   messageIndex,
   messageType,
@@ -216,4 +217,4 @@ export function ContentBlockRenderer({
   }
 
   return null;
-}
+});

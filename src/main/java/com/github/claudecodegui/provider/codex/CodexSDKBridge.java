@@ -20,6 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Codex SDK bridge.
@@ -408,7 +410,9 @@ public class CodexSDKBridge extends BaseSDKBridge {
                         }
                     }
 
-                    process.waitFor();
+                    if (!process.waitFor(5, TimeUnit.MINUTES)) {
+                        process.destroyForcibly();
+                    }
 
                     int exitCode = process.exitValue();
                     boolean wasInterrupted = processManager.wasInterrupted(channelId);
@@ -508,35 +512,30 @@ public class CodexSDKBridge extends BaseSDKBridge {
                     stdin.flush();
                 }
 
-                final boolean[] found = {false};
-                final boolean[] readerDone = {false};
                 final String[] statusJson = {null};
                 final StringBuilder output = new StringBuilder();
+                final CountDownLatch latch = new CountDownLatch(1);
 
                 Thread readerThread = new Thread(() -> {
                     try (BufferedReader reader = new BufferedReader(
                             new InputStreamReader(finalProcess.getInputStream(), StandardCharsets.UTF_8))) {
                         String line;
-                        while (!found[0] && (line = reader.readLine()) != null) {
+                        while ((line = reader.readLine()) != null) {
                             output.append(line).append("\n");
                             if (line.startsWith("[MCP_SERVER_STATUS]")) {
                                 statusJson[0] = line.substring("[MCP_SERVER_STATUS]".length()).trim();
-                                found[0] = true;
                                 break;
                             }
                         }
                     } catch (Exception e) {
                         LOG.debug("[CodexMcpStatus] Reader thread exception: " + e.getMessage());
                     } finally {
-                        readerDone[0] = true;
+                        latch.countDown();
                     }
                 });
                 readerThread.start();
 
-                long deadline = System.currentTimeMillis() + MCP_STATUS_TIMEOUT_MS;
-                while (!found[0] && !readerDone[0] && System.currentTimeMillis() < deadline) {
-                    Thread.sleep(100);
-                }
+                latch.await(MCP_STATUS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
 
                 long elapsed = System.currentTimeMillis() - startTime;
                 if (process.isAlive()) {
@@ -626,42 +625,37 @@ public class CodexSDKBridge extends BaseSDKBridge {
                     stdin.flush();
                 }
 
-                final boolean[] found = {false};
-                final boolean[] readerDone = {false};
                 final String[] toolsJson = {null};
                 final StringBuilder output = new StringBuilder();
+                final CountDownLatch toolsLatch = new CountDownLatch(1);
 
                 Thread readerThread = new Thread(() -> {
                     try (BufferedReader reader = new BufferedReader(
                             new InputStreamReader(finalProcess.getInputStream(), StandardCharsets.UTF_8))) {
                         String line;
-                        while (!found[0] && (line = reader.readLine()) != null) {
+                        while ((line = reader.readLine()) != null) {
                             output.append(line).append("\n");
                             if (line.startsWith("[MCP_SERVER_TOOLS]")) {
                                 toolsJson[0] = line.substring("[MCP_SERVER_TOOLS]".length()).trim();
-                                found[0] = true;
                                 break;
                             }
                         }
                     } catch (Exception e) {
                         LOG.debug("[CodexMcpTools] Reader thread exception: " + e.getMessage());
                     } finally {
-                        readerDone[0] = true;
+                        toolsLatch.countDown();
                     }
                 });
                 readerThread.start();
 
-                long deadline = System.currentTimeMillis() + MCP_TOOLS_TIMEOUT_MS;
-                while (!found[0] && !readerDone[0] && System.currentTimeMillis() < deadline) {
-                    Thread.sleep(100);
-                }
+                toolsLatch.await(MCP_TOOLS_TIMEOUT_MS, TimeUnit.MILLISECONDS);
 
                 long elapsed = System.currentTimeMillis() - startTime;
                 if (process.isAlive()) {
                     PlatformUtils.terminateProcess(process);
                 }
 
-                if (found[0] && toolsJson[0] != null && !toolsJson[0].isEmpty()) {
+                if (toolsJson[0] != null && !toolsJson[0].isEmpty()) {
                     try {
                         JsonObject result = gson.fromJson(toolsJson[0], JsonObject.class);
                         LOG.info("[CodexMcpTools] Got tools for " + serverId + " in " + elapsed + "ms");

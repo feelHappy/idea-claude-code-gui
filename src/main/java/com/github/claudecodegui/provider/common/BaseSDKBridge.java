@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Base SDK bridge class.
@@ -185,7 +186,12 @@ public abstract class BaseSDKBridge {
                 LOG.debug("Node.js version: " + version);
             }
 
-            int exitCode = process.waitFor();
+            boolean finished = process.waitFor(30, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                return false;
+            }
+            int exitCode = process.exitValue();
             if (exitCode != 0) {
                 return false;
             }
@@ -312,7 +318,9 @@ public abstract class BaseSDKBridge {
                         }
                     }
 
-                    process.waitFor();
+                    if (!process.waitFor(5, TimeUnit.MINUTES)) {
+                        process.destroyForcibly();
+                    }
 
                     int exitCode = process.exitValue();
                     boolean wasInterrupted = processManager.wasInterrupted(channelId);

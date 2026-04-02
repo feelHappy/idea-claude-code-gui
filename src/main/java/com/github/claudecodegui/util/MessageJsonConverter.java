@@ -26,12 +26,12 @@ public class MessageJsonConverter {
         "API Error", "API error", "Error:", "Error "
     };
     private static final int MAX_TOOL_RESULT_CHARS = 20000;
+    private static final Gson GSON = new Gson();
 
     /**
      * Convert a list of session messages to JSON string for webview transport.
      */
     public static String convertMessagesToJson(List<ClaudeSession.Message> messages) {
-        Gson gson = new Gson();
         JsonArray messagesArray = new JsonArray();
         for (ClaudeSession.Message msg : messages) {
             JsonObject msgObj = new JsonObject();
@@ -43,7 +43,7 @@ public class MessageJsonConverter {
             }
             messagesArray.add(msgObj);
         }
-        return gson.toJson(messagesArray);
+        return GSON.toJson(messagesArray);
     }
 
     /**
@@ -234,7 +234,7 @@ public class MessageJsonConverter {
             usageUpdate.addProperty("usedTokens", usedTokens);
             usageUpdate.addProperty("maxTokens", maxTokens);
 
-            String usageJson = new Gson().toJson(usageUpdate);
+            String usageJson = GSON.toJson(usageUpdate);
             ApplicationManager.getApplication().invokeLater(() -> {
                 if (browser != null && !disposed) {
                     // Use safe call pattern, check if function exists
