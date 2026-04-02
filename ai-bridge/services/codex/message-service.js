@@ -33,6 +33,7 @@ import {
 } from './codex-utils.js';
 import { collectAgentsInstructions } from './codex-agents-loader.js';
 import { createInitialEventState, processCodexEventStream } from './codex-event-handler.js';
+import { writeCodexSession } from './codex-session-writer.js';
 
 // ---------------------------------------------------------------------------
 // sendMessage
@@ -277,6 +278,26 @@ export async function sendMessage(
         }
       });
       state.finalResponse = noResponseMsg;
+    }
+
+    // ============================================================
+    // 9. Persist Session to ~/.codex/sessions/ (for history view)
+    // ============================================================
+
+    // Only write when we have a meaningful response (not an error fallback).
+    // Use the original user message (before agents-instructions wrapping) so
+    // the title extracted by CodexHistoryParser is clean.
+    if (state.finalResponse) {
+      const writtenPath = writeCodexSession({
+        userMessage: message,          // original, may contain agents-instructions
+        assistantResponse: state.finalResponse,
+        cwd: workingDirectory,
+        sessionId: state.currentThreadId,
+        model: model || undefined
+      });
+      if (writtenPath) {
+        logInfo('SESSION_WRITER', 'Codex session written to: ' + writtenPath);
+      }
     }
 
     console.log('[MESSAGE_END]');
