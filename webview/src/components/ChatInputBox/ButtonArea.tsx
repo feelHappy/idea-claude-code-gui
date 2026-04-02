@@ -9,8 +9,9 @@ import { readClaudeModelMapping } from '../../utils/claudeModelMapping';
 import { BmadCommandBar } from './BmadCommandBar.js';
 import { DesignToolkitBar } from './DesignToolkitBar.js';
 import { GitNexusBar } from './GitNexusBar.js';
+import { MiniMaxBar } from './MiniMaxBar.js';
 
-type AddonPanelId = 'bmad' | 'gitNexus' | 'uiUxPro';
+type AddonPanelId = 'bmad' | 'gitNexus' | 'uiUxPro' | 'minimax';
 
 /**
  * Get custom Codex model list from localStorage
@@ -99,8 +100,10 @@ export const ButtonArea = ({
   gitNexus,
   uiUxPro,
   impeccable,
+  minimax,
 }: ButtonAreaProps) => {
   const { t } = useTranslation();
+  const toolkitLabel = t('chat.toolbar.tools', { defaultValue: 'Tools' });
   // const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Track changes to custom models in localStorage
@@ -270,7 +273,7 @@ export const ButtonArea = ({
     if (uiUxPro || impeccable) {
       items.push({
         id: 'uiUxPro',
-        label: 'Design',
+        label: t('chat.designToolkit.title', { defaultValue: 'Design' }),
         icon: 'codicon-symbol-color',
         content: <DesignToolkitBar uiUxPro={uiUxPro} impeccable={impeccable} />,
       });
@@ -285,8 +288,17 @@ export const ButtonArea = ({
       });
     }
 
+    if (minimax) {
+      items.push({
+        id: 'minimax',
+        label: t('chat.minimax.title', { defaultValue: 'MiniMax' }),
+        icon: 'codicon-package',
+        content: <MiniMaxBar {...minimax} />,
+      });
+    }
+
     return items;
-  }, [bmad, gitNexus, impeccable, uiUxPro]);
+  }, [bmad, gitNexus, impeccable, minimax, t, uiUxPro]);
 
   const [activeAddon, setActiveAddon] = useState<AddonPanelId | null>(addonItems[0]?.id ?? null);
   const [toolkitMenuOpen, setToolkitMenuOpen] = useState(false);
@@ -350,115 +362,117 @@ export const ButtonArea = ({
   return (
     <>
       <div className="button-area" data-provider={currentProvider}>
-        {/* Left side: selectors */}
-        <div className="button-area-left">
-          <ConfigSelect
-            alwaysThinkingEnabled={alwaysThinkingEnabled}
-            onToggleThinking={onToggleThinking}
-            streamingEnabled={streamingEnabled}
-            onStreamingEnabledChange={onStreamingEnabledChange}
-            selectedAgent={selectedAgent}
-            onAgentSelect={onAgentSelect}
-            onOpenAgentSettings={onOpenAgentSettings}
-          />
-          <ProviderSelect
-            value={currentProvider}
-            onChange={handleProviderSelect}
-            compact
-          />
-          <ModeSelect value={permissionMode} onChange={handleModeSelect} provider={currentProvider} />
-          <ModelSelect value={selectedModel} onChange={handleModelSelect} models={availableModels} currentProvider={currentProvider} onAddModel={onAddModel} />
-          {currentProvider === 'codex' && (
-            <ReasoningSelect value={reasoningEffort} onChange={handleReasoningChange} />
-          )}
-          {addonItems.length > 0 && (
-            <div className="toolkit-selector-wrap">
-              <button
-                ref={toolkitButtonRef}
-                type="button"
-                className={`selector-button toolkit-selector${toolkitMenuOpen ? ' open' : ''}`}
-                onClick={handleToolkitToggle}
-                aria-haspopup="menu"
-                aria-expanded={toolkitMenuOpen}
-                title={activeAddonItem ? `工具: ${activeAddonItem.label}` : '工具'}
-              >
-                <span className="codicon codicon-tools" />
-                <span className="selector-button-text">工具</span>
-                <span className={`codicon codicon-chevron-${toolkitMenuOpen ? 'up' : 'down'}`} style={{ fontSize: '10px', marginLeft: '2px' }} />
-              </button>
-
-              {toolkitMenuOpen && (
-                <div
-                  ref={toolkitDropdownRef}
-                  className="selector-dropdown toolkit-selector-dropdown"
-                  role="menu"
-                  aria-label="Toolkit selector"
-                  style={{
-                    position: 'absolute',
-                    bottom: '100%',
-                    left: 0,
-                    marginBottom: '4px',
-                    zIndex: 10000,
-                  }}
+        <div className="button-area-top">
+          {/* Left side: selectors */}
+          <div className="button-area-left">
+            <ConfigSelect
+              alwaysThinkingEnabled={alwaysThinkingEnabled}
+              onToggleThinking={onToggleThinking}
+              streamingEnabled={streamingEnabled}
+              onStreamingEnabledChange={onStreamingEnabledChange}
+              selectedAgent={selectedAgent}
+              onAgentSelect={onAgentSelect}
+              onOpenAgentSettings={onOpenAgentSettings}
+            />
+            <ProviderSelect
+              value={currentProvider}
+              onChange={handleProviderSelect}
+              compact
+            />
+            <ModeSelect value={permissionMode} onChange={handleModeSelect} provider={currentProvider} />
+            <ModelSelect value={selectedModel} onChange={handleModelSelect} models={availableModels} currentProvider={currentProvider} onAddModel={onAddModel} />
+            {currentProvider === 'codex' && (
+              <ReasoningSelect value={reasoningEffort} onChange={handleReasoningChange} />
+            )}
+            {addonItems.length > 0 && (
+              <div className="toolkit-selector-wrap">
+                <button
+                  ref={toolkitButtonRef}
+                  type="button"
+                  className={`selector-button toolkit-selector${toolkitMenuOpen ? ' open' : ''}`}
+                  onClick={handleToolkitToggle}
+                  aria-haspopup="menu"
+                  aria-expanded={toolkitMenuOpen}
+                  title={activeAddonItem ? `${toolkitLabel}: ${activeAddonItem.label}` : toolkitLabel}
                 >
-                  {addonItems.map((item) => {
-                    const isSelected = item.id === activeAddonItem?.id;
-                    return (
-                      <div
-                        key={item.id}
-                        className={`selector-option${isSelected ? ' selected' : ''}`}
-                        role="menuitemradio"
-                        aria-checked={isSelected}
-                        onClick={() => handleAddonSelect(item.id)}
-                        title={item.label}
-                      >
-                        <span className={`codicon ${item.icon}`} />
-                        <span className="toolkit-selector-option-label">{item.label}</span>
-                        {isSelected && (
-                          <span className="codicon codicon-check check-mark" />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                  <span className="codicon codicon-tools" />
+                  <span className="selector-button-text">{toolkitLabel}</span>
+                  <span className={`codicon codicon-chevron-${toolkitMenuOpen ? 'up' : 'down'}`} style={{ fontSize: '10px', marginLeft: '2px' }} />
+                </button>
 
-        {/* Right side: tool buttons */}
-        <div className="button-area-right">
-          <div className="button-divider" />
+                {toolkitMenuOpen && (
+                  <div
+                    ref={toolkitDropdownRef}
+                    className="selector-dropdown toolkit-selector-dropdown"
+                    role="menu"
+                    aria-label={toolkitLabel}
+                    style={{
+                      position: 'absolute',
+                      bottom: '100%',
+                      left: 0,
+                      marginBottom: '4px',
+                      zIndex: 10000,
+                    }}
+                  >
+                    {addonItems.map((item) => {
+                      const isSelected = item.id === activeAddonItem?.id;
+                      return (
+                        <div
+                          key={item.id}
+                          className={`selector-option${isSelected ? ' selected' : ''}`}
+                          role="menuitemradio"
+                          aria-checked={isSelected}
+                          onClick={() => handleAddonSelect(item.id)}
+                          title={item.label}
+                        >
+                          <span className={`codicon ${item.icon}`} />
+                          <span className="toolkit-selector-option-label">{item.label}</span>
+                          {isSelected && (
+                            <span className="codicon codicon-check check-mark" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
-          {/* Enhance prompt button */}
-          <button
-            className="enhance-prompt-button has-tooltip"
-            onClick={handleEnhanceClick}
-            disabled={disabled || !hasInputContent || isLoading || isEnhancing}
-            data-tooltip={`${t('promptEnhancer.tooltip')} (${t('promptEnhancer.shortcut')})`}
-          >
-            <span className={`codicon ${isEnhancing ? 'codicon-loading codicon-modifier-spin' : 'codicon-sparkle'}`} />
-          </button>
+          {/* Right side: tool buttons */}
+          <div className="button-area-right">
+            <div className="button-divider" />
 
-          {/* Send/Stop button */}
-          {isLoading ? (
+            {/* Enhance prompt button */}
             <button
-              className="submit-button stop-button"
-              onClick={handleStopClick}
-              title={t('chat.stopGeneration')}
+              className="enhance-prompt-button has-tooltip"
+              onClick={handleEnhanceClick}
+              disabled={disabled || !hasInputContent || isLoading || isEnhancing}
+              data-tooltip={`${t('promptEnhancer.tooltip')} (${t('promptEnhancer.shortcut')})`}
             >
-              <span className="codicon codicon-debug-stop" />
+              <span className={`codicon ${isEnhancing ? 'codicon-loading codicon-modifier-spin' : 'codicon-sparkle'}`} />
             </button>
-          ) : (
-            <button
-              className="submit-button"
-              onClick={handleSubmitClick}
-              disabled={disabled || !hasInputContent}
-              title={t('chat.sendMessageEnter')}
-            >
-              <span className="codicon codicon-send" />
-            </button>
-          )}
+
+            {/* Send/Stop button */}
+            {isLoading ? (
+              <button
+                className="submit-button stop-button"
+                onClick={handleStopClick}
+                title={t('chat.stopGeneration')}
+              >
+                <span className="codicon codicon-debug-stop" />
+              </button>
+            ) : (
+              <button
+                className="submit-button"
+                onClick={handleSubmitClick}
+                disabled={disabled || !hasInputContent}
+                title={t('chat.sendMessageEnter')}
+              >
+                <span className="codicon codicon-send" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

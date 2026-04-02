@@ -9,6 +9,10 @@ const GROUP_LABELS: Record<GitNexusPromptPreset['group'], string> = {
 };
 
 const GROUP_ORDER: GitNexusPromptPreset['group'][] = ['understand', 'change'];
+const MENU_VIEWPORT_MARGIN = 12;
+const MENU_OFFSET = 6;
+const MENU_MIN_WIDTH = 280;
+const MENU_MAX_WIDTH = 360;
 
 export function GitNexusBar({
   presets,
@@ -25,16 +29,25 @@ export function GitNexusBar({
   onInstall,
   onUpdate,
   onReindex,
+  onUninstall,
   promptDisabled = false,
   installDisabled = false,
   updateDisabled = false,
   reindexDisabled = false,
+  uninstallDisabled = false,
 }: GitNexusToolbarProps) {
   const { t } = useTranslation();
   const pickerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [menuPosition, setMenuPosition] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    placement: 'top' | 'bottom';
+  } | null>(null);
 
   const groupedPresets = useMemo(() => {
     return presets.reduce<Record<GitNexusPromptPreset['group'], GitNexusPromptPreset[]>>(
@@ -80,12 +93,51 @@ export function GitNexusBar({
   useEffect(() => {
     if (!pickerOpen) {
       setSearchTerm('');
+      setMenuPosition(null);
       return undefined;
     }
 
-    requestAnimationFrame(() => {
+    const updateMenuPosition = () => {
+      const pickerElement = pickerRef.current;
+      const menuElement = menuRef.current;
+      if (!pickerElement || !menuElement) {
+        return;
+      }
+
+      const pickerRect = pickerElement.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const width = Math.min(
+        MENU_MAX_WIDTH,
+        Math.max(MENU_MIN_WIDTH, pickerRect.width, viewportWidth - MENU_VIEWPORT_MARGIN * 2)
+      );
+      const clampedWidth = Math.min(width, viewportWidth - MENU_VIEWPORT_MARGIN * 2);
+      const idealLeft = pickerRect.left + pickerRect.width / 2 - clampedWidth / 2;
+      const left = Math.min(
+        Math.max(MENU_VIEWPORT_MARGIN, idealLeft),
+        viewportWidth - clampedWidth - MENU_VIEWPORT_MARGIN
+      );
+      const menuHeight = menuElement.offsetHeight;
+      const topPlacement = pickerRect.top - menuHeight - MENU_OFFSET;
+      const canPlaceTop = topPlacement >= MENU_VIEWPORT_MARGIN;
+      const placement = canPlaceTop ? 'top' : 'bottom';
+      const top = canPlaceTop
+        ? topPlacement
+        : Math.max(
+            MENU_VIEWPORT_MARGIN,
+            Math.min(
+              pickerRect.bottom + MENU_OFFSET,
+              viewportHeight - menuHeight - MENU_VIEWPORT_MARGIN
+            )
+          );
+
+      setMenuPosition({ left, top, width: clampedWidth, placement });
+    };
+
+    const frameId = requestAnimationFrame(() => {
       searchInputRef.current?.focus();
       searchInputRef.current?.select();
+      updateMenuPosition();
     });
 
     const handleClickOutside = (event: MouseEvent) => {
@@ -95,8 +147,13 @@ export function GitNexusBar({
     };
 
     document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
     return () => {
+      cancelAnimationFrame(frameId);
       document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
     };
   }, [pickerOpen]);
 
@@ -111,6 +168,8 @@ export function GitNexusBar({
   const installing = operation === 'install';
   const updating = operation === 'update';
   const reindexing = operation === 'reindex';
+  const uninstalling = operation === 'uninstall';
+  const showUninstallAction = status.state === 'ready' || status.state === 'partial';
   const selectedTitle = t(selectedPreset.titleKey, { defaultValue: selectedPreset.title });
   const selectedDescription = t(selectedPreset.descriptionKey, {
     defaultValue: selectedPreset.description,
@@ -160,6 +219,11 @@ export function GitNexusBar({
     }
 
     if (status.state === 'ready') {
+      if (status.versionTrackingMissing) {
+        return t('chat.gitNexus.versionTrackingHint', {
+          defaultValue: 'GitNexus is ready, but this repository is missing install-version tracking. Click Update once to sync the version and rebuild the repo index.',
+        });
+      }
       if (status.hasUpdate && status.latestVersion) {
         return t('chat.gitNexus.updateHint', {
           defaultValue: 'Update available: v{{version}}. Click Update to refresh GitNexus and rebuild this repo index.',
@@ -251,8 +315,17 @@ export function GitNexusBar({
           {status.installedVersion ? (
             <span className="gitnexus-badge subtle">v{status.installedVersion}</span>
           ) : null}
-          {status.hasUpdate && status.latestVersion ? (
+          {status.hasUpdate && status.latestVersion && !status.versionTrackingMissing ? (
             <span className="gitnexus-badge subtle">→ v{status.latestVersion}</span>
+          ) : null}
+          {status.indexSizeMb != null && status.indexSizeMb > 0 ? (
+            <span className="gitnexus-badge subtle" title={t('chat.gitNexus.indexSizeHint', {
+              defaultValue: 'Repository index size on disk',
+            })}>
+              {status.indexSizeMb >= 1024
+                ? `${(status.indexSizeMb / 1024).toFixed(1)} GB`
+                : `${Math.round(status.indexSizeMb)} MB`}
+            </span>
           ) : null}
           <span className={`gitnexus-badge state-${status.state}`}>{statusLabel}</span>
         </div>
@@ -271,7 +344,17 @@ export function GitNexusBar({
           </button>
 
           {pickerOpen ? (
-            <div className="gitnexus-menu">
+            <div
+              ref={menuRef}
+              className={`gitnexus-menu gitnexus-menu-${menuPosition?.placement ?? 'top'}`}
+              style={menuPosition
+                ? {
+                    left: `${menuPosition.left}px`,
+                    top: `${menuPosition.top}px`,
+                    width: `${menuPosition.width}px`,
+                  }
+                : { visibility: 'hidden' }}
+            >
               <div className="gitnexus-menu-search">
                 <span className="codicon codicon-search" />
                 <input
@@ -446,6 +529,19 @@ export function GitNexusBar({
             {reindexing
               ? t('chat.gitNexus.reindexing', { defaultValue: 'Reindexing...' })
               : t('chat.gitNexus.reindex', { defaultValue: 'Reindex' })}
+          </button>
+        ) : null}
+
+        {showUninstallAction ? (
+          <button
+            type="button"
+            className="gitnexus-button danger"
+            onClick={onUninstall}
+            disabled={uninstallDisabled}
+          >
+            {uninstalling
+              ? t('chat.gitNexus.uninstalling', { defaultValue: 'Uninstalling...' })
+              : t('chat.gitNexus.uninstall', { defaultValue: 'Uninstall' })}
           </button>
         ) : null}
 

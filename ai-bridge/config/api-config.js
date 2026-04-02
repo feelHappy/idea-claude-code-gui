@@ -34,6 +34,28 @@ const NETWORK_ENV_VARS = [
 ];
 
 /**
+ * Track injected network env vars so we can clean them up between requests,
+ * preventing stale values from leaking across provider switches.
+ */
+const injectedNetworkEnvVars = new Map();
+
+function clearInjectedNetworkEnvVars() {
+  for (const [varName, injectedValue] of injectedNetworkEnvVars.entries()) {
+    if (process.env[varName] === injectedValue) {
+      delete process.env[varName];
+    }
+  }
+  injectedNetworkEnvVars.clear();
+}
+
+function clearRuntimeAuthEnv() {
+  delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.ANTHROPIC_AUTH_TOKEN;
+  delete process.env.ANTHROPIC_BASE_URL;
+  delete process.env.ANTHROPIC_API_URL;
+}
+
+/**
  * Inject network-related environment variables from settings.json into process.env.
  *
  * This includes proxy settings AND TLS configuration. It must be called as early
@@ -49,6 +71,7 @@ const NETWORK_ENV_VARS = [
  * @param {Object} [settings] - Parsed settings object. If omitted, loads from disk.
  */
 export function injectNetworkEnvVars(settings) {
+  clearInjectedNetworkEnvVars();
   const resolvedSettings = settings || loadClaudeSettings();
   for (const varName of NETWORK_ENV_VARS) {
     const value = resolvedSettings?.env?.[varName];
@@ -66,7 +89,9 @@ export function injectNetworkEnvVars(settings) {
       }
     }
 
-    process.env[varName] = String(value);
+    const stringValue = String(value);
+    process.env[varName] = stringValue;
+    injectedNetworkEnvVars.set(varName, stringValue);
     debugLog(`[DEBUG] Set ${varName} from settings.json`);
 
     if (varName === 'NODE_TLS_REJECT_UNAUTHORIZED' && String(value) === '0') {
@@ -116,13 +141,13 @@ export function setupApiKey() {
   debugLog('[DIAG-CONFIG] ========== setupApiKey() START ==========');
 
   const settings = loadClaudeSettings();
+  injectNetworkEnvVars(settings);
+  clearRuntimeAuthEnv();
+
   debugLog('[DIAG-CONFIG] Settings loaded:', settings ? 'yes' : 'no');
   if (settings?.env) {
     debugLog('[DIAG-CONFIG] Settings env keys:', Object.keys(settings.env));
   }
-
-  // Network env vars are already injected at module top-level in each entry
-  // point (channel-manager.js, daemon.js) before any network activity occurs.
 
   let apiKey;
   let baseUrl;
@@ -144,9 +169,9 @@ export function setupApiKey() {
   const cliLoginAuthorized = settings?.env?.CCGUI_CLI_LOGIN_AUTHORIZED === '1';
   if (cliLoginAuthorized) {
     debugLog('[INFO] CLI login authorized by user - delegating auth to Claude SDK native OAuth flow');
-    // Clear ALL API Key env vars so the SDK uses its built-in OAuth auth exclusively.
-    // Use empty string assignment instead of delete to avoid irreversible global side effects
-    // (delete on process.env permanently removes the key from the process for the lifetime of the node).
+
+    // Use empty string assignment instead of delete so the SDK falls through to
+    // its native OAuth flow without inheriting stale values from prior requests.
     process.env.ANTHROPIC_API_KEY = '';
     process.env.ANTHROPIC_AUTH_TOKEN = '';
 
@@ -188,10 +213,6 @@ export function setupApiKey() {
         ? 'managed-settings.json (apiKeyHelper)'
         : 'settings.json (apiKeyHelper)';
 
-      // Clear all API Key environment variables so the SDK uses apiKeyHelper
-      delete process.env.ANTHROPIC_API_KEY;
-      delete process.env.ANTHROPIC_AUTH_TOKEN;
-
       if (baseUrl) {
         process.env.ANTHROPIC_BASE_URL = baseUrl;
       }
@@ -211,15 +232,10 @@ export function setupApiKey() {
   // Set the corresponding environment variables based on auth type
   if (authType === 'auth_token') {
     process.env.ANTHROPIC_AUTH_TOKEN = apiKey;
-    // Clear ANTHROPIC_API_KEY to avoid confusion
-    delete process.env.ANTHROPIC_API_KEY;
   } else if (authType === 'aws_bedrock') {
-    delete process.env.ANTHROPIC_API_KEY;
-    delete process.env.ANTHROPIC_AUTH_TOKEN;
+    // No API key env vars needed for Bedrock
   } else {
     process.env.ANTHROPIC_API_KEY = apiKey;
-    // Clear ANTHROPIC_AUTH_TOKEN to avoid confusion
-    delete process.env.ANTHROPIC_AUTH_TOKEN;
   }
 
   if (baseUrl) {

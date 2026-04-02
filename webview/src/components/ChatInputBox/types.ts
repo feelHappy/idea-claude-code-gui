@@ -596,6 +596,8 @@ export interface ButtonAreaProps {
   uiUxPro?: UiUxToolbarProps;
   /** Impeccable command bar props */
   impeccable?: ImpeccableToolbarProps;
+  /** MiniMax command bar props */
+  minimax?: MiniMaxToolbarProps;
 }
 
 /**
@@ -694,7 +696,7 @@ export interface GitNexusToolbarProps {
   selectedPresetId: string;
   status: import('./gitNexusPrompts.js').GitNexusStatus;
   installLog: string;
-  operation?: 'install' | 'update' | 'reindex' | null;
+  operation?: 'install' | 'update' | 'reindex' | 'uninstall' | null;
   selectedScope: import('./gitNexusPrompts.js').GitNexusScope;
   onPresetChange: (id: string) => void;
   onScopeChange: (scope: import('./gitNexusPrompts.js').GitNexusScope) => void;
@@ -704,10 +706,12 @@ export interface GitNexusToolbarProps {
   onInstall: () => void;
   onUpdate: () => void;
   onReindex: () => void;
+  onUninstall: () => void;
   promptDisabled?: boolean;
   installDisabled?: boolean;
   updateDisabled?: boolean;
   reindexDisabled?: boolean;
+  uninstallDisabled?: boolean;
 }
 
 /**
@@ -739,6 +743,27 @@ export interface ImpeccableToolbarProps {
   presets: import('./impeccableCommands.js').ImpeccableCommandPreset[];
   selectedPresetId: string;
   status: import('./impeccableCommands.js').ImpeccableStatus;
+  installLog: string;
+  operation?: 'install' | 'update' | null;
+  onPresetChange: (id: string) => void;
+  onInsert: () => void;
+  onInsertAndSend: () => void;
+  onRefresh: () => void;
+  onInstall: () => void;
+  onUpdate: () => void;
+  commandDisabled?: boolean;
+  installDisabled?: boolean;
+  updateDisabled?: boolean;
+}
+
+/**
+ * MiniMax command bar toolbar props
+ * Used by MiniMaxBar component
+ */
+export interface MiniMaxToolbarProps {
+  presets: import('./minimaxCommands.js').MiniMaxCommandPreset[];
+  selectedPresetId: string;
+  status: import('./minimaxCommands.js').MiniMaxStatus;
   installLog: string;
   operation?: 'install' | 'update' | null;
   onPresetChange: (id: string) => void;

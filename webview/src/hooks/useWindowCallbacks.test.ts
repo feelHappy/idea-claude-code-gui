@@ -287,4 +287,38 @@ describe('useWindowCallbacks integration', () => {
     });
     expect(opts.setMessages).toHaveBeenCalled();
   });
+
+  it('onStreamEnd finalizes the current turn even when streamingMessageIndexRef is stale', () => {
+    const setMessages = vi.fn();
+    const opts = createOptions({
+      setMessages,
+      streamingContentRef: { current: 'final summary content' },
+      isStreamingRef: { current: true },
+      streamingMessageIndexRef: { current: -1 },
+      streamingTurnIdRef: { current: 42 },
+    });
+    renderHook(() => useWindowCallbacks(opts));
+
+    act(() => {
+      (window as any).onStreamEnd();
+    });
+
+    const updater = setMessages.mock.calls[0]?.[0] as ((prev: ClaudeMessage[]) => ClaudeMessage[]);
+    expect(typeof updater).toBe('function');
+
+    const prev: ClaudeMessage[] = [
+      { type: 'user', content: 'question', timestamp: new Date().toISOString() },
+      {
+        type: 'assistant',
+        content: 'partial',
+        timestamp: new Date().toISOString(),
+        isStreaming: true,
+        __turnId: 42,
+        raw: { message: { content: [] } } as any,
+      },
+    ];
+    const result = updater(prev);
+    expect(result[1].content).toBe('final summary content');
+    expect(result[1].isStreaming).toBe(false);
+  });
 });

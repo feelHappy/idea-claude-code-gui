@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
 /**
  * In-memory cache for session indexes.
@@ -43,11 +44,19 @@ public class SessionIndexCache {
         private final List<T> sessions;
         private final long lastDirModified;
         private final long cacheCreatedAt;
+        private final long fileCount;
+        private final long latestFileModified;
 
         public CacheEntry(List<T> sessions, long lastDirModified) {
+            this(sessions, lastDirModified, -1, -1);
+        }
+
+        public CacheEntry(List<T> sessions, long lastDirModified, long fileCount, long latestFileModified) {
             this.sessions = sessions;
             this.lastDirModified = lastDirModified;
             this.cacheCreatedAt = System.currentTimeMillis();
+            this.fileCount = fileCount;
+            this.latestFileModified = latestFileModified;
         }
 
         public List<T> getSessions() {
@@ -60,6 +69,14 @@ public class SessionIndexCache {
 
         public long getCacheCreatedAt() {
             return cacheCreatedAt;
+        }
+
+        public long getFileCount() {
+            return fileCount;
+        }
+
+        public long getLatestFileModified() {
+            return latestFileModified;
         }
 
         /**
@@ -131,10 +148,16 @@ public class SessionIndexCache {
             return null;
         }
 
-        // Codex sessions use nested year/month/day directories, so root directory
-        // timestamp is unreliable for detecting new files. Use TTL-only validation.
         if (entry.isExpired()) {
             LOG.info("[SessionIndexCache] Codex cache expired for " + projectPath);
+            codexCache.remove(projectPath);
+            return null;
+        }
+
+        CodexDirState currentState = getCodexDirState(sessionsDir);
+        if (currentState.fileCount != entry.getFileCount() ||
+                currentState.latestFileModified != entry.getLatestFileModified()) {
+            LOG.info("[SessionIndexCache] Codex cache invalid: session files changed for " + projectPath);
             codexCache.remove(projectPath);
             return null;
         }
@@ -148,7 +171,8 @@ public class SessionIndexCache {
      */
     public <T> void updateCodexCache(String projectPath, Path sessionsDir, List<T> sessions) {
         long dirModified = getDirModifiedTime(sessionsDir);
-        CacheEntry<T> entry = new CacheEntry<>(sessions, dirModified);
+        CodexDirState currentState = getCodexDirState(sessionsDir);
+        CacheEntry<T> entry = new CacheEntry<>(sessions, dirModified, currentState.fileCount, currentState.latestFileModified);
         codexCache.put(projectPath, entry);
         LOG.info("[SessionIndexCache] Codex cache updated for " + projectPath + ", sessions: " + sessions.size());
     }
@@ -192,6 +216,40 @@ public class SessionIndexCache {
         } catch (Exception e) {
             LOG.warn("[SessionIndexCache] Failed to get dir modified time: " + e.getMessage());
             return 0;
+        }
+    }
+
+    private CodexDirState getCodexDirState(Path sessionsDir) {
+        if (sessionsDir == null || !Files.exists(sessionsDir)) {
+            return new CodexDirState(0, 0);
+        }
+
+        long fileCount = 0;
+        long latestFileModified = 0;
+        try (Stream<Path> paths = Files.walk(sessionsDir)) {
+            for (Path path : (Iterable<Path>) paths
+                    .filter(Files::isRegularFile)
+                    .filter(p -> p.toString().endsWith(".jsonl"))::iterator) {
+                fileCount++;
+                long lastModified = Files.getLastModifiedTime(path).toMillis();
+                if (lastModified > latestFileModified) {
+                    latestFileModified = lastModified;
+                }
+            }
+        } catch (Exception e) {
+            LOG.warn("[SessionIndexCache] Failed to inspect Codex sessions dir: " + e.getMessage());
+        }
+
+        return new CodexDirState(fileCount, latestFileModified);
+    }
+
+    private static class CodexDirState {
+        private final long fileCount;
+        private final long latestFileModified;
+
+        private CodexDirState(long fileCount, long latestFileModified) {
+            this.fileCount = fileCount;
+            this.latestFileModified = latestFileModified;
         }
     }
 }

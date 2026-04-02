@@ -23,6 +23,7 @@ export interface GitNexusStatus {
   state: GitNexusStatusState;
   installed: boolean;
   hasUpdate?: boolean;
+  versionTrackingMissing?: boolean;
   provider: string;
   providerLabel: string;
   installedVersion?: string;
@@ -44,6 +45,8 @@ export interface GitNexusStatus {
   nodeVersion?: string;
   nodePath?: string;
   runtimeBootstrapSupported?: boolean;
+  /** Index directory size in megabytes, calculated by the backend. */
+  indexSizeMb?: number;
   message?: string;
   error?: string;
 }
@@ -101,6 +104,7 @@ export function createDefaultGitNexusStatus(provider?: string): GitNexusStatus {
     provider: provider ?? 'claude',
     providerLabel: provider === 'codex' ? 'Codex' : provider === 'claude' ? 'Claude Code' : 'Unsupported',
     hasUpdate: false,
+    versionTrackingMissing: false,
     repositoryDetected: false,
     indexDirExists: false,
     registryExists: false,

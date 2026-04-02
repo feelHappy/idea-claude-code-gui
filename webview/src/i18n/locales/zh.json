@@ -277,6 +277,59 @@
         "impeccable": "Impeccable"
       }
     },
+    "toolbar": {
+      "tools": "工具"
+    },
+    "minimax": {
+      "title": "MiniMax",
+      "selectAria": "选择一个 MiniMax 技能",
+      "insert": "插入",
+      "insertAndSend": "插入并发送",
+      "install": "安装",
+      "repair": "修复",
+      "update": "更新",
+      "installing": "安装中...",
+      "refresh": "刷新",
+      "preview": "适用场景",
+      "statusTitle": "状态",
+      "searchPlaceholder": "搜索技能或描述",
+      "searchEmpty": "没有匹配的 MiniMax 技能。",
+      "readyHint": "MiniMax 更适合业务流程实现，以及偏文档、表格和财务场景的开发任务。",
+      "missingHint": "当前项目还没有配置 MiniMax，点击“安装”即可复制所选技能。",
+      "partialHint": "检测到 MiniMax 安装不完整，点击“修复”即可同步所选技能包。",
+      "loadingHint": "正在检查当前项目中的 MiniMax 技能...",
+      "unsupportedHint": "MiniMax 当前仅支持 Claude Code 和 Codex。",
+      "errorHint": "MiniMax 状态检查失败，可先点击刷新，必要时重新安装。",
+      "detailHint": "最佳适配：需要流程改造、表格处理以及 PDF 或 DOCX 输出的 Vue 财务系统。",
+      "installBusy": "已有一个 MiniMax 任务正在运行，请稍后重试。",
+      "installSuccess": "{{provider}} 的 MiniMax 已可用。",
+      "updateSuccess": "{{provider}} 的 MiniMax 已更新。",
+      "installFailed": "MiniMax 安装失败。",
+      "installFailedWithReason": "MiniMax 安装失败：{{reason}}",
+      "resultParseFailed": "处理 MiniMax 安装结果失败。",
+      "installingHint": "正在为当前项目安装 MiniMax 技能...",
+      "updatingHint": "正在为当前项目更新 MiniMax 技能...",
+      "versionTrackingHint": "MiniMax 技能已就绪，但缺少版本追踪信息。点击“更新”可重新同步受跟踪的技能。",
+      "updateHint": "发现新版本：{{version}}。点击“更新”即可重新同步所选 MiniMax 技能。",
+      "status": {
+        "loading": "检查中",
+        "ready": "可用",
+        "missing": "未安装",
+        "partial": "需修复",
+        "unsupported": "不支持",
+        "error": "异常"
+      },
+      "groups": {
+        "core": "核心",
+        "documents": "文档输出"
+      },
+      "commands": {
+        "fullstack-dev": "处理业务流程、API、权限、校验以及偏财务业务的全栈流程改造。",
+        "minimax-xlsx": "设计或重构 Excel 导入导出流程、字段映射、模板校验和对账输出。",
+        "minimax-pdf": "生成或优化凭证、账单、回单等 PDF 财务文档和打印版式。",
+        "minimax-docx": "产出通知、合同、制度等 DOCX 格式的业务支撑文档。"
+      }
+    },
     "impeccable": {
       "title": "Impeccable",
       "selectAria": "选择一个 Impeccable 命令",

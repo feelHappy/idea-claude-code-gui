@@ -6,6 +6,7 @@ import { CLAUDE_MODEL_MAPPING_ENV_KEYS, PROVIDER_PRESETS } from '../types/provid
 const OFFICIAL_DIRECT_PRESET_ID = 'official_direct';
 const OFFICIAL_ANTHROPIC_URL = 'https://api.anthropic.com';
 const CUSTOM_PRESET_ID = 'custom';
+const CUSTOM_PROXY_PRESET_ID = 'custom_proxy';
 
 const isOfficialAnthropicEndpoint = (baseUrl?: string) => {
   const normalized = (baseUrl || '').trim().toLowerCase();
@@ -118,7 +119,9 @@ export default function ProviderDialog({
   const [jsonError, setJsonError] = useState('');
   const thirdPartyPresets = PROVIDER_PRESETS;
   const isOfficialDirectMode = activePreset === OFFICIAL_DIRECT_PRESET_ID;
-  const showModelMappingSection = activePreset !== CUSTOM_PRESET_ID;
+  // Model mapping should always be shown – the 'custom' preset button was removed
+  // from the UI, so users can never explicitly opt out of model mapping.
+  const showModelMappingSection = true;
 
   const buildConfig = ({
     envOverrides = {},
@@ -235,7 +238,9 @@ export default function ProviderDialog({
         return preset.id;
       }
     }
-    return 'custom';
+    // Unrecognized URL: treat as a custom third-party proxy.
+    // Return a non-'custom' value so model mapping stays enabled.
+    return CUSTOM_PROXY_PRESET_ID;
   };
 
   // Format JSON

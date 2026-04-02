@@ -74,55 +74,62 @@ export const appendOptimisticMessageIfMissing = (
   prevList: ClaudeMessage[],
   nextList: ClaudeMessage[],
 ): ClaudeMessage[] => {
-  const lastPrev = prevList[prevList.length - 1];
-  if (!lastPrev?.isOptimistic) return nextList;
+  const optimisticEntries = prevList
+    .map((msg, index) => ({ msg, index }))
+    .filter((entry) => entry.msg?.type === 'user' && entry.msg.isOptimistic);
+  if (optimisticEntries.length === 0) return nextList;
 
-  const optimisticMsg = lastPrev;
+  const result = [...nextList];
+  let mutated = false;
 
-  const matchFn = (m: ClaudeMessage) =>
-    m.type === 'user' &&
-    (m.content === optimisticMsg.content ||
-      m.content === (optimisticMsg.raw as any)?.message?.content?.[0]?.text) &&
-    m.timestamp &&
-    optimisticMsg.timestamp &&
-    Math.abs(
-      new Date(m.timestamp).getTime() - new Date(optimisticMsg.timestamp).getTime(),
-    ) < OPTIMISTIC_MESSAGE_TIME_WINDOW;
+  for (const { msg: optimisticMsg, index: optimisticIndex } of optimisticEntries) {
+    const matchFn = (m: ClaudeMessage) =>
+      m.type === 'user' &&
+      (m.content === optimisticMsg.content ||
+        m.content === (optimisticMsg.raw as any)?.message?.content?.[0]?.text) &&
+      m.timestamp &&
+      optimisticMsg.timestamp &&
+      Math.abs(
+        new Date(m.timestamp).getTime() - new Date(optimisticMsg.timestamp).getTime(),
+      ) < OPTIMISTIC_MESSAGE_TIME_WINDOW;
 
-  const matchedIndex = nextList.findIndex(matchFn);
-  if (matchedIndex < 0) {
-    return [...nextList, optimisticMsg];
-  }
+    const matchedIndex = result.findIndex(matchFn);
+    if (matchedIndex < 0) {
+      const insertAt = Math.max(0, Math.min(optimisticIndex, result.length));
+      result.splice(insertAt, 0, optimisticMsg);
+      mutated = true;
+      continue;
+    }
 
-  // Backend message matched the optimistic message.  Preserve attachment blocks
-  // from the optimistic message into the backend message's raw data; otherwise
-  // non-image file attachments won't be visible.
-  const optimisticRaw = optimisticMsg.raw as any;
-  const optimisticContent: unknown[] | undefined = optimisticRaw?.message?.content;
-  if (Array.isArray(optimisticContent)) {
-    const attachmentBlocks = optimisticContent.filter(
-      (b: any) => b && typeof b === 'object' && b.type === 'attachment',
-    );
-    if (attachmentBlocks.length > 0) {
-      const backendMsg = nextList[matchedIndex];
-      const backendRaw = (backendMsg.raw ?? {}) as any;
-      const backendContent: unknown[] = Array.isArray(backendRaw?.message?.content)
-        ? backendRaw.message.content
-        : Array.isArray(backendRaw?.content)
-          ? backendRaw.content
-          : [];
-      const mergedContent = [...attachmentBlocks, ...backendContent];
-      const mergedRaw = {
-        ...backendRaw,
-        message: { ...(backendRaw?.message ?? {}), content: mergedContent },
-      };
-      const result = [...nextList];
-      result[matchedIndex] = { ...backendMsg, raw: mergedRaw };
-      return result;
+    // Backend message matched the optimistic message. Preserve attachment blocks
+    // from the optimistic message into the backend message's raw data; otherwise
+    // non-image file attachments won't be visible.
+    const optimisticRaw = optimisticMsg.raw as any;
+    const optimisticContent: unknown[] | undefined = optimisticRaw?.message?.content;
+    if (Array.isArray(optimisticContent)) {
+      const attachmentBlocks = optimisticContent.filter(
+        (b: any) => b && typeof b === 'object' && b.type === 'attachment',
+      );
+      if (attachmentBlocks.length > 0) {
+        const backendMsg = result[matchedIndex];
+        const backendRaw = (backendMsg.raw ?? {}) as any;
+        const backendContent: unknown[] = Array.isArray(backendRaw?.message?.content)
+          ? backendRaw.message.content
+          : Array.isArray(backendRaw?.content)
+            ? backendRaw.content
+            : [];
+        const mergedContent = [...attachmentBlocks, ...backendContent];
+        const mergedRaw = {
+          ...backendRaw,
+          message: { ...(backendRaw?.message ?? {}), content: mergedContent },
+        };
+        result[matchedIndex] = { ...backendMsg, raw: mergedRaw };
+        mutated = true;
+      }
     }
   }
 
-  return nextList;
+  return mutated ? result : nextList;
 };
 
 /**

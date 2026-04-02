@@ -171,7 +171,7 @@ class CodexHistoryIndexService {
     ) {
         SessionIndexManager.ProjectIndex projectIndex = new SessionIndexManager.ProjectIndex();
         projectIndex.lastDirScanTime = System.currentTimeMillis();
-        projectIndex.fileCount = sessions.size();
+        projectIndex.fileCount = countSessionFiles();
 
         for (CodexHistoryReader.SessionInfo session : sessions) {
             SessionIndexManager.SessionIndexEntry entry = new SessionIndexManager.SessionIndexEntry();
@@ -185,6 +185,18 @@ class CodexHistoryIndexService {
         }
 
         index.projects.put(cacheKey, projectIndex);
+    }
+
+    private int countSessionFiles() {
+        try (Stream<Path> paths = Files.walk(sessionsDir)) {
+            return (int) paths
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.toString().endsWith(".jsonl"))
+                    .count();
+        } catch (IOException e) {
+            LOG.warn("[CodexHistoryReader] Failed to count Codex session files: " + e.getMessage());
+            return 0;
+        }
     }
 
     private List<CodexHistoryReader.SessionInfo> scanAllSessions() throws IOException {

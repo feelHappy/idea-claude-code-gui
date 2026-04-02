@@ -749,6 +749,7 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
           gitNexus={toolkit.gitNexus}
           uiUxPro={toolkit.uiUxPro}
           impeccable={toolkit.impeccable}
+          minimax={toolkit.minimax}
         />
       </div>
     );

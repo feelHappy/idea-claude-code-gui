@@ -194,7 +194,20 @@ describe('appendOptimisticMessageIfMissing', () => {
 
     const result = appendOptimisticMessageIfMissing(prev, next);
     expect(result).toHaveLength(2);
-    expect(result[result.length - 1]).toBe(optimistic);
+    expect(result[0]).toBe(optimistic);
+  });
+
+  it('re-inserts optimistic user message at its original position instead of after assistant output', () => {
+    const ts = new Date().toISOString();
+    const optimistic = makeUserMsg('hello', { isOptimistic: true, timestamp: ts });
+    const assistant = makeAssistantMsg('response after hello');
+    const prev = [optimistic, assistant];
+    const next = [assistant];
+
+    const result = appendOptimisticMessageIfMissing(prev, next);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toBe(optimistic);
+    expect(result[1]).toBe(assistant);
   });
 
   it('does not append when optimistic message is matched by content and time', () => {

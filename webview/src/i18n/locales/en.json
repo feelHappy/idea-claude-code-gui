@@ -277,6 +277,59 @@
         "impeccable": "Impeccable"
       }
     },
+    "toolbar": {
+      "tools": "Tools"
+    },
+    "minimax": {
+      "title": "MiniMax",
+      "selectAria": "Select a MiniMax skill",
+      "insert": "Insert",
+      "insertAndSend": "Insert & Send",
+      "install": "Install",
+      "repair": "Repair",
+      "update": "Update",
+      "installing": "Installing...",
+      "refresh": "Refresh",
+      "preview": "Focus",
+      "statusTitle": "Status",
+      "searchPlaceholder": "Search skills or descriptions",
+      "searchEmpty": "No matching MiniMax skills.",
+      "readyHint": "Use MiniMax for business workflow implementation and document-heavy finance tasks.",
+      "missingHint": "MiniMax is not set up for this project yet. Click Install to copy the selected skills.",
+      "partialHint": "Found a partial MiniMax setup. Click Repair to sync the selected skills bundle.",
+      "loadingHint": "Checking the current project for MiniMax skills...",
+      "unsupportedHint": "MiniMax onboarding currently supports Claude Code and Codex only.",
+      "errorHint": "MiniMax status check failed. Try Refresh or reinstall.",
+      "detailHint": "Best fit: Vue-based finance systems that need workflow changes, spreadsheet processing, and PDF or DOCX outputs.",
+      "installBusy": "Another MiniMax task is already running. Please wait and retry.",
+      "installSuccess": "MiniMax is ready for {{provider}}.",
+      "updateSuccess": "MiniMax has been updated for {{provider}}.",
+      "installFailed": "MiniMax installation failed.",
+      "installFailedWithReason": "MiniMax installation failed: {{reason}}",
+      "resultParseFailed": "Failed to process the MiniMax installation result.",
+      "installingHint": "Installing MiniMax skills for the current project...",
+      "updatingHint": "Updating MiniMax skills for the current project...",
+      "versionTrackingHint": "MiniMax skills are ready, but version tracking is missing. Click Update once to resync the tracked skills.",
+      "updateHint": "Update available: {{version}}. Click Update to resync the selected MiniMax skills.",
+      "status": {
+        "loading": "Checking",
+        "ready": "Ready",
+        "missing": "Not Installed",
+        "partial": "Needs Repair",
+        "unsupported": "Unsupported",
+        "error": "Error"
+      },
+      "groups": {
+        "core": "Core",
+        "documents": "Documents"
+      },
+      "commands": {
+        "fullstack-dev": "Handle business workflows, APIs, permissions, validation, and finance-oriented process changes across the stack.",
+        "minimax-xlsx": "Design or refactor Excel import/export flows, mapping rules, template validation, and reconciliation outputs.",
+        "minimax-pdf": "Generate or refine PDF-based vouchers, statements, receipts, and print-ready financial documents.",
+        "minimax-docx": "Produce DOCX files such as notices, contracts, and policy-style supporting business documents."
+      }
+    },
     "impeccable": {
       "title": "Impeccable",
       "selectAria": "Select an Impeccable command",

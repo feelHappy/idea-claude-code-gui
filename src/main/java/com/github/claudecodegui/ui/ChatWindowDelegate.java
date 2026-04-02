@@ -12,6 +12,7 @@ import com.github.claudecodegui.handler.DependencyHandler;
 import com.github.claudecodegui.handler.DiffHandler;
 import com.github.claudecodegui.handler.GitNexusHandler;
 import com.github.claudecodegui.handler.ImpeccableHandler;
+import com.github.claudecodegui.handler.MiniMaxHandler;
 import com.github.claudecodegui.handler.core.HandlerContext;
 import com.github.claudecodegui.handler.file.FileExportHandler;
 import com.github.claudecodegui.handler.file.FileHandler;
@@ -284,6 +285,7 @@ public class ChatWindowDelegate {
         messageDispatcher.registerHandler(new BmadHandler(handlerContext));
         messageDispatcher.registerHandler(new UiUxProHandler(handlerContext));
         messageDispatcher.registerHandler(new ImpeccableHandler(handlerContext));
+        messageDispatcher.registerHandler(new MiniMaxHandler(handlerContext));
         messageDispatcher.registerHandler(new GitNexusHandler(handlerContext));
         messageDispatcher.registerHandler(new ClipboardHandler(handlerContext));
         messageDispatcher.registerHandler(new CursorHandler(handlerContext));

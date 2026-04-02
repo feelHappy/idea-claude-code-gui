@@ -50,7 +50,8 @@ public class GitNexusHandler extends BaseMessageHandler {
             "get_gitnexus_status",
             "install_gitnexus",
             "update_gitnexus",
-            "reindex_gitnexus"
+            "reindex_gitnexus",
+            "uninstall_gitnexus"
     };
     /**
      * 安装互斥锁——实例级别而非 static，防止切换项目后锁泄漏。
@@ -93,6 +94,9 @@ public class GitNexusHandler extends BaseMessageHandler {
                 return true;
             case "reindex_gitnexus":
                 handleInstall(content, true, false);
+                return true;
+            case "uninstall_gitnexus":
+                handleUninstall(content);
                 return true;
             default:
                 return false;
@@ -171,8 +175,29 @@ public class GitNexusHandler extends BaseMessageHandler {
                     return;
                 }
 
+                // When updating or force-reindexing, clean stale index data first.
+                // Old database files created by a previous gitnexus version may be
+                // structurally incompatible, causing "Maximum call stack size exceeded"
+                // errors during the analyze phase.
+                if (updateRequested || forceReindex) {
+                    Path indexDir = repoRoot.resolve(".gitnexus");
+                    Path dbFile = indexDir.resolve("lbug");
+                    if (Files.exists(dbFile)) {
+                        sendInstallProgress(providerConfig, "Cleaning stale index data...");
+                        try {
+                            Files.deleteIfExists(dbFile);
+                            LOG.info("[GitNexusHandler] Deleted stale database file before "
+                                    + (updateRequested ? "update" : "reindex") + ": " + dbFile);
+                        } catch (Exception e) {
+                            LOG.warn("[GitNexusHandler] Failed to delete stale db file: " + e.getMessage());
+                        }
+                    }
+                }
+
                 sendInstallProgress(providerConfig, forceReindex
                         ? "Rebuilding the GitNexus index for the current repository..."
+                        : updateRequested
+                        ? "Updating the GitNexus index for the current repository..."
                         : "Indexing the current repository with GitNexus...");
                 List<String> analyzeCommand = new ArrayList<>();
                 analyzeCommand.add(npxExecutable);
@@ -180,7 +205,7 @@ public class GitNexusHandler extends BaseMessageHandler {
                 analyzeCommand.add("gitnexus@latest");
                 analyzeCommand.add("analyze");
                 analyzeCommand.add("--skills");
-                if (forceReindex) {
+                if (forceReindex || updateRequested) {
                     analyzeCommand.add("--force");
                 }
 
@@ -237,6 +262,139 @@ public class GitNexusHandler extends BaseMessageHandler {
     }
 
     /**
+     * 卸载当前仓库的 GitNexus 索引和配置。
+     * 删除 .gitnexus 目录、项目级生成的 skills，并清理全局 registry 中的仓库条目。
+     */
+    private void handleUninstall(String content) {
+        GitNexusProviderConfig providerConfig = resolveProvider(content);
+        if (providerConfig == null) {
+            sendInstallResult(false, null,
+                    "GitNexus onboarding is only available for Claude Code and Codex.", null);
+            return;
+        }
+
+        if (!installInProgress.compareAndSet(false, true)) {
+            LOG.info("[GitNexusHandler] Ignoring uninstall because another task is running.");
+            sendInstallBusyResult(providerConfig);
+            return;
+        }
+
+        CompletableFuture.runAsync(() -> {
+            StringBuilder logs = new StringBuilder();
+            try {
+                Path repoRoot = resolveRepoRoot();
+                if (repoRoot == null) {
+                    sendInstallResult(false, providerConfig,
+                            "Cannot resolve repository root.", null);
+                    return;
+                }
+
+                // 1. Delete .gitnexus directory (index database + meta)
+                Path indexDir = repoRoot.resolve(".gitnexus");
+                if (Files.isDirectory(indexDir)) {
+                    sendInstallProgress(providerConfig, "Removing index data (.gitnexus)...");
+                    deleteDirectoryRecursively(indexDir);
+                    logs.append("Deleted ").append(indexDir).append('\n');
+                }
+
+                // 2. Delete project-level generated skills
+                Path generatedSkills = repoRoot.resolve(".claude")
+                        .resolve("skills").resolve("generated");
+                if (Files.isDirectory(generatedSkills)) {
+                    sendInstallProgress(providerConfig, "Removing generated skills...");
+                    deleteDirectoryRecursively(generatedSkills);
+                    logs.append("Deleted ").append(generatedSkills).append('\n');
+                }
+
+                // 3. Run `gitnexus clean` to remove MCP config and global registry entry
+                NodeDetectionResult nodeResult = detectNodeEnvironment();
+                if (nodeResult != null && nodeResult.isFound()) {
+                    String npxExecutable = resolveNpxExecutable(nodeResult.getNodePath());
+                    sendInstallProgress(providerConfig,
+                            "Cleaning MCP config and global registry...");
+                    int cleanExitCode = runLoggedProcess(
+                            createCommand(npxExecutable, "-y", "gitnexus@latest", "clean"),
+                            repoRoot,
+                            nodeResult.getNodePath(),
+                            providerConfig,
+                            logs,
+                            5
+                    );
+                    if (cleanExitCode != 0) {
+                        logs.append("gitnexus clean exited with code ")
+                                .append(cleanExitCode).append('\n');
+                    }
+                }
+
+                sendInstallResult(true, providerConfig,
+                        "GitNexus has been uninstalled from this repository.", logs.toString());
+                sendStatus(buildStatus(providerConfig));
+            } catch (Exception e) {
+                LOG.error("[GitNexusHandler] Failed to uninstall GitNexus: " + e.getMessage(), e);
+                String combinedLogs = logs.toString().trim();
+                sendInstallResult(false, providerConfig,
+                        "Failed to uninstall GitNexus: " + e.getMessage(),
+                        combinedLogs.isEmpty() ? null : combinedLogs);
+            } finally {
+                installInProgress.set(false);
+            }
+        }, AppExecutorUtil.getAppExecutorService()).exceptionally(ex -> {
+            LOG.error("[GitNexusHandler] Unexpected uninstall error: " + ex.getMessage(), ex);
+            sendInstallResult(false, providerConfig,
+                    "Failed to uninstall GitNexus: " + ex.getMessage(), null);
+            installInProgress.set(false);
+            return null;
+        });
+    }
+
+    /**
+     * 递归删除目录及其内容。
+     */
+    private void deleteDirectoryRecursively(Path dir) {
+        if (dir == null || !Files.exists(dir)) {
+            return;
+        }
+        try {
+            java.nio.file.Files.walk(dir)
+                    .sorted(java.util.Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (Exception e) {
+                            LOG.warn("[GitNexusHandler] Failed to delete: " + path + " (" + e.getMessage() + ")");
+                        }
+                    });
+        } catch (Exception e) {
+            LOG.warn("[GitNexusHandler] Failed to walk directory for deletion: " + dir + " (" + e.getMessage() + ")");
+        }
+    }
+
+    /**
+     * 计算 .gitnexus 目录的总大小（MB），用于前端展示磁盘占用。
+     */
+    private double calculateIndexSizeMb(Path indexDir) {
+        if (indexDir == null || !Files.isDirectory(indexDir)) {
+            return 0.0;
+        }
+        try {
+            long totalBytes = java.nio.file.Files.walk(indexDir)
+                    .filter(Files::isRegularFile)
+                    .mapToLong(path -> {
+                        try {
+                            return Files.size(path);
+                        } catch (Exception e) {
+                            return 0L;
+                        }
+                    })
+                    .sum();
+            return totalBytes / (1024.0 * 1024.0);
+        } catch (Exception e) {
+            LOG.debug("[GitNexusHandler] Failed to calculate index size: " + e.getMessage());
+            return 0.0;
+        }
+    }
+
+    /**
      * 构建前端消费的 GitNexus 状态对象。
      */
     private JsonObject buildStatus(GitNexusProviderConfig providerConfig) {
@@ -290,6 +448,8 @@ public class GitNexusHandler extends BaseMessageHandler {
         boolean indexDirExists = indexDir != null && Files.isDirectory(indexDir);
         boolean registryExists = Files.isRegularFile(registryFile);
         String installedVersion = resolveInstalledVersion(indexDir);
+        boolean versionTrackingMissing = (indexDirExists || registryExists)
+                && (installedVersion == null || installedVersion.trim().isEmpty());
         String latestVersion = nodeAvailable && (indexDirExists || registryExists)
                 ? ToolkitVersionUtil.getLatestNpmVersion(
                         nodeResult.getNodePath(),
@@ -301,9 +461,17 @@ public class GitNexusHandler extends BaseMessageHandler {
         status.addProperty("repositoryDetected", repositoryDetected);
         status.addProperty("indexDirExists", indexDirExists);
         status.addProperty("registryExists", registryExists);
+        status.addProperty("versionTrackingMissing", versionTrackingMissing);
+        double indexSizeMb = calculateIndexSizeMb(indexDir);
+        if (indexSizeMb > 0) {
+            status.addProperty("indexSizeMb", Math.round(indexSizeMb * 10.0) / 10.0);
+        }
         status.addProperty("setupHintCommand", "npx -y gitnexus@latest setup");
         status.addProperty("analyzeHintCommand", "npx -y gitnexus@latest analyze --skills");
         ToolkitVersionUtil.applyVersionInfo(status, installedVersion, latestVersion);
+        if (versionTrackingMissing && latestVersion != null && !latestVersion.trim().isEmpty()) {
+            status.addProperty("hasUpdate", true);
+        }
 
         if (!repositoryDetected) {
             status.addProperty("state", "error");

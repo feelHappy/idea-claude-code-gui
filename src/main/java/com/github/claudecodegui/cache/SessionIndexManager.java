@@ -315,17 +315,15 @@ public class SessionIndexManager {
         }
 
         try {
-            // Count files first (recursive walk for nested year/month/day structure)
-            long currentFileCount;
-            try (Stream<Path> paths = Files.walk(sessionsDir)) {
-                currentFileCount = paths
-                    .filter(Files::isRegularFile)
-                    .filter(p -> p.toString().endsWith(".jsonl"))
-                    .count();
-            }
+            CodexDirState currentState = getCodexDirState(sessionsDir);
+            long currentFileCount = currentState.fileCount;
 
             if (currentFileCount == projectIndex.fileCount) {
-                return UpdateType.NONE;
+                if (currentState.latestFileModified <= projectIndex.lastDirScanTime) {
+                    return UpdateType.NONE;
+                }
+                LOG.info("[SessionIndexManager] Codex session content changed without file count change, full update");
+                return UpdateType.FULL;
             } else if (currentFileCount > projectIndex.fileCount) {
                 LOG.info("[SessionIndexManager] Codex file count increased: " + projectIndex.fileCount + " -> " + currentFileCount + ", incremental update");
                 return UpdateType.INCREMENTAL;
@@ -415,5 +413,34 @@ public class SessionIndexManager {
         SessionIndex index = new SessionIndex();
         saveCodexIndex(index);
         LOG.info("[SessionIndexManager] All Codex indexes cleared");
+    }
+
+    private CodexDirState getCodexDirState(Path sessionsDir) throws IOException {
+        long fileCount = 0;
+        long latestFileModified = 0;
+
+        try (Stream<Path> paths = Files.walk(sessionsDir)) {
+            for (Path path : (Iterable<Path>) paths
+                    .filter(Files::isRegularFile)
+                    .filter(p -> p.toString().endsWith(".jsonl"))::iterator) {
+                fileCount++;
+                long fileModified = Files.getLastModifiedTime(path).toMillis();
+                if (fileModified > latestFileModified) {
+                    latestFileModified = fileModified;
+                }
+            }
+        }
+
+        return new CodexDirState(fileCount, latestFileModified);
+    }
+
+    private static class CodexDirState {
+        private final long fileCount;
+        private final long latestFileModified;
+
+        private CodexDirState(long fileCount, long latestFileModified) {
+            this.fileCount = fileCount;
+            this.latestFileModified = latestFileModified;
+        }
     }
 }

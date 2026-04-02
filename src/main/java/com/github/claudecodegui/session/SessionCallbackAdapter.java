@@ -32,6 +32,8 @@ public class SessionCallbackAdapter implements ClaudeSession.SessionCallback {
     private final PermissionHandler permissionHandler;
     private final BooleanSupplier slashCommandsFetchedSupplier;
     private final Runnable streamEndCallback;
+    private final DeltaCoalescer contentDeltaCoalescer;
+    private final DeltaCoalescer thinkingDeltaCoalescer;
     private volatile boolean active = true;
 
     public SessionCallbackAdapter(
@@ -46,10 +48,14 @@ public class SessionCallbackAdapter implements ClaudeSession.SessionCallback {
         this.permissionHandler = permissionHandler;
         this.slashCommandsFetchedSupplier = slashCommandsFetchedSupplier;
         this.streamEndCallback = streamEndCallback;
+        this.contentDeltaCoalescer = new DeltaCoalescer("onContentDelta", jsTarget);
+        this.thinkingDeltaCoalescer = new DeltaCoalescer("onThinkingDelta", jsTarget);
     }
 
     public void deactivate() {
         active = false;
+        contentDeltaCoalescer.reset();
+        thinkingDeltaCoalescer.reset();
     }
 
     private boolean isInactive() {
@@ -194,6 +200,11 @@ public class SessionCallbackAdapter implements ClaudeSession.SessionCallback {
         if (isInactive()) {
             return;
         }
+        // Flush any pending deltas before the stream-end signal reaches the frontend,
+        // so the final content/thinking tokens are rendered before "onStreamEnd".
+        contentDeltaCoalescer.flush();
+        thinkingDeltaCoalescer.flush();
+
         streamCoalescer.onStreamEnd();
         streamCoalescer.flush(() -> {
             if (isInactive()) {
@@ -213,7 +224,7 @@ public class SessionCallbackAdapter implements ClaudeSession.SessionCallback {
         if (isInactive()) {
             return;
         }
-        jsTarget.callJavaScript("onContentDelta", JsUtils.escapeJs(delta));
+        contentDeltaCoalescer.append(delta);
     }
 
     @Override
@@ -221,7 +232,7 @@ public class SessionCallbackAdapter implements ClaudeSession.SessionCallback {
         if (isInactive()) {
             return;
         }
-        jsTarget.callJavaScript("onThinkingDelta", JsUtils.escapeJs(delta));
+        thinkingDeltaCoalescer.append(delta);
     }
 
     @Override
@@ -245,6 +256,7 @@ public class SessionCallbackAdapter implements ClaudeSession.SessionCallback {
      * Dispose internal resources. Call when the parent window is disposed.
      */
     public void dispose() {
-        // No-op: no resources to dispose currently
+        contentDeltaCoalescer.dispose();
+        thinkingDeltaCoalescer.dispose();
     }
 }

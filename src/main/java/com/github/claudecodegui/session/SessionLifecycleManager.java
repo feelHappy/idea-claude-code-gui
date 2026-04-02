@@ -95,7 +95,10 @@ public class SessionLifecycleManager {
                                                           ? oldSession.interrupt()
                                                           : CompletableFuture.completedFuture(null);
 
-        interruptFuture.thenRun(() -> {
+        // Use thenRunAsync to guarantee the callback runs on a pooled thread,
+        // NOT on the EDT. This is critical because resetPersistentRuntime() calls
+        // future.get(15, SECONDS) which would freeze the entire IDE if executed on EDT.
+        interruptFuture.thenRunAsync(() -> {
             if (oldSession != null) {
                 host.getClaudeSDKBridge().resetPersistentRuntime(oldSession.getRuntimeSessionEpoch());
                 LOG.info("[Lifecycle] Requested daemon runtime reset for old epoch=" + oldSession.getRuntimeSessionEpoch());
@@ -187,7 +190,10 @@ public class SessionLifecycleManager {
                 ? oldSession.interrupt()
                 : CompletableFuture.completedFuture(null);
 
-        interruptFuture.thenRun(() -> {
+        // Use thenRunAsync to guarantee the callback runs on a pooled thread,
+        // NOT on the EDT. This is critical because resetPersistentRuntime() calls
+        // future.get(15, SECONDS) which would freeze the entire IDE if executed on EDT.
+        interruptFuture.thenRunAsync(() -> {
             if (oldSession != null) {
                 host.getClaudeSDKBridge().resetPersistentRuntime(oldSession.getRuntimeSessionEpoch());
                 LOG.info("[Lifecycle] Requested daemon runtime reset before history load for old epoch="

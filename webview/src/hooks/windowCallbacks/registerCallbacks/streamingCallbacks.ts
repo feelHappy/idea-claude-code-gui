@@ -37,6 +37,31 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
     patchAssistantForStreaming,
   } = options;
 
+  const findStreamingAssistantIndex = (messages: any[]): number => {
+    const turnId = streamingTurnIdRef.current;
+    if (turnId > 0) {
+      for (let i = messages.length - 1; i >= 0; i -= 1) {
+        if (messages[i]?.type === 'assistant' && messages[i].__turnId === turnId) {
+          return i;
+        }
+      }
+    }
+
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i]?.type === 'assistant' && messages[i].isStreaming) {
+        return i;
+      }
+    }
+
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i]?.type === 'assistant') {
+        return i;
+      }
+    }
+
+    return -1;
+  };
+
   window.onStreamStart = () => {
     if (window.__sessionTransitioning) return;
     streamingContentRef.current = '';
@@ -206,15 +231,35 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
     // processes updaters in enqueue order.
     setMessages((prev) => {
       let newMessages = prev;
-      const idx = streamingMessageIndexRef.current;
+      let idx = streamingMessageIndexRef.current;
+      if (!(idx >= 0 && idx < prev.length && prev[idx]?.type === 'assistant')) {
+        idx = findStreamingAssistantIndex(prev);
+      }
+
       if (prev.length > 0 && idx >= 0 && idx < prev.length && prev[idx]?.type === 'assistant') {
         const finalContent = streamingContentRef.current;
         newMessages = [...prev];
-        newMessages[idx] = {
+        const finalizedAssistant = patchAssistantForStreaming({
           ...newMessages[idx],
           content: finalContent || newMessages[idx].content,
+          isStreaming: true,
+        });
+        newMessages[idx] = {
+          ...finalizedAssistant,
+          content: finalContent || finalizedAssistant.content,
           isStreaming: false,
         };
+      } else if (streamingContentRef.current) {
+        newMessages = [
+          ...prev,
+          {
+            type: 'assistant',
+            content: streamingContentRef.current,
+            isStreaming: false,
+            timestamp: new Date().toISOString(),
+            __turnId: streamingTurnIdRef.current > 0 ? streamingTurnIdRef.current : undefined,
+          },
+        ];
       }
 
       // Clear all streaming refs AFTER flushing content, inside the updater

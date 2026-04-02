@@ -22,6 +22,7 @@ import type {
   BmadToolbarProps,
   GitNexusToolbarProps,
   ImpeccableToolbarProps,
+  MiniMaxToolbarProps,
   UiUxToolbarProps,
 } from '../types.js';
 import {
@@ -55,6 +56,14 @@ import {
   getImpeccableCommandPresets,
   isImpeccableProviderSupported,
 } from '../impeccableCommands.js';
+import {
+  type MiniMaxCommandPreset,
+  type MiniMaxStatus,
+  createDefaultMiniMaxStatus,
+  formatMiniMaxCommand,
+  getMiniMaxCommandPresets,
+  isMiniMaxProviderSupported,
+} from '../minimaxCommands.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,6 +74,7 @@ export interface ToolkitIntegrationsResult {
   gitNexus: GitNexusToolbarProps | undefined;
   uiUxPro: UiUxToolbarProps | undefined;
   impeccable: ImpeccableToolbarProps | undefined;
+  minimax: MiniMaxToolbarProps | undefined;
 }
 
 interface UseToolkitIntegrationsOptions {
@@ -80,9 +90,10 @@ interface UseToolkitIntegrationsOptions {
 
 const STATUS_BOOTSTRAP_RETRY_DELAYS_MS = [200, 900, 2500];
 type BmadOperation = 'install' | 'update' | null;
-type GitNexusOperation = 'install' | 'update' | 'reindex' | null;
+type GitNexusOperation = 'install' | 'update' | 'reindex' | 'uninstall' | null;
 type UiUxOperation = 'install' | 'update' | null;
 type ImpeccableOperation = 'install' | 'update' | null;
+type MiniMaxOperation = 'install' | 'update' | null;
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -144,10 +155,15 @@ export function useToolkitIntegrations({
   const [impeccableInstallLog, setImpeccableInstallLog] = useState('');
   const [impeccableOperation, setImpeccableOperation] = useState<ImpeccableOperation>(null);
   const [impeccableSelectedPresetId, setImpeccableSelectedPresetId] = useState('');
+  const [minimaxStatus, setMinimaxStatus] = useState<MiniMaxStatus>(() => createDefaultMiniMaxStatus(currentProvider));
+  const [minimaxInstallLog, setMinimaxInstallLog] = useState('');
+  const [minimaxOperation, setMinimaxOperation] = useState<MiniMaxOperation>(null);
+  const [minimaxSelectedPresetId, setMinimaxSelectedPresetId] = useState('');
   const bmadRequestOperationRef = useRef<BmadOperation>(null);
   const gitNexusRequestOperationRef = useRef<GitNexusOperation>(null);
   const uiUxRequestOperationRef = useRef<UiUxOperation>(null);
   const impeccableRequestOperationRef = useRef<ImpeccableOperation>(null);
+  const minimaxRequestOperationRef = useRef<MiniMaxOperation>(null);
 
   // Refs for latest state in callbacks
   const bmadSelectedRef = useRef(bmadSelectedPresetId);
@@ -158,6 +174,8 @@ export function useToolkitIntegrations({
   uiUxSelectedRef.current = uiUxSelectedPresetId;
   const impeccableSelectedRef = useRef(impeccableSelectedPresetId);
   impeccableSelectedRef.current = impeccableSelectedPresetId;
+  const minimaxSelectedRef = useRef(minimaxSelectedPresetId);
+  minimaxSelectedRef.current = minimaxSelectedPresetId;
   const bmadStateRef = useRef<BmadStatus['state']>(bmadStatus.state);
   bmadStateRef.current = bmadStatus.state;
   const gitNexusStateRef = useRef<GitNexusStatus['state']>(gitNexusStatus.state);
@@ -166,6 +184,8 @@ export function useToolkitIntegrations({
   uiUxStateRef.current = uiUxStatus.state;
   const impeccableStateRef = useRef<ImpeccableStatus['state']>(impeccableStatus.state);
   impeccableStateRef.current = impeccableStatus.state;
+  const minimaxStateRef = useRef<MiniMaxStatus['state']>(minimaxStatus.state);
+  minimaxStateRef.current = minimaxStatus.state;
 
   // =========================================================================
   // Derived presets lists
@@ -181,6 +201,10 @@ export function useToolkitIntegrations({
     () => getImpeccableCommandPresets(impeccableStatus.availableCommands),
     [impeccableStatus.availableCommands],
   );
+  const minimaxPresets: MiniMaxCommandPreset[] = useMemo(
+    () => getMiniMaxCommandPresets(minimaxStatus.availableCommands),
+    [minimaxStatus.availableCommands],
+  );
 
   // =========================================================================
   // Provider support checks
@@ -189,6 +213,7 @@ export function useToolkitIntegrations({
   const gitNexusSupported = isGitNexusProviderSupported(currentProvider);
   const uiUxSupported = isUiUxProviderSupported(currentProvider);
   const impeccableSupported = isImpeccableProviderSupported(currentProvider);
+  const minimaxSupported = isMiniMaxProviderSupported(currentProvider);
   const toolkitUiLanguage = i18n.resolvedLanguage || i18n.language || 'en';
 
   useEffect(() => {
@@ -242,6 +267,19 @@ export function useToolkitIntegrations({
       setImpeccableSelectedPresetId(impeccablePresets[0].id);
     }
   }, [impeccablePresets, impeccableSelectedPresetId]);
+
+  useEffect(() => {
+    if (minimaxPresets.length === 0) {
+      if (minimaxSelectedPresetId) {
+        setMinimaxSelectedPresetId('');
+      }
+      return;
+    }
+
+    if (!minimaxPresets.some((preset) => preset.id === minimaxSelectedPresetId)) {
+      setMinimaxSelectedPresetId(minimaxPresets[0].id);
+    }
+  }, [minimaxPresets, minimaxSelectedPresetId]);
 
   // =========================================================================
   // Window callback registration (Java → JS)
@@ -421,7 +459,9 @@ export function useToolkitIntegrations({
               ? 'chat.gitNexus.updateSuccess'
               : operation === 'reindex'
                 ? 'chat.gitNexus.reindexSuccess'
-                : 'chat.gitNexus.installSuccess';
+                : operation === 'uninstall'
+                  ? 'chat.gitNexus.uninstallSuccess'
+                  : 'chat.gitNexus.installSuccess';
           addToast?.(
             t(messageKey, {
               defaultValue:
@@ -429,7 +469,9 @@ export function useToolkitIntegrations({
                   ? 'GitNexus has been updated for {{provider}}.'
                   : operation === 'reindex'
                     ? 'GitNexus has rebuilt the index for {{provider}}.'
-                    : 'GitNexus is ready for {{provider}}.',
+                    : operation === 'uninstall'
+                      ? 'GitNexus has been uninstalled from this repository.'
+                      : 'GitNexus is ready for {{provider}}.',
               provider: providerLabel,
             }),
             'success',
@@ -473,6 +515,9 @@ export function useToolkitIntegrations({
     const previousUpdateImpeccableStatus = window.updateImpeccableStatus;
     const previousImpeccableInstallProgress = window.impeccableInstallProgress;
     const previousImpeccableInstallResult = window.impeccableInstallResult;
+    const previousUpdateMiniMaxStatus = window.updateMiniMaxStatus;
+    const previousMiniMaxInstallProgress = window.miniMaxInstallProgress;
+    const previousMiniMaxInstallResult = window.miniMaxInstallResult;
     window.updateUiUxProStatus = (json: string) => {
       const data = safeParse<Partial<UiUxStatus>>(json);
       if (data) {
@@ -671,6 +716,106 @@ export function useToolkitIntegrations({
       }
     };
 
+    // --- MiniMax ---
+    window.updateMiniMaxStatus = (json: string) => {
+      const data = safeParse<Partial<MiniMaxStatus>>(json);
+      if (data) {
+        const providerId = typeof data.provider === 'string' ? data.provider : currentProvider;
+        if (!isCurrentProvider(providerId)) {
+          return;
+        }
+        setMinimaxStatus({
+          ...createDefaultMiniMaxStatus(providerId),
+          ...data,
+        });
+        if (data.state && data.state !== 'loading' && !minimaxRequestOperationRef.current) {
+          setMinimaxOperation(null);
+        }
+      }
+      if (previousUpdateMiniMaxStatus && previousUpdateMiniMaxStatus !== window.updateMiniMaxStatus) {
+        previousUpdateMiniMaxStatus(json);
+      }
+    };
+    window.miniMaxInstallProgress = (json: string) => {
+      const data = safeParse<{ provider?: string; log?: string }>(json);
+      if (!isCurrentProvider(data?.provider)) {
+        return;
+      }
+      if (data?.log) {
+        setMinimaxInstallLog((prev) => (prev ? prev + '\n' + data.log : data.log!));
+      }
+      if (previousMiniMaxInstallProgress && previousMiniMaxInstallProgress !== window.miniMaxInstallProgress) {
+        previousMiniMaxInstallProgress(json);
+      }
+    };
+    window.miniMaxInstallResult = (json: string) => {
+      const data = safeParse<{ success: boolean; busy?: boolean; provider?: string; error?: string; message?: string; logs?: string }>(json);
+      if (!isCurrentProvider(data?.provider)) {
+        return;
+      }
+      if (data) {
+        const operation = minimaxRequestOperationRef.current;
+        const providerId = typeof data.provider === 'string' ? data.provider : currentProvider;
+        const providerLabel = t(`providers.${providerId}.label`, { defaultValue: providerId });
+        const detailMessage = data.logs?.trim() || data.message || data.error || '';
+        minimaxRequestOperationRef.current = null;
+        setMinimaxOperation(null);
+        if (detailMessage) {
+          setMinimaxInstallLog(detailMessage);
+        }
+        if (data.busy) {
+          addToast?.(
+            t('chat.minimax.installBusy', {
+              defaultValue: 'Another MiniMax task is already running. Please wait and retry.',
+            }),
+            'info',
+          );
+          sendJsonBridgeEvent('get_minimax_status', { provider: currentProvider, language: toolkitUiLanguage });
+          return;
+        }
+        if (data.success) {
+          addToast?.(
+            t(operation === 'update' ? 'chat.minimax.updateSuccess' : 'chat.minimax.installSuccess', {
+              defaultValue: operation === 'update'
+                ? 'MiniMax has been updated for {{provider}}.'
+                : 'MiniMax is ready for {{provider}}.',
+              provider: providerLabel,
+            }),
+            'success',
+          );
+          sendToJava('refresh_slash_commands');
+        } else {
+          addToast?.(
+            detailMessage
+              ? t('chat.minimax.installFailedWithReason', {
+                  defaultValue: 'MiniMax task failed: {{reason}}',
+                  reason: detailMessage,
+                })
+              : t('chat.minimax.installFailed', {
+                  defaultValue: 'MiniMax task failed',
+                }),
+            'error',
+          );
+        }
+        if (!data.busy) {
+          sendJsonBridgeEvent('get_minimax_status', { provider: currentProvider, language: toolkitUiLanguage });
+        }
+      } else {
+        minimaxRequestOperationRef.current = null;
+        setMinimaxOperation(null);
+        addToast?.(
+          t('chat.minimax.resultParseFailed', {
+            defaultValue: 'Failed to process the MiniMax task result.',
+          }),
+          'error',
+        );
+        sendJsonBridgeEvent('get_minimax_status', { provider: currentProvider, language: toolkitUiLanguage });
+      }
+      if (previousMiniMaxInstallResult && previousMiniMaxInstallResult !== window.miniMaxInstallResult) {
+        previousMiniMaxInstallResult(json);
+      }
+    };
+
     return () => {
       window.updateBmadStatus = previousUpdateBmadStatus;
       window.bmadInstallProgress = previousBmadInstallProgress;
@@ -684,6 +829,9 @@ export function useToolkitIntegrations({
       window.updateImpeccableStatus = previousUpdateImpeccableStatus;
       window.impeccableInstallProgress = previousImpeccableInstallProgress;
       window.impeccableInstallResult = previousImpeccableInstallResult;
+      window.updateMiniMaxStatus = previousUpdateMiniMaxStatus;
+      window.miniMaxInstallProgress = previousMiniMaxInstallProgress;
+      window.miniMaxInstallResult = previousMiniMaxInstallResult;
     };
   }, [addToast, currentProvider, sendJsonBridgeEvent, t, toolkitUiLanguage]);
 
@@ -772,10 +920,26 @@ export function useToolkitIntegrations({
       setImpeccableOperation(null);
       impeccableRequestOperationRef.current = null;
     }
+    if (minimaxSupported) {
+      const nextStatus = createDefaultMiniMaxStatus(currentProvider);
+      setMinimaxStatus(nextStatus);
+      minimaxStateRef.current = nextStatus.state;
+      setMinimaxInstallLog('');
+      setMinimaxOperation(null);
+      minimaxRequestOperationRef.current = null;
+      bootstrapStatusRequest('get_minimax_status', { provider: currentProvider, language: toolkitUiLanguage }, minimaxStateRef);
+    } else {
+      const nextStatus = createDefaultMiniMaxStatus(currentProvider);
+      setMinimaxStatus(nextStatus);
+      minimaxStateRef.current = nextStatus.state;
+      setMinimaxInstallLog('');
+      setMinimaxOperation(null);
+      minimaxRequestOperationRef.current = null;
+    }
     return () => {
       cleanupFns.forEach((cleanup) => cleanup());
     };
-  }, [currentProvider, bmadSupported, gitNexusSupported, impeccableSupported, sendJsonBridgeEvent, toolkitUiLanguage, uiUxSupported]);
+  }, [currentProvider, bmadSupported, gitNexusSupported, impeccableSupported, minimaxSupported, sendJsonBridgeEvent, toolkitUiLanguage, uiUxSupported]);
 
   // =========================================================================
   // BMad callbacks
@@ -855,6 +1019,16 @@ export function useToolkitIntegrations({
     setGitNexusOperation('reindex');
     setGitNexusInstallLog('');
     sendJsonBridgeEvent('reindex_gitnexus', { provider: currentProvider, language: toolkitUiLanguage });
+  }, [currentProvider, gitNexusOperation, gitNexusSupported, sendJsonBridgeEvent, toolkitUiLanguage]);
+
+  const gitNexusUninstall = useCallback(() => {
+    if (!gitNexusSupported || gitNexusOperation !== null || gitNexusRequestOperationRef.current) {
+      return;
+    }
+    gitNexusRequestOperationRef.current = 'uninstall';
+    setGitNexusOperation('uninstall');
+    setGitNexusInstallLog('');
+    sendJsonBridgeEvent('uninstall_gitnexus', { provider: currentProvider, language: toolkitUiLanguage });
   }, [currentProvider, gitNexusOperation, gitNexusSupported, sendJsonBridgeEvent, toolkitUiLanguage]);
 
   const gitNexusInsert = useCallback(() => {
@@ -954,6 +1128,47 @@ export function useToolkitIntegrations({
   }, [currentProvider, impeccablePresets, insertTextAndSend]);
 
   // =========================================================================
+  // MiniMax callbacks
+  // =========================================================================
+  const minimaxRefresh = useCallback(() => {
+    sendJsonBridgeEvent('get_minimax_status', { provider: currentProvider, language: toolkitUiLanguage });
+  }, [currentProvider, sendJsonBridgeEvent, toolkitUiLanguage]);
+
+  const minimaxInstall = useCallback(() => {
+    if (!minimaxSupported || minimaxOperation !== null || minimaxRequestOperationRef.current) {
+      return;
+    }
+    minimaxRequestOperationRef.current = 'install';
+    setMinimaxOperation('install');
+    setMinimaxInstallLog('');
+    sendJsonBridgeEvent('install_minimax', { provider: currentProvider, language: toolkitUiLanguage });
+  }, [currentProvider, minimaxOperation, minimaxSupported, sendJsonBridgeEvent, toolkitUiLanguage]);
+
+  const minimaxUpdate = useCallback(() => {
+    if (!minimaxSupported || minimaxOperation !== null || minimaxRequestOperationRef.current || minimaxStatus.hasUpdate !== true) {
+      return;
+    }
+    minimaxRequestOperationRef.current = 'update';
+    setMinimaxOperation('update');
+    setMinimaxInstallLog('');
+    sendJsonBridgeEvent('update_minimax', { provider: currentProvider, language: toolkitUiLanguage });
+  }, [currentProvider, minimaxOperation, minimaxStatus.hasUpdate, minimaxSupported, sendJsonBridgeEvent, toolkitUiLanguage]);
+
+  const minimaxInsert = useCallback(() => {
+    const preset = findSelectedPreset(minimaxPresets, minimaxSelectedRef.current);
+    if (preset) {
+      insertText(`${formatMiniMaxCommand(preset.command, currentProvider)} `);
+    }
+  }, [currentProvider, insertText, minimaxPresets]);
+
+  const minimaxInsertAndSend = useCallback(() => {
+    const preset = findSelectedPreset(minimaxPresets, minimaxSelectedRef.current);
+    if (preset) {
+      insertTextAndSend(formatMiniMaxCommand(preset.command, currentProvider));
+    }
+  }, [currentProvider, insertTextAndSend, minimaxPresets]);
+
+  // =========================================================================
   // Assemble props objects (memoised to avoid unnecessary re-renders)
   // =========================================================================
   const bmadProps: BmadToolbarProps | undefined = useMemo(() => {
@@ -996,15 +1211,17 @@ export function useToolkitIntegrations({
       onInstall: gitNexusInstall,
       onUpdate: gitNexusUpdate,
       onReindex: gitNexusReindex,
+      onUninstall: gitNexusUninstall,
       promptDisabled: gitNexusStatus.state !== 'ready',
       installDisabled: gitNexusOperation !== null,
       updateDisabled: gitNexusOperation !== null || gitNexusStatus.hasUpdate !== true,
       reindexDisabled: gitNexusOperation !== null,
+      uninstallDisabled: gitNexusOperation !== null,
     };
   }, [
     gitNexusSupported, gitNexusPresets, gitNexusSelectedPresetId, gitNexusStatus,
     gitNexusInstallLog, gitNexusScope, gitNexusInsert, gitNexusInsertAndSend,
-    gitNexusRefresh, gitNexusInstall, gitNexusUpdate, gitNexusReindex, gitNexusOperation,
+    gitNexusRefresh, gitNexusInstall, gitNexusUpdate, gitNexusReindex, gitNexusUninstall, gitNexusOperation,
   ]);
 
   const uiUxProProps: UiUxToolbarProps | undefined = useMemo(() => {
@@ -1063,10 +1280,43 @@ export function useToolkitIntegrations({
     impeccableUpdate,
   ]);
 
+  const minimaxProps: MiniMaxToolbarProps | undefined = useMemo(() => {
+    if (!minimaxSupported) return undefined;
+    return {
+      presets: minimaxPresets,
+      selectedPresetId: minimaxSelectedPresetId,
+      status: minimaxStatus,
+      installLog: minimaxInstallLog,
+      operation: minimaxOperation,
+      onPresetChange: setMinimaxSelectedPresetId,
+      onInsert: minimaxInsert,
+      onInsertAndSend: minimaxInsertAndSend,
+      onRefresh: minimaxRefresh,
+      onInstall: minimaxInstall,
+      onUpdate: minimaxUpdate,
+      commandDisabled: minimaxStatus.state !== 'ready',
+      installDisabled: minimaxOperation !== null,
+      updateDisabled: minimaxOperation !== null || minimaxStatus.hasUpdate !== true,
+    };
+  }, [
+    minimaxInstall,
+    minimaxInsert,
+    minimaxInsertAndSend,
+    minimaxInstallLog,
+    minimaxOperation,
+    minimaxPresets,
+    minimaxRefresh,
+    minimaxSelectedPresetId,
+    minimaxStatus,
+    minimaxSupported,
+    minimaxUpdate,
+  ]);
+
   return {
     bmad: bmadProps,
     gitNexus: gitNexusProps,
     uiUxPro: uiUxProProps,
     impeccable: impeccableProps,
+    minimax: minimaxProps,
   };
 }

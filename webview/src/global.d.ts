@@ -648,6 +648,21 @@ interface Window {
   gitNexusInstallResult?: (json: string) => void;
 
   /**
+   * Update MiniMax onboarding status
+   */
+  updateMiniMaxStatus?: (json: string) => void;
+
+  /**
+   * MiniMax install progress callback
+   */
+  miniMaxInstallProgress?: (json: string) => void;
+
+  /**
+   * MiniMax install result callback
+   */
+  miniMaxInstallResult?: (json: string) => void;
+
+  /**
    * Node environment status callback
    */
   nodeEnvironmentStatus?: (json: string) => void;
