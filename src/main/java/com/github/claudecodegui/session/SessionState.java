@@ -47,8 +47,10 @@ public class SessionState {
     private boolean loading = false;
     private String error = null;
 
-    // Message history
-    private final List<ClaudeSession.Message> messages = new ArrayList<>();
+    // Message history — accessed from EDT, CompletableFuture pool threads (retract/rewrite),
+    // and SDK callback threads, so it must be synchronized.
+    private final List<ClaudeSession.Message> messages =
+            Collections.synchronizedList(new ArrayList<>());
 
     // Session metadata — cwd is written in handler thread before send(), read inside send();
     // the happens-before from CompletableFuture.runAsync guarantees visibility, so volatile is not required.
@@ -238,14 +240,16 @@ public class SessionState {
      * Returns the removed messages for content extraction.
      */
     public List<ClaudeSession.Message> truncateMessagesFrom(int fromIndex) {
-        if (fromIndex < 0 || fromIndex >= messages.size()) {
-            return new ArrayList<>();
+        synchronized (messages) {
+            if (fromIndex < 0 || fromIndex >= messages.size()) {
+                return new ArrayList<>();
+            }
+            List<ClaudeSession.Message> removed = new ArrayList<>(
+                messages.subList(fromIndex, messages.size())
+            );
+            messages.subList(fromIndex, messages.size()).clear();
+            return removed;
         }
-        List<ClaudeSession.Message> removed = new ArrayList<>(
-            messages.subList(fromIndex, messages.size())
-        );
-        messages.subList(fromIndex, messages.size()).clear();
-        return removed;
     }
 
     /**

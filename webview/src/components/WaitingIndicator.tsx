@@ -5,9 +5,11 @@ interface WaitingIndicatorProps {
   size?: number;
   /** Loading start timestamp (ms), used to maintain continuous timing across view switches */
   startTime?: number;
+  /** Callback to retract (undo) the last user message before AI responds */
+  onRetract?: () => void;
 }
 
-export const WaitingIndicator = ({ size = 18, startTime }: WaitingIndicatorProps) => {
+export const WaitingIndicator = ({ size = 18, startTime, onRetract }: WaitingIndicatorProps) => {
   const { t } = useTranslation();
   const [dotCount, setDotCount] = useState(1);
   const [elapsedSeconds, setElapsedSeconds] = useState(() => {
@@ -61,6 +63,16 @@ export const WaitingIndicator = ({ size = 18, startTime }: WaitingIndicatorProps
 	        {t('chat.generatingResponse')}<span className="waiting-dots">{dots}</span>
 	        <span className="waiting-seconds">（{t('chat.elapsedTime', { time: formatElapsedTime(elapsedSeconds) })}）</span>
       </span>
+      {onRetract && (
+        <button
+          type="button"
+          className="waiting-retract-btn"
+          onClick={onRetract}
+          title={t('rewrite.retractTooltip')}
+        >
+          {t('rewrite.retractTooltip')}
+        </button>
+      )}
     </div>
   );
 };

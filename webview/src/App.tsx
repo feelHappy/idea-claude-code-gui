@@ -288,12 +288,15 @@ const App = () => {
   }, []);
 
   // ── Message sender ──
-  // Wrap handleProviderSelect to also clear messages and input (like creating a new session)
+  // Wrap handleProviderSelect to also reset the backend session when switching providers.
+  // Without this, the old daemon/thread stays alive and the new provider can't work.
   const wrappedHandleProviderSelect = useCallback((providerId: string) => {
-    setMessages([]);
+    if (currentProviderRef.current === providerId) return;
+
     chatInputRef.current?.clear();
     handleProviderSelect(providerId);
-  }, [handleProviderSelect]);
+    forceCreateNewSession();
+  }, [handleProviderSelect, forceCreateNewSession]);
 
   const {
     handleSubmit: hookHandleSubmit,
@@ -376,10 +379,10 @@ const App = () => {
 
   // ── Rewrite handlers ──
   const {
-    handleRewriteClick, handleRewriteConfirm, handleRewriteCancel,
+    handleRewriteClick, handleRewriteConfirm, handleRewriteCancel, handleRetractClick,
   } = useRewriteHandlers({
     t, addToast, currentSessionId,
-    currentProvider, mergedMessages, loading,
+    currentProvider, messages, mergedMessages, loading,
     getMessageText,
     setCurrentRewriteRequest, setRewriteDialogOpen,
     setIsRewriting, isRewriting,
@@ -528,6 +531,7 @@ const App = () => {
                 onMessageNodeRef={handleMessageNodeRef}
                 onCollapsedCountChange={setAnchorCollapsedCount}
                 onRewriteClick={handleRewriteClick}
+                onRetractClick={handleRetractClick}
                 onNavigateToProviderSettings={() => {
                   setSettingsInitialTab('providers');
                   setCurrentView('settings');

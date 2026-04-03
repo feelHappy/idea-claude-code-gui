@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import type { TFunction } from 'i18next';
 import type { ClaudeMessage, ClaudeContentBlock } from '../types';
 import type { Attachment } from '../components/ChatInputBox/types';
@@ -11,6 +11,7 @@ export interface UseRewriteHandlersOptions {
   addToast: (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
   currentSessionId: string | null;
   currentProvider: string;
+  messages: ClaudeMessage[];
   mergedMessages: ClaudeMessage[];
   loading: boolean;
   getMessageText: (message: ClaudeMessage) => string;
@@ -50,7 +51,7 @@ function isToolResultOnlyUserMessage(msg: ClaudeMessage): boolean {
 /**
  * Extract attachments (images + files) from a message's raw content blocks
  */
-function extractAttachments(message: ClaudeMessage): Attachment[] {
+export function extractAttachments(message: ClaudeMessage): Attachment[] {
   const raw = message.raw;
   if (!raw || typeof raw === 'string') return [];
 
@@ -65,17 +66,34 @@ function extractAttachments(message: ClaudeMessage): Attachment[] {
     if (!block || typeof block !== 'object') continue;
     const b = block as Record<string, unknown>;
 
-    if (b.type === 'image' && typeof b.src === 'string') {
-      const src = b.src as string;
-      const base64Match = src.match(/^data:([^;]+);base64,(.+)$/);
-      if (base64Match) {
-        imageCounter++;
-        result.push({
-          id: `rewrite-img-${Date.now()}-${imageCounter}`,
-          fileName: (typeof b.alt === 'string' && b.alt) || `image-${imageCounter}.png`,
-          mediaType: base64Match[1],
-          data: base64Match[2],
-        });
+    if (b.type === 'image') {
+      // Format 1: Frontend direct format - { type: 'image', src: 'data:...;base64,...' }
+      if (typeof b.src === 'string') {
+        const src = b.src as string;
+        const base64Match = src.match(/^data:([^;]+);base64,(.+)$/);
+        if (base64Match) {
+          imageCounter++;
+          result.push({
+            id: `rewrite-img-${Date.now()}-${imageCounter}`,
+            fileName: (typeof b.alt === 'string' && b.alt) || `image-${imageCounter}.png`,
+            mediaType: base64Match[1],
+            data: base64Match[2],
+          });
+        }
+      }
+      // Format 2: Backend/API format - { type: 'image', source: { type: 'base64', media_type, data } }
+      else if (b.source && typeof b.source === 'object') {
+        const source = b.source as Record<string, unknown>;
+        if (source.type === 'base64' && typeof source.data === 'string') {
+          imageCounter++;
+          const mediaType = typeof source.media_type === 'string' ? source.media_type : 'image/png';
+          result.push({
+            id: `rewrite-img-${Date.now()}-${imageCounter}`,
+            fileName: `image-${imageCounter}.png`,
+            mediaType,
+            data: source.data,
+          });
+        }
       }
     }
   }
@@ -89,6 +107,7 @@ export function useRewriteHandlers(options: UseRewriteHandlersOptions): UseRewri
     addToast,
     currentSessionId,
     currentProvider,
+    messages,
     mergedMessages,
     loading,
     getMessageText,
@@ -107,11 +126,6 @@ export function useRewriteHandlers(options: UseRewriteHandlersOptions): UseRewri
    * Click "rewrite" on a user message → show confirmation dialog
    */
   const handleRewriteClick = useCallback((messageIndex: number, message: ClaudeMessage) => {
-    if (!currentSessionId) {
-      addToast(t('rewrite.notAvailable'), 'warning');
-      return;
-    }
-
     // Walk back to find a real user text message if this is tool-result-only
     let targetIndex = messageIndex;
     let targetMessage: ClaudeMessage = message;
@@ -126,10 +140,17 @@ export function useRewriteHandlers(options: UseRewriteHandlersOptions): UseRewri
       }
     }
 
-    // Extract UUID from message
+    // Extract UUID from message if available (Claude has UUID, Codex may not)
     const raw = targetMessage.raw;
     const uuid = typeof raw === 'object' ? (raw as Record<string, unknown>)?.uuid : undefined;
-    if (!uuid) {
+
+    // Use UUID if available, otherwise generate a fallback ID.
+    // The backend will look up the real UUID from JSONL history when needed.
+    const userMessageId = (uuid as string) || `ts-${targetMessage.timestamp || Date.now()}`;
+
+    // Find the real index in the raw messages array (mergedMessages index may differ)
+    const rawIndex = messages.findIndex(m => m === targetMessage);
+    if (rawIndex < 0) {
       addToast(t('rewrite.notAvailable'), 'warning');
       return;
     }
@@ -139,10 +160,11 @@ export function useRewriteHandlers(options: UseRewriteHandlersOptions): UseRewri
     const timestamp = targetMessage.timestamp ? formatTime(targetMessage.timestamp) : undefined;
     const attachments = extractAttachments(targetMessage);
 
+    // Use backend session ID as fallback when frontend state is out of sync
     setCurrentRewriteRequest({
-      sessionId: currentSessionId,
-      userMessageId: uuid as string,
-      messageIndex: targetIndex,
+      sessionId: currentSessionId || '',
+      userMessageId,
+      messageIndex: rawIndex,
       messageContent: content,
       messageTimestamp: timestamp,
       messagesAfterCount,
@@ -151,7 +173,7 @@ export function useRewriteHandlers(options: UseRewriteHandlersOptions): UseRewri
       provider: currentProvider,
     });
     setRewriteDialogOpen(true);
-  }, [currentSessionId, currentProvider, mergedMessages, getMessageText, setCurrentRewriteRequest, setRewriteDialogOpen, addToast, t]);
+  }, [currentSessionId, currentProvider, messages, mergedMessages, getMessageText, setCurrentRewriteRequest, setRewriteDialogOpen, addToast, t]);
 
   /**
    * Confirm rewrite: call backend to truncate history
@@ -176,16 +198,26 @@ export function useRewriteHandlers(options: UseRewriteHandlersOptions): UseRewri
 
   /**
    * Scenario A: Retract last message before AI responds
-   * Only available when loading=true and last message is a user message
+   * Only available when loading=true and a recent user message exists near the tail.
+   * Uses a ref guard to prevent rapid double-clicks from sending multiple retract requests.
+   * The guard resets automatically when loading becomes false (retract completed or failed).
    */
+  const isRetractingRef = useRef(false);
+  if (!loading) isRetractingRef.current = false;
   const handleRetractClick = useCallback(() => {
-    if (!currentSessionId || !loading) return;
+    if (!loading || isRetractingRef.current) return;
 
-    const lastMessage = mergedMessages[mergedMessages.length - 1];
-    if (!lastMessage || lastMessage.type !== 'user') return;
+    // Only allow retract if there's a user message near the tail of the conversation
+    // (not just any user message deep in history)
+    let lastUserIdx = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].type === 'user') { lastUserIdx = i; break; }
+    }
+    if (lastUserIdx < 0 || lastUserIdx < messages.length - 3) return;
 
-    retractMessage(currentSessionId, currentProvider);
-  }, [currentSessionId, currentProvider, mergedMessages, loading]);
+    isRetractingRef.current = true;
+    retractMessage(currentSessionId || '', currentProvider);
+  }, [currentSessionId, currentProvider, messages, loading]);
 
   return {
     handleRewriteClick,

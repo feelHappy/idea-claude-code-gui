@@ -124,7 +124,12 @@ public class StreamMessageCoalescer {
             return;
         }
 
-        sendToWebView(snapshot, sequence, afterFlushOnEdt);
+        // When afterFlushOnEdt is provided (stream end), force delivery to bypass the
+        // stale sequence check. This prevents a race where syncUserMessageUuidsAfterSend
+        // (or any other async enqueue) increments updateSequence between this flush() and
+        // the pooled-thread execution, causing the final updateMessages to be silently dropped
+        // while onStreamEnd still fires — leaving the frontend with stale/empty content.
+        sendToWebView(snapshot, sequence, afterFlushOnEdt, afterFlushOnEdt != null);
     }
 
     /**
@@ -171,7 +176,7 @@ public class StreamMessageCoalescer {
             }
 
             if (snapshot != null) {
-                sendToWebView(snapshot, sequence, null);
+                sendToWebView(snapshot, sequence, null, false);
             }
 
             boolean hasPending;
@@ -184,10 +189,16 @@ public class StreamMessageCoalescer {
         }, delayMs);
     }
 
+    /**
+     * @param forceDelivery when true, skip the stale sequence check so the updateMessages
+     *                      call is guaranteed to reach the webview. Used for stream-end flushes
+     *                      where dropping the final message update would leave the UI blank.
+     */
     private void sendToWebView(
             List<ClaudeSession.Message> messages,
             long sequence,
-            Runnable afterSendOnEdt
+            Runnable afterSendOnEdt,
+            boolean forceDelivery
     ) {
         // Keep the snapshot for potential re-flush after webview reload/recreate
         synchronized (lock) {
@@ -202,12 +213,14 @@ public class StreamMessageCoalescer {
                 }
                 return;
             }
-            synchronized (lock) {
-                if (sequence != updateSequence) {
-                    if (afterSendOnEdt != null) {
-                        ApplicationManager.getApplication().invokeLater(afterSendOnEdt);
+            if (!forceDelivery) {
+                synchronized (lock) {
+                    if (sequence != updateSequence) {
+                        if (afterSendOnEdt != null) {
+                            ApplicationManager.getApplication().invokeLater(afterSendOnEdt);
+                        }
+                        return;
                     }
-                    return;
                 }
             }
 
@@ -230,12 +243,14 @@ public class StreamMessageCoalescer {
                     return;
                 }
 
-                synchronized (lock) {
-                    if (sequence != updateSequence) {
-                        if (afterSendOnEdt != null) {
-                            afterSendOnEdt.run();
+                if (!forceDelivery) {
+                    synchronized (lock) {
+                        if (sequence != updateSequence) {
+                            if (afterSendOnEdt != null) {
+                                afterSendOnEdt.run();
+                            }
+                            return;
                         }
-                        return;
                     }
                 }
 

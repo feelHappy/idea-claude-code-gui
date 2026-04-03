@@ -28,6 +28,7 @@ interface MessageListProps {
   onCollapsedCountChange?: (count: number) => void;
   onNavigateToProviderSettings?: () => void;
   onRewriteClick?: MessageItemProps['onRewriteClick'];
+  onRetractClick?: () => void;
 }
 
 export const MessageList = memo(function MessageList({
@@ -46,6 +47,7 @@ export const MessageList = memo(function MessageList({
   onCollapsedCountChange,
   onNavigateToProviderSettings,
   onRewriteClick,
+  onRetractClick,
 }: MessageListProps) {
   const [showAll, setShowAll] = useState(false);
 
@@ -127,7 +129,7 @@ export const MessageList = memo(function MessageList({
       })}
 
       {/* Loading indicator */}
-      {loading && <WaitingIndicator startTime={loadingStartTime ?? undefined} />}
+      {loading && <WaitingIndicator startTime={loadingStartTime ?? undefined} onRetract={onRetractClick} />}
       <div ref={messagesEndRef} />
     </div>
   );

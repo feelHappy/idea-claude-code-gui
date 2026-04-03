@@ -180,17 +180,20 @@ public class SessionMessageOrchestrator {
             }
 
             String uuid = historyMsg.get("uuid").getAsString();
-            for (ClaudeSession.Message localMsg : localMessages) {
-                if (localMsg.type != ClaudeSession.Message.Type.USER || localMsg.raw == null) {
-                    continue;
-                }
-                if (localMsg.raw.has("uuid") && !localMsg.raw.get("uuid").isJsonNull()) {
-                    continue;
-                }
-                if (historyContent.equals(localMsg.content)) {
-                    localMsg.raw.addProperty("uuid", uuid);
-                    updated = true;
-                    break;
+            // synchronizedList requires explicit sync for iteration
+            synchronized (localMessages) {
+                for (ClaudeSession.Message localMsg : localMessages) {
+                    if (localMsg.type != ClaudeSession.Message.Type.USER || localMsg.raw == null) {
+                        continue;
+                    }
+                    if (localMsg.raw.has("uuid") && !localMsg.raw.get("uuid").isJsonNull()) {
+                        continue;
+                    }
+                    if (historyContent.equals(localMsg.content)) {
+                        localMsg.raw.addProperty("uuid", uuid);
+                        updated = true;
+                        break;
+                    }
                 }
             }
         }

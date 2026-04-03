@@ -11,6 +11,7 @@ import type { UseWindowCallbacksOptions } from '../../useWindowCallbacks';
 import { downloadJSON } from '../../../utils/exportMarkdown';
 import { releaseSessionTransition } from '../sessionTransition';
 import { drainAndRequestDependencyStatus } from '../settingsBootstrap';
+import { extractAttachments } from '../../useRewriteHandlers';
 
 export function registerSessionAndSdkCallbacks(
   options: UseWindowCallbacksOptions,
@@ -137,13 +138,16 @@ export function registerSessionAndSdkCallbacks(
       setIsRewriting(false);
       if (result.success) {
         setRewriteDialogOpen(false);
-        // Truncate frontend messages
-        const truncateAt: number | undefined = result.truncateAtIndex;
+
+        // Prefer backend-provided truncation index; fall back to the stored request
+        const request = (window as unknown as { __currentRewriteRequest?: { messageIndex?: number; originalText?: string; originalAttachments?: unknown[] } }).__currentRewriteRequest;
+        const truncateAt: number | undefined = result.truncateAtIndex ?? request?.messageIndex;
+
         if (truncateAt !== undefined && truncateAt >= 0) {
           setMessages((prev) => prev.slice(0, truncateAt));
         }
-        // Refill the input box with original content from the stored request
-        const request = (window as unknown as { __currentRewriteRequest?: { originalText?: string; originalAttachments?: unknown[] } }).__currentRewriteRequest;
+
+        // Refill the input box with original content
         const originalText = request?.originalText || '';
         const originalAttachments = request?.originalAttachments || [];
         if (chatInputRef?.current?.refill) {
@@ -171,18 +175,27 @@ export function registerSessionAndSdkCallbacks(
     try {
       const result = JSON.parse(json);
       if (result.success) {
-        // Remove the last user message from frontend and capture its content for refill
+        // Remove the last user message AND any partial assistant messages after it
         setMessages((prev) => {
-          if (prev.length > 0 && prev[prev.length - 1].type === 'user') {
-            const lastMsg = prev[prev.length - 1];
+          // Walk backwards to find the last user message
+          let lastUserIdx = -1;
+          for (let i = prev.length - 1; i >= 0; i--) {
+            if (prev[i].type === 'user') {
+              lastUserIdx = i;
+              break;
+            }
+          }
+          if (lastUserIdx >= 0) {
+            const lastMsg = prev[lastUserIdx];
             const text = lastMsg.content || '';
+            const attachments = extractAttachments(lastMsg);
             // Schedule refill after state update (microtask to avoid calling during render)
             queueMicrotask(() => {
-              if (chatInputRef?.current?.refill && text) {
-                chatInputRef.current.refill(text);
+              if (chatInputRef?.current?.refill && (text || attachments.length > 0)) {
+                chatInputRef.current.refill(text, attachments.length > 0 ? attachments : undefined);
               }
             });
-            return prev.slice(0, -1);
+            return prev.slice(0, lastUserIdx);
           }
           return prev;
         });

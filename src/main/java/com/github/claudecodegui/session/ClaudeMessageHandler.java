@@ -143,6 +143,26 @@ public class ClaudeMessageHandler implements MessageCallback {
             return;
         }
 
+        // Suppress user-initiated abort errors (triggered by retract/interrupt).
+        // These are expected and should not be shown as conversation errors.
+        if (error != null && (error.contains("aborted by user")
+                || error.contains("Request aborted"))) {
+            LOG.info("Suppressing user-abort error: " + error);
+            isStreaming = false;
+            streamEndedThisTurn = false;
+            textSegmentActive = false;
+            thinkingSegmentActive = false;
+            if (isThinking) {
+                isThinking = false;
+                callbackHandler.notifyThinkingStatusChanged(false);
+            }
+            state.setError(null);
+            state.setBusy(false);
+            state.setLoading(false);
+            callbackHandler.notifyStateChange(state.isBusy(), state.isLoading(), state.getError());
+            return;
+        }
+
         boolean wasStreaming = isStreaming;
         isStreaming = false;
         streamEndedThisTurn = false;

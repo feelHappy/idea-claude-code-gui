@@ -69,6 +69,14 @@ public class RewriteHandler extends BaseMessageHandler {
                 String provider = request.has("provider") ? request.get("provider").getAsString() : "claude";
                 int messageIndex = request.has("messageIndex") ? request.get("messageIndex").getAsInt() : -1;
 
+                // Fall back to backend session ID if frontend didn't provide one
+                if (sessionId == null || sessionId.isEmpty()) {
+                    ClaudeSession session = context.getSession();
+                    if (session != null && session.getState() != null) {
+                        sessionId = session.getState().getSessionId();
+                    }
+                }
+
                 if (sessionId == null || sessionId.isEmpty()) {
                     LOG.warn("[RewriteHandler] Missing sessionId");
                     sendRewriteError("Session ID is required");
@@ -85,11 +93,30 @@ public class RewriteHandler extends BaseMessageHandler {
                         + ", Provider: " + provider
                         + ", MessageIndex: " + messageIndex);
 
-                if ("codex".equals(provider)) {
-                    handleCodexRewrite(sessionId, userMessageId, messageIndex);
-                } else {
-                    handleClaudeRewrite(sessionId, userMessageId, messageIndex);
-                }
+                // Interrupt any ongoing generation before rewriting
+                ClaudeSession session = context.getSession();
+                final String finalSessionId = sessionId;
+                final int finalMessageIndex = messageIndex;
+                CompletableFuture<Void> interruptFuture = (session != null)
+                        ? session.interrupt()
+                        : CompletableFuture.completedFuture(null);
+
+                interruptFuture.thenRun(() -> {
+                    if ("codex".equals(provider)) {
+                        handleCodexRewrite(finalSessionId, userMessageId, finalMessageIndex);
+                    } else {
+                        handleClaudeRewrite(finalSessionId, userMessageId, finalMessageIndex);
+                    }
+                }).exceptionally(ex -> {
+                    LOG.error("[RewriteHandler] Interrupt before rewrite failed: " + ex.getMessage(), ex);
+                    // Still attempt rewrite even if interrupt fails
+                    if ("codex".equals(provider)) {
+                        handleCodexRewrite(finalSessionId, userMessageId, finalMessageIndex);
+                    } else {
+                        handleClaudeRewrite(finalSessionId, userMessageId, finalMessageIndex);
+                    }
+                    return null;
+                });
             } catch (Exception e) {
                 LOG.error("[RewriteHandler] Failed to parse rewrite request: " + e.getMessage(), e);
                 sendRewriteError("Invalid rewrite request");
@@ -100,21 +127,38 @@ public class RewriteHandler extends BaseMessageHandler {
     private void handleClaudeRewrite(String sessionId, String userMessageId, int messageIndex) {
         String cwd = resolveCwd();
 
-        // Use rewindFiles to restore file state, then truncate session state
+        // When the frontend doesn't have the UUID (smart merge drops it),
+        // look it up from the JSONL history and call rewindFiles with the real UUID.
+        if (userMessageId.startsWith("ts-")) {
+            LOG.info("[RewriteHandler] Claude rewrite with synthetic ID — looking up UUID from JSONL");
+            CompletableFuture.runAsync(() -> {
+                String realUuid = findUserMessageUuidByIndex(sessionId, cwd, messageIndex);
+                if (realUuid != null) {
+                    LOG.info("[RewriteHandler] Found real UUID from JSONL: " + realUuid);
+                    doClaudeRewindAndTruncate(sessionId, realUuid, cwd, messageIndex);
+                } else {
+                    LOG.info("[RewriteHandler] No UUID found in JSONL, truncating only");
+                    truncateAndNotify(messageIndex);
+                }
+            });
+            return;
+        }
+
+        doClaudeRewindAndTruncate(sessionId, userMessageId, cwd, messageIndex);
+    }
+
+    private void doClaudeRewindAndTruncate(String sessionId, String userMessageId, String cwd, int messageIndex) {
         context.getClaudeSDKBridge().rewindFiles(sessionId, userMessageId, cwd)
             .thenAccept(result -> {
                 boolean success = result.has("success") && result.get("success").getAsBoolean();
                 LOG.info("[RewriteHandler] Claude rewindFiles result: success=" + success);
 
-                if (success) {
-                    truncateAndNotify(messageIndex);
-                } else {
-                    // Even if rewind failed (e.g. no checkpoint), still truncate the conversation
-                    // so the user can re-enter their message
+                if (!success) {
                     String error = result.has("error") ? result.get("error").getAsString() : "";
                     LOG.warn("[RewriteHandler] rewindFiles failed: " + error + ", proceeding with truncation anyway");
-                    truncateAndNotify(messageIndex);
                 }
+                // Always truncate conversation regardless of rewindFiles result
+                truncateAndNotify(messageIndex);
             })
             .exceptionally(ex -> {
                 LOG.error("[RewriteHandler] Claude rewrite exception: " + ex.getMessage(), ex);
@@ -125,11 +169,20 @@ public class RewriteHandler extends BaseMessageHandler {
     }
 
     private void handleCodexRewrite(String sessionId, String userMessageId, int messageIndex) {
-        // Codex has no rewindFiles equivalent — no file checkpoints.
-        // We only need to truncate the session state.
-        // The Codex JSONL truncation (for thread resumption) will be handled by ai-bridge
-        // in a future enhancement. For now, we proceed with frontend truncation.
+        // Codex uses OpenAI server-side threads (threadId). We cannot partially truncate
+        // a server-side thread, so we reset the threadId to force a new thread on the next
+        // request. This prevents the AI from "remembering" the removed messages.
         LOG.info("[RewriteHandler] Codex rewrite — truncating session state at index " + messageIndex);
+
+        ClaudeSession session = context.getSession();
+        if (session != null) {
+            SessionState state = session.getState();
+            if (state != null) {
+                LOG.info("[RewriteHandler] Resetting Codex threadId to force new thread on next request");
+                state.setSessionId(null);
+            }
+        }
+
         truncateAndNotify(messageIndex);
     }
 
@@ -177,27 +230,63 @@ public class RewriteHandler extends BaseMessageHandler {
                 String sessionId = request.has("sessionId") ? request.get("sessionId").getAsString() : null;
                 String provider = request.has("provider") ? request.get("provider").getAsString() : "claude";
 
+                // Fall back to backend session ID if frontend didn't provide one
+                if (sessionId == null || sessionId.isEmpty()) {
+                    ClaudeSession s = context.getSession();
+                    if (s != null && s.getState() != null) {
+                        sessionId = s.getState().getSessionId();
+                    }
+                }
+
                 if (sessionId == null || sessionId.isEmpty()) {
                     LOG.warn("[RewriteHandler] Retract: missing sessionId");
                     sendRetractError("Session ID is required");
                     return;
                 }
 
+                ClaudeSession session = context.getSession();
+                if (session == null) {
+                    LOG.warn("[RewriteHandler] Retract: no active session");
+                    sendRetractError("No active session");
+                    return;
+                }
+
                 LOG.info("[RewriteHandler] Retract - Session: " + sessionId + ", Provider: " + provider);
 
+                final String finalSessionId = sessionId;
+
                 // Interrupt the current session to stop the AI from responding
-                context.getSession().interrupt().thenRun(() -> {
-                    // Remove the last user message from session state
-                    SessionState state = context.getSession().getState();
+                session.interrupt().thenRun(() -> {
+                    // Remove the last user message AND any partial assistant messages after it
+                    SessionState state = session.getState();
                     if (state != null) {
                         List<ClaudeSession.Message> messages = state.getMessagesReference();
-                        if (!messages.isEmpty()) {
-                            ClaudeSession.Message lastMsg = messages.get(messages.size() - 1);
-                            if (lastMsg.type == ClaudeSession.Message.Type.USER) {
-                                messages.remove(messages.size() - 1);
-                                LOG.info("[RewriteHandler] Removed last user message from session state");
+                        synchronized (messages) {
+                            // Walk backwards to find the last user message
+                            int lastUserIdx = -1;
+                            for (int i = messages.size() - 1; i >= 0; i--) {
+                                if (messages.get(i).type == ClaudeSession.Message.Type.USER) {
+                                    lastUserIdx = i;
+                                    break;
+                                }
+                            }
+                            if (lastUserIdx >= 0) {
+                                int removed = messages.size() - lastUserIdx;
+                                messages.subList(lastUserIdx, messages.size()).clear();
+                                LOG.info("[RewriteHandler] Removed " + removed
+                                        + " messages from index " + lastUserIdx + " (user + partial responses)");
                             }
                         }
+                    }
+
+                    // Provider-specific cleanup to prevent memory leaks
+                    if ("claude".equals(provider)) {
+                        cleanClaudeJsonlAfterRetract(finalSessionId);
+                    } else if ("codex".equals(provider) && state != null) {
+                        // Reset Codex threadId so the retracted message doesn't persist
+                        // in the server-side thread on the next request
+                        LOG.info("[RewriteHandler] Resetting Codex threadId after retract");
+                        state.setSessionId(null);
                     }
 
                     JsonObject callbackResult = new JsonObject();
@@ -210,6 +299,10 @@ public class RewriteHandler extends BaseMessageHandler {
                         callJavaScript("onStreamEnd");
                         callJavaScript("showLoading", "false");
                     });
+                }).exceptionally(ex -> {
+                    LOG.error("[RewriteHandler] Retract interrupt failed: " + ex.getMessage(), ex);
+                    sendRetractError("Failed to interrupt session");
+                    return null;
                 });
             } catch (Exception e) {
                 LOG.error("[RewriteHandler] Retract exception: " + e.getMessage(), e);
@@ -227,6 +320,95 @@ public class RewriteHandler extends BaseMessageHandler {
         ApplicationManager.getApplication().invokeLater(() -> {
             callJavaScript("onRetractResult", escapeJs(json));
         });
+    }
+
+    // ---- Claude JSONL cleanup ----
+
+    /**
+     * After retract + interrupt, the user message is already written to the Claude JSONL.
+     * Read the JSONL to find the last user message UUID and call rewindFiles to remove it.
+     * This runs asynchronously and best-effort — retract UI feedback is not blocked by this.
+     */
+    private void cleanClaudeJsonlAfterRetract(String sessionId) {
+        String cwd = resolveCwd();
+        CompletableFuture.runAsync(() -> {
+            try {
+                List<JsonObject> history = context.getClaudeSDKBridge().getSessionMessages(sessionId, cwd);
+                if (history == null || history.isEmpty()) {
+                    LOG.warn("[RewriteHandler] No JSONL history found for retract cleanup");
+                    return;
+                }
+
+                // Walk backwards to find the last user message with a UUID
+                String lastUserUuid = null;
+                for (int i = history.size() - 1; i >= 0; i--) {
+                    JsonObject msg = history.get(i);
+                    if (msg.has("type") && "user".equals(msg.get("type").getAsString())
+                            && msg.has("uuid") && !msg.get("uuid").isJsonNull()) {
+                        lastUserUuid = msg.get("uuid").getAsString();
+                        break;
+                    }
+                }
+
+                if (lastUserUuid == null) {
+                    LOG.warn("[RewriteHandler] Could not find last user UUID in JSONL for retract cleanup");
+                    return;
+                }
+
+                LOG.info("[RewriteHandler] Cleaning JSONL via rewindFiles, lastUserUuid=" + lastUserUuid);
+                context.getClaudeSDKBridge().rewindFiles(sessionId, lastUserUuid, cwd)
+                    .thenAccept(result -> {
+                        boolean success = result.has("success") && result.get("success").getAsBoolean();
+                        LOG.info("[RewriteHandler] Retract JSONL cleanup result: success=" + success);
+                    })
+                    .exceptionally(ex -> {
+                        LOG.warn("[RewriteHandler] Retract JSONL cleanup failed: " + ex.getMessage());
+                        return null;
+                    });
+            } catch (Exception e) {
+                LOG.warn("[RewriteHandler] Retract JSONL cleanup exception: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Find the UUID of a user message by its index in the conversation.
+     * Counts only user messages in the JSONL history to match the frontend index.
+     */
+    private String findUserMessageUuidByIndex(String sessionId, String cwd, int messageIndex) {
+        try {
+            List<JsonObject> history = context.getClaudeSDKBridge().getSessionMessages(sessionId, cwd);
+            if (history == null || history.isEmpty()) {
+                return null;
+            }
+
+            // The frontend rawIndex counts ALL message types (user, assistant, error, etc.)
+            // in order, so we count all types here to match.
+            int idx = 0;
+            for (JsonObject msg : history) {
+                String type = msg.has("type") ? msg.get("type").getAsString() : "";
+                if (type.isEmpty()) {
+                    continue;
+                }
+                if (idx == messageIndex && "user".equals(type)
+                        && msg.has("uuid") && !msg.get("uuid").isJsonNull()) {
+                    return msg.get("uuid").getAsString();
+                }
+                idx++;
+            }
+
+            // Fallback: walk backwards to find the last user UUID at or before messageIndex
+            for (int i = Math.min(messageIndex, history.size() - 1); i >= 0; i--) {
+                JsonObject msg = history.get(i);
+                if (msg.has("type") && "user".equals(msg.get("type").getAsString())
+                        && msg.has("uuid") && !msg.get("uuid").isJsonNull()) {
+                    return msg.get("uuid").getAsString();
+                }
+            }
+        } catch (Exception e) {
+            LOG.warn("[RewriteHandler] UUID lookup from JSONL failed: " + e.getMessage());
+        }
+        return null;
     }
 
     // ---- Utilities ----

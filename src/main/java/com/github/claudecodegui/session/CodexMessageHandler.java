@@ -77,6 +77,17 @@ public class CodexMessageHandler implements MessageCallback {
      */
     @Override
     public void onError(String error) {
+        // Suppress user-initiated abort errors (triggered by retract/interrupt)
+        if (error != null && (error.contains("aborted by user")
+                || error.contains("Request aborted"))) {
+            LOG.info("Suppressing user-abort error: " + error);
+            state.setError(null);
+            state.setBusy(false);
+            state.setLoading(false);
+            callbackHandler.notifyStateChange(state.isBusy(), state.isLoading(), state.getError());
+            return;
+        }
+
         state.setError(error);
         state.setBusy(false);
         state.setLoading(false);
@@ -237,11 +248,13 @@ public class CodexMessageHandler implements MessageCallback {
      */
     private boolean attachUsageToLastAssistant(com.google.gson.JsonObject usage) {
         java.util.List<Message> messages = state.getMessagesReference();
-        for (int i = messages.size() - 1; i >= 0; i--) {
-            Message msg = messages.get(i);
-            if (msg.type == Message.Type.ASSISTANT && msg.raw != null) {
-                msg.raw.add("usage", usage);
-                return true;
+        synchronized (messages) {
+            for (int i = messages.size() - 1; i >= 0; i--) {
+                Message msg = messages.get(i);
+                if (msg.type == Message.Type.ASSISTANT && msg.raw != null) {
+                    msg.raw.add("usage", usage);
+                    return true;
+                }
             }
         }
         return false;
