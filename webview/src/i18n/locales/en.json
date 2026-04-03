@@ -1857,6 +1857,7 @@
     "title": "Rewrite Message",
     "tooltip": "Rewrite",
     "retractTooltip": "Retract",
+    "retracting": "Retracting...",
     "confirmTitle": "Rewrite this message?",
     "confirmDescription": "This will remove this message and all subsequent messages, and restore files to their previous state.",
     "confirmDescriptionCodex": "This will remove this message and all subsequent messages. Note: file changes will NOT be automatically restored in Codex mode.",

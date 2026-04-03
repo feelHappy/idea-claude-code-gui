@@ -38,6 +38,16 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
   } = options;
 
   const findStreamingAssistantIndex = (messages: any[]): number => {
+    // Fast path: check the cached index first (set by onStreamStart / getOrCreateStreamingAssistantIndex)
+    const cached = streamingMessageIndexRef.current;
+    if (cached >= 0 && cached < messages.length && messages[cached]?.type === 'assistant') {
+      const turnId = streamingTurnIdRef.current;
+      if (turnId <= 0 || messages[cached].__turnId === turnId) {
+        return cached;
+      }
+    }
+
+    // Scan by turnId
     const turnId = streamingTurnIdRef.current;
     if (turnId > 0) {
       for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -47,18 +57,15 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
       }
     }
 
+    // Scan by isStreaming flag
     for (let i = messages.length - 1; i >= 0; i -= 1) {
       if (messages[i]?.type === 'assistant' && messages[i].isStreaming) {
         return i;
       }
     }
 
-    for (let i = messages.length - 1; i >= 0; i -= 1) {
-      if (messages[i]?.type === 'assistant') {
-        return i;
-      }
-    }
-
+    // No greedy fallback — matching an arbitrary old assistant message is a bug,
+    // not a feature (caused the retract content-corruption issue).
     return -1;
   };
 
@@ -211,6 +218,16 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
     if (window.__sessionTransitioning) return;
     // Notify backend about stream completion for tab status indicator
     sendBridgeEvent('tab_status_changed', JSON.stringify({ status: 'completed' }));
+
+    // If streaming was already cleared (e.g. by onRetractResult), skip message
+    // processing to avoid corrupting retained messages. Only perform UI cleanup.
+    if (!isStreamingRef.current) {
+      setStreamingActive(false);
+      setLoading(false);
+      setLoadingStartTime(null);
+      setIsThinking(false);
+      return;
+    }
 
     // Clear pending throttle timeouts — their content is already in streamingContentRef
     if (contentUpdateTimeoutRef.current) {

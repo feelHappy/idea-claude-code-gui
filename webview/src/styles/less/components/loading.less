@@ -42,6 +42,7 @@
     display: inline-block;
     position: relative;
     flex-shrink: 0;
+    will-change: transform;
 }
 
 .waiting-spinner::before,
@@ -82,6 +83,7 @@
     display: inline-block;
     min-width: 2em;
     text-align: left;
+    animation: dots 1.5s steps(4, end) infinite;
 }
 
 .waiting-retract-btn {
@@ -96,9 +98,15 @@
     white-space: nowrap;
     transition: color 0.15s, border-color 0.15s, background 0.15s;
 
-    &:hover {
+    &:hover:not(:disabled) {
         color: var(--vscode-foreground, #d4d4d4);
         border-color: var(--vscode-focusBorder, #007fd4);
         background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+    }
+
+    &.retracting {
+        opacity: 0.7;
+        cursor: wait;
+        pointer-events: none;
     }
 }

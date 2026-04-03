@@ -1862,6 +1862,7 @@
     "title": "重写消息",
     "tooltip": "重写",
     "retractTooltip": "撤回",
+    "retracting": "撤回中...",
     "confirmTitle": "重写此消息？",
     "confirmDescription": "将删除此消息及之后的所有消息，并将文件恢复到之前的状态。",
     "confirmDescriptionCodex": "将删除此消息及之后的所有消息。注意：Codex 模式下文件修改不会自动还原。",

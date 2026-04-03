@@ -257,48 +257,41 @@ public class RewriteHandler extends BaseMessageHandler {
 
                 // Interrupt the current session to stop the AI from responding
                 session.interrupt().thenRun(() -> {
-                    // Remove the last user message AND any partial assistant messages after it
+                    // Remove the last REAL user message (skip tool_result-only messages)
+                    // and all subsequent messages (assistant responses, tool_results, etc.)
                     SessionState state = session.getState();
                     if (state != null) {
                         List<ClaudeSession.Message> messages = state.getMessagesReference();
                         synchronized (messages) {
-                            // Walk backwards to find the last user message
-                            int lastUserIdx = -1;
+                            // Walk backwards to find the last real user message (not tool_result)
+                            int lastRealUserIdx = -1;
                             for (int i = messages.size() - 1; i >= 0; i--) {
-                                if (messages.get(i).type == ClaudeSession.Message.Type.USER) {
-                                    lastUserIdx = i;
+                                ClaudeSession.Message msg = messages.get(i);
+                                if (msg.type == ClaudeSession.Message.Type.USER && !isToolResultOnlyMessage(msg)) {
+                                    lastRealUserIdx = i;
                                     break;
                                 }
                             }
-                            if (lastUserIdx >= 0) {
-                                int removed = messages.size() - lastUserIdx;
-                                messages.subList(lastUserIdx, messages.size()).clear();
+                            if (lastRealUserIdx >= 0) {
+                                int removed = messages.size() - lastRealUserIdx;
+                                messages.subList(lastRealUserIdx, messages.size()).clear();
                                 LOG.info("[RewriteHandler] Removed " + removed
-                                        + " messages from index " + lastUserIdx + " (user + partial responses)");
+                                        + " messages from index " + lastRealUserIdx + " (user + tool_results + partial responses)");
                             }
                         }
                     }
 
-                    // Provider-specific cleanup to prevent memory leaks
+                    // Provider-specific cleanup: rewind files before notifying frontend
                     if ("claude".equals(provider)) {
-                        cleanClaudeJsonlAfterRetract(finalSessionId);
+                        rewindAndNotifyRetract(finalSessionId);
                     } else if ("codex".equals(provider) && state != null) {
-                        // Reset Codex threadId so the retracted message doesn't persist
-                        // in the server-side thread on the next request
+                        // Codex has no file checkpoint API — reset threadId to force new thread
                         LOG.info("[RewriteHandler] Resetting Codex threadId after retract");
                         state.setSessionId(null);
+                        sendRetractSuccess();
+                    } else {
+                        sendRetractSuccess();
                     }
-
-                    JsonObject callbackResult = new JsonObject();
-                    callbackResult.addProperty("success", true);
-
-                    String json = gson.toJson(callbackResult);
-                    LOG.info("[RewriteHandler] Calling onRetractResult: " + json);
-                    ApplicationManager.getApplication().invokeLater(() -> {
-                        callJavaScript("onRetractResult", escapeJs(json));
-                        callJavaScript("onStreamEnd");
-                        callJavaScript("showLoading", "false");
-                    });
                 }).exceptionally(ex -> {
                     LOG.error("[RewriteHandler] Retract interrupt failed: " + ex.getMessage(), ex);
                     sendRetractError("Failed to interrupt session");
@@ -322,24 +315,26 @@ public class RewriteHandler extends BaseMessageHandler {
         });
     }
 
-    // ---- Claude JSONL cleanup ----
+    // ---- Claude rewind + retract callback ----
 
     /**
-     * After retract + interrupt, the user message is already written to the Claude JSONL.
-     * Read the JSONL to find the last user message UUID and call rewindFiles to remove it.
-     * This runs asynchronously and best-effort — retract UI feedback is not blocked by this.
+     * Rewind files via Claude SDK, then notify the frontend.
+     * Unlike the old fire-and-forget approach, this waits for rewindFiles to complete
+     * (or fail) before sending the retract success callback, ensuring file changes
+     * are restored before the user sees "retract succeeded".
      */
-    private void cleanClaudeJsonlAfterRetract(String sessionId) {
+    private void rewindAndNotifyRetract(String sessionId) {
         String cwd = resolveCwd();
         CompletableFuture.runAsync(() -> {
             try {
                 List<JsonObject> history = context.getClaudeSDKBridge().getSessionMessages(sessionId, cwd);
                 if (history == null || history.isEmpty()) {
-                    LOG.warn("[RewriteHandler] No JSONL history found for retract cleanup");
+                    LOG.warn("[RewriteHandler] No JSONL history found for retract rewind");
+                    sendRetractSuccess();
                     return;
                 }
 
-                // Walk backwards to find the last user message with a UUID
+                // Walk backwards to find the last user message UUID
                 String lastUserUuid = null;
                 for (int i = history.size() - 1; i >= 0; i--) {
                     JsonObject msg = history.get(i);
@@ -351,23 +346,48 @@ public class RewriteHandler extends BaseMessageHandler {
                 }
 
                 if (lastUserUuid == null) {
-                    LOG.warn("[RewriteHandler] Could not find last user UUID in JSONL for retract cleanup");
+                    LOG.warn("[RewriteHandler] No user UUID in JSONL, skipping rewind");
+                    sendRetractSuccess();
                     return;
                 }
 
-                LOG.info("[RewriteHandler] Cleaning JSONL via rewindFiles, lastUserUuid=" + lastUserUuid);
+                LOG.info("[RewriteHandler] Rewinding files before retract callback, uuid=" + lastUserUuid);
                 context.getClaudeSDKBridge().rewindFiles(sessionId, lastUserUuid, cwd)
                     .thenAccept(result -> {
                         boolean success = result.has("success") && result.get("success").getAsBoolean();
-                        LOG.info("[RewriteHandler] Retract JSONL cleanup result: success=" + success);
+                        LOG.info("[RewriteHandler] Retract rewind result: success=" + success);
+                        if (!success) {
+                            String error = result.has("error") ? result.get("error").getAsString() : "";
+                            LOG.warn("[RewriteHandler] Retract rewind failed: " + error + ", proceeding anyway");
+                        }
+                        sendRetractSuccess();
                     })
                     .exceptionally(ex -> {
-                        LOG.warn("[RewriteHandler] Retract JSONL cleanup failed: " + ex.getMessage());
+                        LOG.warn("[RewriteHandler] Retract rewind exception: " + ex.getMessage()
+                                + ", proceeding with retract");
+                        sendRetractSuccess();
                         return null;
                     });
             } catch (Exception e) {
-                LOG.warn("[RewriteHandler] Retract JSONL cleanup exception: " + e.getMessage());
+                LOG.warn("[RewriteHandler] Retract rewind setup exception: " + e.getMessage());
+                sendRetractSuccess();
             }
+        });
+    }
+
+    /**
+     * Send retract success callback to frontend.
+     */
+    private void sendRetractSuccess() {
+        JsonObject callbackResult = new JsonObject();
+        callbackResult.addProperty("success", true);
+
+        String json = gson.toJson(callbackResult);
+        LOG.info("[RewriteHandler] Calling onRetractResult: " + json);
+        ApplicationManager.getApplication().invokeLater(() -> {
+            callJavaScript("onRetractResult", escapeJs(json));
+            callJavaScript("onStreamEnd");
+            callJavaScript("showLoading", "false");
         });
     }
 
@@ -412,6 +432,45 @@ public class RewriteHandler extends BaseMessageHandler {
     }
 
     // ---- Utilities ----
+
+    /**
+     * Check if a user message is tool-result-only (not a real user text message).
+     * Tool-result messages are auto-generated during multi-turn tool use and contain
+     * content like "[tool_result]" or raw content blocks with type "tool_result".
+     */
+    private boolean isToolResultOnlyMessage(ClaudeSession.Message msg) {
+        if (msg.type != ClaudeSession.Message.Type.USER) {
+            return false;
+        }
+        // Check display content
+        String content = msg.content;
+        if (content != null && content.trim().equals("[tool_result]")) {
+            return true;
+        }
+        // Check raw content blocks for tool_result type
+        if (msg.raw != null) {
+            com.google.gson.JsonArray contentBlocks = null;
+            if (msg.raw.has("content") && msg.raw.get("content").isJsonArray()) {
+                contentBlocks = msg.raw.getAsJsonArray("content");
+            } else if (msg.raw.has("message") && msg.raw.get("message").isJsonObject()) {
+                JsonObject message = msg.raw.getAsJsonObject("message");
+                if (message.has("content") && message.get("content").isJsonArray()) {
+                    contentBlocks = message.getAsJsonArray("content");
+                }
+            }
+            if (contentBlocks != null) {
+                for (com.google.gson.JsonElement block : contentBlocks) {
+                    if (block.isJsonObject()) {
+                        JsonObject blockObj = block.getAsJsonObject();
+                        if (blockObj.has("type") && "tool_result".equals(blockObj.get("type").getAsString())) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
 
     private String resolveCwd() {
         if (context.getSession() != null) {

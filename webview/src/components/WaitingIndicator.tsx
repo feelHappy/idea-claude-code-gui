@@ -11,40 +11,25 @@ interface WaitingIndicatorProps {
 
 export const WaitingIndicator = ({ size = 18, startTime, onRetract }: WaitingIndicatorProps) => {
   const { t } = useTranslation();
-  const [dotCount, setDotCount] = useState(1);
+  const [isRetracting, setIsRetracting] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(() => {
-    // If a start time is provided, calculate the elapsed seconds
     if (startTime) {
       return Math.floor((Date.now() - startTime) / 1000);
     }
     return 0;
   });
 
-  // Ellipsis animation
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setDotCount(prev => (prev % 3) + 1);
-    }, 500);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Timer: track elapsed seconds for the current thinking round
+  // Timer: track elapsed seconds (single interval, 1 re-render/sec)
   useEffect(() => {
     const timer = setInterval(() => {
       if (startTime) {
-        // Calculate from the externally provided start time to avoid reset on view switches
         setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
       } else {
         setElapsedSeconds(prev => prev + 1);
       }
     }, 1000);
-
-    return () => {
-      clearInterval(timer);
-    };
+    return () => clearInterval(timer);
   }, [startTime]);
-
-  const dots = '.'.repeat(dotCount);
 
   // Format elapsed time: show "X seconds" under 60s, "X min Y sec" above 60s
   const formatElapsedTime = (seconds: number): string => {
@@ -60,17 +45,22 @@ export const WaitingIndicator = ({ size = 18, startTime, onRetract }: WaitingInd
     <div className="waiting-indicator">
       <span className="waiting-spinner" style={{ width: size, height: size }} />
       <span className="waiting-text">
-	        {t('chat.generatingResponse')}<span className="waiting-dots">{dots}</span>
+	        {t('chat.generatingResponse')}<span className="waiting-dots">...</span>
 	        <span className="waiting-seconds">（{t('chat.elapsedTime', { time: formatElapsedTime(elapsedSeconds) })}）</span>
       </span>
       {onRetract && (
         <button
           type="button"
-          className="waiting-retract-btn"
-          onClick={onRetract}
+          className={`waiting-retract-btn${isRetracting ? ' retracting' : ''}`}
+          onClick={() => {
+            if (isRetracting) return;
+            setIsRetracting(true);
+            onRetract();
+          }}
+          disabled={isRetracting}
           title={t('rewrite.retractTooltip')}
         >
-          {t('rewrite.retractTooltip')}
+          {isRetracting ? t('rewrite.retracting', '撤回中...') : t('rewrite.retractTooltip')}
         </button>
       )}
     </div>

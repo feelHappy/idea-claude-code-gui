@@ -70,6 +70,8 @@ const App = () => {
   const [messages, setMessages] = useState<ClaudeMessage[]>([]);
   const [_status, setStatus] = useState(DEFAULT_STATUS);
   const [loading, setLoading] = useState(false);
+  const loadingRef = useRef(false);
+  loadingRef.current = loading;
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
   const [isThinking, setIsThinking] = useState(false);
   const [streamingActive, setStreamingActive] = useState(false);
@@ -320,7 +322,9 @@ const App = () => {
     dequeue: dequeueMessage,
   } = useMessageQueue({ isLoading: loading, onExecute: executeMessage });
 
-  // handleSubmit with queue support (new session commands bypass loading check)
+  // handleSubmit with queue support (new session commands bypass loading check).
+  // Uses loadingRef instead of loading state to avoid re-creating this callback
+  // (and re-rendering ChatInputBox) on every loading state change.
   const handleSubmit = useCallback((content: string, attachments?: Attachment[]) => {
     const text = content.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
     const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
@@ -334,12 +338,12 @@ const App = () => {
       }
     }
     // If loading, add to queue
-    if (loading) {
+    if (loadingRef.current) {
       enqueueMessage(content, attachments);
       return;
     }
     hookHandleSubmit(content, attachments);
-  }, [loading, enqueueMessage, hookHandleSubmit, forceCreateNewSession]);
+  }, [enqueueMessage, hookHandleSubmit, forceCreateNewSession]);
 
   // ── File changes management ──
   const {
@@ -390,7 +394,10 @@ const App = () => {
 
   // ── Computed values ──
 
-  // Extract the latest todos from messages for global TodoPanel display
+  // Extract the latest todos from messages for global TodoPanel display.
+  // Cache by source message reference to avoid re-scanning during streaming
+  // (streaming only mutates the last assistant message, not todo-bearing ones).
+  const globalTodosCache = useRef<{ sourceMsg: ClaudeMessage | null; todos: TodoItem[] }>({ sourceMsg: null, todos: [] });
   const globalTodos = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
@@ -403,11 +410,19 @@ const App = () => {
           block.name?.toLowerCase() === 'todowrite' &&
           Array.isArray((block.input as { todos?: TodoItem[] })?.todos)
         ) {
-          return (block.input as { todos: TodoItem[] }).todos;
+          // Same source message reference → return cached result
+          if (msg === globalTodosCache.current.sourceMsg) {
+            return globalTodosCache.current.todos;
+          }
+          const todos = (block.input as { todos: TodoItem[] }).todos;
+          globalTodosCache.current = { sourceMsg: msg, todos };
+          return todos;
         }
       }
     }
-    return [];
+    if (globalTodosCache.current.sourceMsg === null) return globalTodosCache.current.todos;
+    globalTodosCache.current = { sourceMsg: null, todos: [] };
+    return globalTodosCache.current.todos;
   }, [messages]);
 
   const canRewindFromMessageIndex = (userMessageIndex: number) => {
@@ -434,7 +449,10 @@ const App = () => {
     return false;
   };
 
+  // Skip expensive rewindable scan during streaming — rewind dialog can't open while streaming
+  const rewindableMessagesCache = useRef<RewindableMessage[]>([]);
   const rewindableMessages = useMemo((): RewindableMessage[] => {
+    if (streamingActive) return rewindableMessagesCache.current;
     if (currentProvider !== 'claude') return [];
     const result: RewindableMessage[] = [];
     for (let i = 0; i < mergedMessages.length - 1; i++) {
@@ -445,8 +463,9 @@ const App = () => {
       const messagesAfterCount = mergedMessages.length - i - 1;
       result.push({ messageIndex: i, message, displayContent: content, timestamp, messagesAfterCount });
     }
+    rewindableMessagesCache.current = result;
     return result;
-  }, [mergedMessages, currentProvider]);
+  }, [mergedMessages, currentProvider, streamingActive]);
 
   const statusPanelExpanded = !userCollapsedRef.current;
 

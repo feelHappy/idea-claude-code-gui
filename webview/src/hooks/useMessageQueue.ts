@@ -88,6 +88,33 @@ export function useMessageQueue({
     }
   }, [isLoading, queue, onExecute]);
 
+  // Safety: if a queued message has been waiting too long and loading is off, force-execute.
+  // This prevents messages from being permanently stuck when the loading transition edge
+  // is missed (e.g., loading went false before the message was enqueued).
+  useEffect(() => {
+    if (queue.length === 0 || isLoading || isExecutingFromQueueRef.current) return;
+
+    const oldestAge = Date.now() - queue[0].queuedAt;
+    if (oldestAge > 2000) {
+      // Message has been waiting >2s while loading is false — drain immediately
+      const nextMessage = queue[0];
+      isExecutingFromQueueRef.current = true;
+      setQueue(prev => prev.slice(1));
+      setTimeout(() => {
+        onExecute(nextMessage.content, nextMessage.attachments);
+        isExecutingFromQueueRef.current = false;
+      }, 50);
+      return;
+    }
+
+    // Check again after the remaining time
+    const timer = setTimeout(() => {
+      // Will re-trigger this effect via queue dependency (no-op if already drained)
+      setQueue(prev => [...prev]);
+    }, 2000 - oldestAge + 50);
+    return () => clearTimeout(timer);
+  }, [queue, isLoading, onExecute]);
+
   return {
     queue,
     enqueue,

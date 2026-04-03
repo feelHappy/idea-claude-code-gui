@@ -11,7 +11,35 @@ import type { UseWindowCallbacksOptions } from '../../useWindowCallbacks';
 import { downloadJSON } from '../../../utils/exportMarkdown';
 import { releaseSessionTransition } from '../sessionTransition';
 import { drainAndRequestDependencyStatus } from '../settingsBootstrap';
-import { extractAttachments } from '../../useRewriteHandlers';
+import { extractAttachments, isToolResultOnlyUserMessage } from '../../useRewriteHandlers';
+
+/**
+ * Reset all streaming-related refs and UI state.
+ * Called by both rewrite and retract callbacks to prevent the subsequent
+ * onStreamEnd from corrupting retained messages with stale streaming content.
+ */
+function resetStreamingAndLoadingState(options: UseWindowCallbacksOptions): void {
+  // Clear streaming refs so onStreamEnd becomes a no-op
+  options.isStreamingRef.current = false;
+  options.streamingContentRef.current = '';
+  options.streamingMessageIndexRef.current = -1;
+  options.streamingTurnIdRef.current = -1;
+
+  // Cancel pending throttle timers
+  if (options.contentUpdateTimeoutRef.current) {
+    clearTimeout(options.contentUpdateTimeoutRef.current);
+    options.contentUpdateTimeoutRef.current = null;
+  }
+  if (options.thinkingUpdateTimeoutRef.current) {
+    clearTimeout(options.thinkingUpdateTimeoutRef.current);
+    options.thinkingUpdateTimeoutRef.current = null;
+  }
+
+  // Clear loading/streaming UI state
+  options.setLoading(false);
+  options.setLoadingStartTime(null);
+  options.setStreamingActive(false);
+}
 
 export function registerSessionAndSdkCallbacks(
   options: UseWindowCallbacksOptions,
@@ -29,9 +57,6 @@ export function registerSessionAndSdkCallbacks(
     setRewriteDialogOpen,
     setCurrentRewriteRequest,
     setMessages,
-    setLoading,
-    setLoadingStartTime,
-    setStreamingActive,
     chatInputRef,
     customSessionTitleRef,
     currentSessionIdRef,
@@ -138,6 +163,7 @@ export function registerSessionAndSdkCallbacks(
       setIsRewriting(false);
       if (result.success) {
         setRewriteDialogOpen(false);
+        resetStreamingAndLoadingState(options);
 
         // Prefer backend-provided truncation index; fall back to the stored request
         const request = (window as unknown as { __currentRewriteRequest?: { messageIndex?: number; originalText?: string; originalAttachments?: unknown[] } }).__currentRewriteRequest;
@@ -175,34 +201,33 @@ export function registerSessionAndSdkCallbacks(
     try {
       const result = JSON.parse(json);
       if (result.success) {
-        // Remove the last user message AND any partial assistant messages after it
+        resetStreamingAndLoadingState(options);
+
+        // Remove the last REAL user message (skip tool_result-only messages)
+        // and all subsequent messages (assistant responses, tool_results, etc.)
         setMessages((prev) => {
-          // Walk backwards to find the last user message
-          let lastUserIdx = -1;
+          // Walk backwards to find the last real user message (not tool_result)
+          let realUserIdx = -1;
           for (let i = prev.length - 1; i >= 0; i--) {
-            if (prev[i].type === 'user') {
-              lastUserIdx = i;
+            if (prev[i].type === 'user' && !isToolResultOnlyUserMessage(prev[i])) {
+              realUserIdx = i;
               break;
             }
           }
-          if (lastUserIdx >= 0) {
-            const lastMsg = prev[lastUserIdx];
-            const text = lastMsg.content || '';
-            const attachments = extractAttachments(lastMsg);
+          if (realUserIdx >= 0) {
+            const realMsg = prev[realUserIdx];
+            const text = realMsg.content || '';
+            const attachments = extractAttachments(realMsg);
             // Schedule refill after state update (microtask to avoid calling during render)
             queueMicrotask(() => {
               if (chatInputRef?.current?.refill && (text || attachments.length > 0)) {
                 chatInputRef.current.refill(text, attachments.length > 0 ? attachments : undefined);
               }
             });
-            return prev.slice(0, lastUserIdx);
+            return prev.slice(0, realUserIdx);
           }
           return prev;
         });
-        // Stop loading state
-        setLoading(false);
-        setLoadingStartTime(null);
-        setStreamingActive(false);
         window.addToast?.(tRef.current('rewrite.retractSuccess'), 'success');
       } else {
         window.addToast?.(result.message || tRef.current('rewrite.retractFailed'), 'error');

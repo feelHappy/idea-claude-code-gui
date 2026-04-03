@@ -9,6 +9,7 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.startup.ProjectActivity;
+import com.intellij.openapi.util.CheckedDisposable;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.wm.ToolWindow;
@@ -80,11 +81,12 @@ public class TerminalMonitorService implements ProjectActivity {
      * and prevent listener leaks across project disposal.
      */
     private static final class ProjectMonitorState {
-        private final Disposable listenerDisposable;
+        private final CheckedDisposable listenerDisposable;
         private ContentManager attachedContentManager;
 
         private ProjectMonitorState(@NotNull String locationHash) {
-            this.listenerDisposable = Disposer.newDisposable("TerminalMonitorService:" + locationHash);
+            this.listenerDisposable = Disposer.newCheckedDisposable(
+                    Disposer.newDisposable("TerminalMonitorService:" + locationHash));
         }
     }
 
@@ -114,7 +116,7 @@ public class TerminalMonitorService implements ProjectActivity {
     private void setupTerminalListener(@NotNull Project project, @NotNull ProjectMonitorState state) {
         // ContentManager access requires EDT, so schedule this on EDT
         ApplicationManager.getApplication().invokeLater(() -> {
-            if (project.isDisposed() || Disposer.isDisposed(state.listenerDisposable)) return;
+            if (project.isDisposed() || state.listenerDisposable.isDisposed()) return;
 
             ToolWindow terminalWindow = ToolWindowManager.getInstance(project).getToolWindow("Terminal");
             if (terminalWindow == null) return;
@@ -153,7 +155,7 @@ public class TerminalMonitorService implements ProjectActivity {
     }
 
     private void checkForNewWidgets(@NotNull Project project, @NotNull ProjectMonitorState state) {
-        if (project.isDisposed() || Disposer.isDisposed(state.listenerDisposable)) return;
+        if (project.isDisposed() || state.listenerDisposable.isDisposed()) return;
 
         try {
             // Try multiple class paths for Terminal API compatibility across IDE versions.

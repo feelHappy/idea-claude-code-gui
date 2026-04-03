@@ -20,6 +20,9 @@ import { releaseSessionTransition } from '../sessionTransition';
 
 const isTruthy = (v: unknown) => v === true || v === 'true';
 
+/** Safety fallback timer for showLoading(false) suppressed during streaming. */
+let loadingFalseFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
 export function registerMessageCallbacks(
   options: UseWindowCallbacksOptions,
   resetTransientUiState: () => void,
@@ -171,6 +174,25 @@ export function registerMessageCallbacks(
             return newMsg;
           });
 
+          // Guard: prevent stale backend snapshot from overwriting finalized
+          // streaming content. After onStreamEnd the backend's 50ms coalescer
+          // may still deliver an older snapshot whose content is shorter than
+          // what the frontend already rendered.
+          const prevLastIdx = findLastAssistantIndex(prev);
+          const mergedLastIdx = findLastAssistantIndex(smartMerged);
+          if (
+            prevLastIdx >= 0 && mergedLastIdx >= 0 &&
+            prev[prevLastIdx].type === 'assistant' &&
+            smartMerged[mergedLastIdx].type === 'assistant'
+          ) {
+            const prevContent = prev[prevLastIdx].content || '';
+            const mergedContent = smartMerged[mergedLastIdx].content || '';
+            if (prevContent.length > mergedContent.length) {
+              smartMerged = [...smartMerged];
+              smartMerged[mergedLastIdx] = prev[prevLastIdx];
+            }
+          }
+
           smartMerged = preserveLastAssistantIdentity(prev, smartMerged, findLastAssistantIndex);
           return ensureStreamingAssistantPreserved(prev, appendOptimisticMessageIfMissing(prev, smartMerged));
         }
@@ -241,9 +263,28 @@ export function registerMessageCallbacks(
   window.showLoading = (value) => {
     const isLoading = isTruthy(value);
 
-    // FIX: Ignore loading=false during streaming — onStreamEnd handles it uniformly.
+    // During streaming, onStreamEnd is the authoritative signal for loading=false.
+    // However, don't silently discard — schedule a safety fallback in case
+    // onStreamEnd is delayed or lost (e.g., retract/rewrite race).
     if (!isLoading && isStreamingRef.current) {
+      if (!loadingFalseFallbackTimer) {
+        loadingFalseFallbackTimer = window.setTimeout(() => {
+          loadingFalseFallbackTimer = null;
+          // Only force loading=false if streaming has already ended
+          if (!isStreamingRef.current) {
+            setLoading(false);
+            setLoadingStartTime(null);
+            sendBridgeEvent('tab_loading_changed', JSON.stringify({ loading: false }));
+          }
+        }, 3000);
+      }
       return;
+    }
+
+    // Cancel any pending fallback when a definitive loading signal arrives
+    if (loadingFalseFallbackTimer) {
+      clearTimeout(loadingFalseFallbackTimer);
+      loadingFalseFallbackTimer = null;
     }
 
     // Notify backend about loading state change for tab indicator

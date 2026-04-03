@@ -723,6 +723,7 @@
 .thinking-status-icon {
     font-size: 16px;
     animation: thinking-pulse 1.5s ease-in-out infinite;
+    will-change: transform, opacity;
 }
 
 .thinking-status-text {
@@ -898,6 +899,7 @@
     cursor: pointer;
     pointer-events: auto;
     transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    will-change: transform;
     z-index: 1;
 
     /* Expand hit area with invisible pseudo-element */

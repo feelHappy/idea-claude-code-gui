@@ -6,13 +6,29 @@ interface CollapsibleTextBlockProps {
 
 const MAX_HEIGHT = 160; // Approx 7-8 lines
 
+// Shared singleton ResizeObserver to avoid N observer instances for N blocks
+const observerCallbacks = new Map<Element, () => void>();
+let sharedObserver: ResizeObserver | null = null;
+
+function getSharedObserver(): ResizeObserver {
+  if (!sharedObserver) {
+    sharedObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        observerCallbacks.get(entry.target)?.();
+      }
+    });
+  }
+  return sharedObserver;
+}
+
 const CollapsibleTextBlock: React.FC<CollapsibleTextBlockProps> = ({ content }) => {
   const [expanded, setExpanded] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!contentRef.current) return;
+    const el = contentRef.current;
+    if (!el) return;
 
     const checkHeight = () => {
       if (contentRef.current) {
@@ -20,14 +36,15 @@ const CollapsibleTextBlock: React.FC<CollapsibleTextBlockProps> = ({ content }) 
       }
     };
 
-    // Check initially
     checkHeight();
 
-    // Use ResizeObserver to detect size changes (e.g. window resize or content loading)
-    const observer = new ResizeObserver(checkHeight);
-    observer.observe(contentRef.current);
+    observerCallbacks.set(el, checkHeight);
+    getSharedObserver().observe(el);
 
-    return () => observer.disconnect();
+    return () => {
+      observerCallbacks.delete(el);
+      getSharedObserver().unobserve(el);
+    };
   }, [content]);
 
   const toggleExpand = (e: React.MouseEvent) => {

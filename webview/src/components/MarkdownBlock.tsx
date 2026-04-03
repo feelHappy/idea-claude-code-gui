@@ -211,11 +211,10 @@ function renderStreamingContent(content: string): string {
     })
     .join('');
 
-  // Sanitize the assembled HTML to prevent XSS even during streaming
-  return DOMPurify.sanitize(raw, {
-    ALLOWED_TAGS: ['p', 'br', 'pre', 'code', 'strong', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
-    ALLOWED_ATTR: ['class'],
-  });
+  // All content is HTML-escaped before being wrapped in whitelisted tags (p, br,
+  // pre, code, strong, h1-h6), so DOMPurify is redundant during streaming.
+  // The full DOMPurify + marked pipeline runs when isStreaming flips to false.
+  return raw;
 }
 
 // Mermaid render counter for generating unique IDs

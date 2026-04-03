@@ -32,7 +32,7 @@ export interface UseRewriteHandlersReturn {
 /**
  * Check if a user message is tool-result-only (not a real user text message)
  */
-function isToolResultOnlyUserMessage(msg: ClaudeMessage): boolean {
+export function isToolResultOnlyUserMessage(msg: ClaudeMessage): boolean {
   if (msg.type !== 'user') return false;
   if ((msg.content ?? '').trim() === '[tool_result]') return true;
 
@@ -207,13 +207,18 @@ export function useRewriteHandlers(options: UseRewriteHandlersOptions): UseRewri
   const handleRetractClick = useCallback(() => {
     if (!loading || isRetractingRef.current) return;
 
-    // Only allow retract if there's a user message near the tail of the conversation
-    // (not just any user message deep in history)
-    let lastUserIdx = -1;
+    // Only allow retract if there's a real user message (not tool_result)
+    // near the tail of the conversation
+    let lastRealUserIdx = -1;
     for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].type === 'user') { lastUserIdx = i; break; }
+      if (messages[i].type === 'user' && !isToolResultOnlyUserMessage(messages[i])) {
+        lastRealUserIdx = i;
+        break;
+      }
     }
-    if (lastUserIdx < 0 || lastUserIdx < messages.length - 3) return;
+    // Allow retract even during multi-turn tool use — the real user message
+    // may be further back due to interleaved tool_result/assistant messages
+    if (lastRealUserIdx < 0) return;
 
     isRetractingRef.current = true;
     retractMessage(currentSessionId || '', currentProvider);

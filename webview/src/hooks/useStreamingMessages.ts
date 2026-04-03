@@ -95,12 +95,19 @@ export function useStreamingMessages(): UseStreamingMessagesReturn {
     return Array.isArray(blocks) ? blocks : [];
   };
 
-  const normalizeThinking = (thinking: string): string => {
-    return thinking
+  // Cache normalized thinking results to avoid 4 regex ops per segment per delta
+  const normalizedThinkingCache = useRef<Map<number, { input: string; output: string }>>(new Map());
+
+  const normalizeThinking = (thinking: string, segmentIdx: number): string => {
+    const cached = normalizedThinkingCache.current.get(segmentIdx);
+    if (cached && cached.input === thinking) return cached.output;
+    const result = thinking
       .replace(/\r\n?/g, '\n')
       .replace(/\n[ \t]*\n+/g, '\n')
       .replace(/^\n+/, '')
       .replace(/\n+$/, '');
+    normalizedThinkingCache.current.set(segmentIdx, { input: thinking, output: result });
+    return result;
   };
 
   // Helper: Build streaming blocks from segments
@@ -118,9 +125,10 @@ export function useStreamingMessages(): UseStreamingMessagesReturn {
       }
       if (block.type === 'thinking') {
         const thinking = thinkingSegments[thinkingIdx];
+        const currentThinkingIdx = thinkingIdx;
         thinkingIdx += 1;
         if (typeof thinking === 'string' && thinking.length > 0) {
-          const normalized = normalizeThinking(thinking);
+          const normalized = normalizeThinking(thinking, currentThinkingIdx);
           if (normalized.length > 0) {
             output.push({ type: 'thinking', thinking: normalized });
           }
@@ -144,7 +152,7 @@ export function useStreamingMessages(): UseStreamingMessagesReturn {
     for (let phase = appendFromPhase; phase < phasesCount; phase += 1) {
       const thinking = thinkingSegments[phase];
       if (typeof thinking === 'string' && thinking.length > 0) {
-        const normalized = normalizeThinking(thinking);
+        const normalized = normalizeThinking(thinking, phase);
         if (normalized.length > 0) {
           output.push({ type: 'thinking', thinking: normalized });
         }
@@ -187,8 +195,24 @@ export function useStreamingMessages(): UseStreamingMessagesReturn {
     return streamingMessageIndexRef.current;
   };
 
+  // Cache for patchAssistantForStreaming — skip object allocation if nothing changed
+  const lastPatchInputRef = useRef<{ content: string; blocksKey: string; result: ClaudeMessage | null }>({
+    content: '', blocksKey: '', result: null,
+  });
+
   // Helper: Patch assistant message for streaming
   const patchAssistantForStreaming = (assistant: ClaudeMessage): ClaudeMessage => {
+    const content = streamingContentRef.current;
+    const textSegs = streamingTextSegmentsRef.current;
+    const thinkingSegs = streamingThinkingSegmentsRef.current;
+    // Lightweight fingerprint: content + segment count changes when there's new data
+    const blocksKey = `${textSegs.length}:${thinkingSegs.length}:${textSegs[textSegs.length - 1]?.length ?? 0}:${thinkingSegs[thinkingSegs.length - 1]?.length ?? 0}`;
+
+    const cache = lastPatchInputRef.current;
+    if (cache.result && cache.content === content && cache.blocksKey === blocksKey) {
+      return cache.result;
+    }
+
     const existingRaw = (assistant.raw && typeof assistant.raw === 'object') ? (assistant.raw as any) : { message: { content: [] } };
     const existingBlocks = extractRawBlocks(existingRaw);
     const newBlocks = buildStreamingBlocks(existingBlocks);
@@ -197,12 +221,15 @@ export function useStreamingMessages(): UseStreamingMessagesReturn {
       ? { ...existingRaw, message: { ...(existingRaw.message || {}), content: newBlocks } }
       : { ...existingRaw, content: newBlocks };
 
-    return {
+    const result = {
       ...assistant,
-      content: streamingContentRef.current,
+      content,
       raw: rawPatched,
       isStreaming: true,
     } as ClaudeMessage;
+
+    lastPatchInputRef.current = { content, blocksKey, result };
+    return result;
   };
 
   // Reset all streaming state
@@ -217,6 +244,8 @@ export function useStreamingMessages(): UseStreamingMessagesReturn {
     lastContentUpdateRef.current = 0;
     lastThinkingUpdateRef.current = 0;
     autoExpandedThinkingKeysRef.current.clear();
+    normalizedThinkingCache.current.clear();
+    lastPatchInputRef.current = { content: '', blocksKey: '', result: null };
     streamingTurnIdRef.current = -1;
 
     if (contentUpdateTimeoutRef.current) {

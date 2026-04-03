@@ -1,3 +1,75 @@
+##### **2026年4月3日（v1.0.6）**
+
+English:
+
+✨ Features
+- Add message retract (undo-send) during AI streaming response: retract the last user message and stop the current response, preserving prior conversation history
+- Add message rewrite: re-send the last user message to get a fresh AI response, with confirmation dialog and streaming interruption handling
+- Add Codex session history persistence: write conversation history to session files for Codex provider, enabling history reload across restarts
+- Add MiniMax toolbar integration in chat input with dedicated command system and environment variable management
+- Add optimized history loading with incremental fetch and smarter refresh detection for Codex sessions
+
+🐛 Fixes
+- Fix retract corrupting previous assistant messages: clear streaming refs before modifying message list so late `onStreamEnd` doesn't overwrite retained messages with empty content
+- Fix rewrite causing permanent loading spinner: clear streaming refs, loading state, and cancel pending timeouts when rewrite interrupts an active stream
+- Fix last paragraph/summary occasionally disappearing after stream ends: add content-length guard in non-streaming merge path to prevent stale 50ms-delayed backend snapshot from overwriting finalized content
+- Fix process timeout management and UI thread safety issues in session lifecycle
+- Fix permission watcher thread not interrupted on stop, handle InterruptedException properly
+- Fix malformed session index writes caused by invalid Unicode characters in titles
+- Fix cursor showing I-beam instead of default arrow over scrollbars in JCEF WebView
+
+🔧 Improvements
+- Extract shared `resetStreamingAndLoadingState()` for retract/rewrite to eliminate duplicate cleanup code
+- Add early-return guard in `onStreamEnd` when streaming was already cleared by retract/rewrite
+- Optimize `findStreamingAssistantIndex`: add cached-index fast path, remove dangerous greedy fallback that caused cross-turn message corruption
+- Reduce WaitingIndicator re-renders: replace React `setInterval` dot animation with CSS-only `@keyframes` animation (saves ~2 re-renders/sec)
+- Cache `globalTodos` computation by source message reference to skip O(n) scan on every streaming delta
+- Skip `rewindableMessages` computation during active streaming (rewind dialog cannot open while streaming)
+- Remove `loading` state from `handleSubmit` dependency array, use `loadingRef` to prevent ChatInputBox re-renders on every loading toggle
+- Add per-segment normalized-thinking cache in `useStreamingMessages` to avoid 4 regex operations per segment per delta
+- Add dirty-check fingerprint in `patchAssistantForStreaming` to skip object allocation when nothing changed
+- Replace per-instance ResizeObserver in CollapsibleTextBlock with module-level singleton to reduce observer overhead
+- Skip DOMPurify.sanitize during streaming in MarkdownBlock (content is already HTML-escaped by renderStreamingContent)
+- Add CSS `will-change` hints on animated elements (thinking icon, anchor dot, waiting spinner) for GPU-accelerated compositing
+- Add DeltaCoalescer and StreamDeltaThrottler for more efficient backend-to-frontend streaming pipeline
+
+---
+
+中文：
+
+✨ 新功能
+- 新增消息撤回功能：在 AI 流式回复过程中可撤回最后一条用户消息并停止当前响应，保留之前的对话历史
+- 新增消息重写功能：重新发送最后一条用户消息以获取全新 AI 回复，支持确认对话框和流式中断处理
+- 新增 Codex 会话历史持久化：将对话历史写入会话文件，支持 Codex 提供者跨重启加载历史
+- 新增 MiniMax 工具栏集成，支持专用命令系统和环境变量管理
+- 新增历史记录加载优化：增量获取和更智能的 Codex 会话刷新检测
+
+🐛 修复
+- 修复撤回导致之前助手消息内容消失：在修改消息列表前清除流式引用，防止延迟的 `onStreamEnd` 用空内容覆盖保留的消息
+- 修复重写导致加载动画永久旋转：重写中断活跃流时清除流式引用、加载状态并取消挂起的定时器
+- 修复流式结束后最后一段/总结偶尔消失：在非流式合并路径中添加内容长度保护，防止延迟 50ms 的后端旧快照覆盖已定稿的内容
+- 修复会话生命周期中的进程超时管理和 UI 线程安全问题
+- 修复权限监听线程停止时未中断及 InterruptedException 未处理的问题
+- 修复无效 Unicode 字符导致会话索引写入格式异常
+- 修复 JCEF WebView 中滚动条区域光标显示为文本选择光标而非默认箭头
+
+🔧 优化
+- 提取共享的 `resetStreamingAndLoadingState()` 方法，消除撤回/重写中的重复清理代码
+- 在 `onStreamEnd` 中添加提前返回守卫，当流式已被撤回/重写清除时直接返回
+- 优化 `findStreamingAssistantIndex`：添加缓存索引快速路径，移除导致跨轮次消息错乱的危险贪心回退
+- 减少 WaitingIndicator 重渲染：用纯 CSS `@keyframes` 动画替代 React `setInterval` 点动画（每秒减少约 2 次重渲染）
+- 通过源消息引用缓存 `globalTodos` 计算，避免每次流式增量时的 O(n) 扫描
+- 流式活跃时跳过 `rewindableMessages` 计算（流式期间无法打开回退对话框）
+- 将 `loading` 状态从 `handleSubmit` 依赖数组中移除，使用 `loadingRef` 防止每次加载切换时 ChatInputBox 重渲染
+- 在 `useStreamingMessages` 中添加分段思考内容归一化缓存，避免每段每增量的 4 次正则操作
+- 在 `patchAssistantForStreaming` 中添加脏检查指纹，无变化时跳过对象分配
+- 将 CollapsibleTextBlock 的逐实例 ResizeObserver 替换为模块级单例，减少观察者开销
+- 流式期间跳过 MarkdownBlock 中的 DOMPurify.sanitize（内容已由 renderStreamingContent 进行 HTML 转义）
+- 为动画元素（思考图标、锚点、等待旋转器）添加 CSS `will-change` 提示，启用 GPU 加速合成
+- 新增 DeltaCoalescer 和 StreamDeltaThrottler，优化后端到前端的流式传输管道
+
+---
+
 ##### **2026年3月31日（v1.0.4-fix）**
 
 English:
