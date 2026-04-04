@@ -39,7 +39,6 @@ import { MessageAnchorRail } from './components/MessageAnchorRail';
 import { FILE_MODIFY_TOOL_NAMES, isToolName } from './utils/toolConstants';
 import type { RewindableMessage } from './components/RewindSelectDialog';
 import { AppDialogs } from './components/AppDialogs';
-import { APP_VERSION } from './version/version';
 import type {
   ClaudeMessage,
   HistoryData,
@@ -90,26 +89,11 @@ const App = () => {
   const userCollapsedRef = useRef(false);
   const [, forceStatusUpdate] = useState(0);
 
-  // Feature guide state (show once per version update)
-  const LAST_SEEN_FEATURE_GUIDE_KEY = 'lastSeenFeatureGuideVersion';
-  const [showFeatureGuideDialog, setShowFeatureGuideDialog] = useState(() => {
-    const lastSeen = localStorage.getItem(LAST_SEEN_FEATURE_GUIDE_KEY);
-    return lastSeen !== APP_VERSION;
-  });
-  const handleCloseFeatureGuide = useCallback(() => {
-    localStorage.setItem(LAST_SEEN_FEATURE_GUIDE_KEY, APP_VERSION);
-    setShowFeatureGuideDialog(false);
-  }, []);
-
   // Changelog dialog state (manual open only)
   const [showChangelogDialog, setShowChangelogDialog] = useState(false);
   const handleCloseChangelog = useCallback(() => {
     setShowChangelogDialog(false);
   }, []);
-  const handleOpenChangelogFromFeatureGuide = useCallback(() => {
-    handleCloseFeatureGuide();
-    setShowChangelogDialog(true);
-  }, [handleCloseFeatureGuide]);
 
   // Context state (active file and selection)
   const [contextInfo, setContextInfo] = useState<ContextInfo | null>(null);
@@ -691,9 +675,6 @@ const App = () => {
         isRewriting={isRewriting}
         onRewriteConfirm={handleRewriteConfirm}
         onRewriteCancel={handleRewriteCancel}
-        showFeatureGuideDialog={showFeatureGuideDialog}
-        onCloseFeatureGuide={handleCloseFeatureGuide}
-        onOpenChangelogFromFeatureGuide={handleOpenChangelogFromFeatureGuide}
         showChangelogDialog={showChangelogDialog}
         onCloseChangelog={handleCloseChangelog}
         addModelDialogOpen={addModelDialogOpen}

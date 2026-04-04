@@ -169,8 +169,18 @@ public class ClaudeSDKToolWindow implements ToolWindowFactory, DumbAware {
                         if (project.isDisposed()) return;
 
                         if (ready != null && ready) {
-                            LOG.info("[ToolWindow] ai-bridge ready, replacing loading panel with chat window");
-                            replaceLoadingPanelWithChatWindow(project, toolWindow, contentFactory, contentManager, loadingContent);
+                            LOG.info("[ToolWindow] ai-bridge ready, updating status to initializing UI");
+                            // Update loading panel to show UI initialization phase
+                            JLabel statusLabel = getLoadingStatusLabel(loadingPanel);
+                            if (statusLabel != null) {
+                                statusLabel.setText(ClaudeCodeGuiBundle.message("toolwindow.initializingUI"));
+                            }
+                            // Defer chat window creation to next EDT cycle so the status text renders first
+                            ApplicationManager.getApplication().invokeLater(() -> {
+                                if (!project.isDisposed()) {
+                                    replaceLoadingPanelWithChatWindow(project, toolWindow, contentFactory, contentManager, loadingContent);
+                                }
+                            });
                         } else {
                             LOG.error("[ToolWindow] ai-bridge preparation failed");
                             updateLoadingPanelWithError(loadingPanel, "AI Bridge preparation failed. Please restart IDE.");
@@ -302,6 +312,10 @@ public class ClaudeSDKToolWindow implements ToolWindowFactory, DumbAware {
         LOG.debug("[TabManager] Updated tab closeable state: count=" + tabCount + ", closeable=" + closeable);
     }
 
+    /**
+     * Create a loading panel with animated spinner and phase status label.
+     * Returns the panel; the status label can be retrieved via {@link #getLoadingStatusLabel(JPanel)}.
+     */
     private JPanel createLoadingPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(com.github.claudecodegui.util.ThemeConfigService.getBackgroundColor());
@@ -310,20 +324,45 @@ public class ClaudeSDKToolWindow implements ToolWindowFactory, DumbAware {
         centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
         centerPanel.setOpaque(false);
 
-        JLabel iconLabel = new JLabel("⚙");
-        iconLabel.setFont(iconLabel.getFont().deriveFont(48f));
-        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        centerPanel.add(iconLabel);
+        // Animated spinner using IntelliJ's built-in AsyncProcessIcon
+        JPanel spinnerWrapper = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        spinnerWrapper.setOpaque(false);
+        spinnerWrapper.setAlignmentX(Component.CENTER_ALIGNMENT);
+        com.intellij.util.ui.AsyncProcessIcon spinner = new com.intellij.util.ui.AsyncProcessIcon("BridgeLoading");
+        spinnerWrapper.add(spinner);
+        centerPanel.add(spinnerWrapper);
 
         centerPanel.add(Box.createVerticalStrut(16));
 
         JLabel textLabel = new JLabel(ClaudeCodeGuiBundle.message("toolwindow.preparingBridge"));
         textLabel.setFont(textLabel.getFont().deriveFont(14f));
         textLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        textLabel.setName("loadingStatusLabel");
         centerPanel.add(textLabel);
 
         panel.add(centerPanel);
         return panel;
+    }
+
+    /**
+     * Find the status label inside a loading panel created by {@link #createLoadingPanel()}.
+     */
+    private static JLabel getLoadingStatusLabel(JPanel loadingPanel) {
+        return findComponentByName(loadingPanel, "loadingStatusLabel", JLabel.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Component> T findComponentByName(Container container, String name, Class<T> type) {
+        for (Component c : container.getComponents()) {
+            if (type.isInstance(c) && name.equals(c.getName())) {
+                return (T) c;
+            }
+            if (c instanceof Container) {
+                T found = findComponentByName((Container) c, name, type);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     private void updateLoadingPanelWithError(JPanel loadingPanel, String errorMessage) {

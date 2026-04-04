@@ -8,7 +8,6 @@ import RewindDialog from './RewindDialog';
 import RewindSelectDialog, { type RewindableMessage } from './RewindSelectDialog';
 import RewriteConfirmDialog from './RewriteConfirmDialog';
 import ChangelogDialog from './ChangelogDialog';
-import FeatureGuideDialog from './FeatureGuideDialog';
 import CustomModelDialog from './settings/CustomModelDialog';
 import { usePluginModels } from './settings/hooks/usePluginModels';
 import { STORAGE_KEYS } from '../types/provider';
@@ -77,9 +76,6 @@ export interface AppDialogsProps {
   isRewriting?: boolean;
   onRewriteConfirm?: ComponentProps<typeof RewriteConfirmDialog>['onConfirm'];
   onRewriteCancel?: ComponentProps<typeof RewriteConfirmDialog>['onCancel'];
-  showFeatureGuideDialog: boolean;
-  onCloseFeatureGuide: () => void;
-  onOpenChangelogFromFeatureGuide: () => void;
   showChangelogDialog: boolean;
   onCloseChangelog: () => void;
   addModelDialogOpen: boolean;
@@ -148,11 +144,6 @@ export const AppDialogs = (props: AppDialogsProps) => (
         onCancel={props.onRewriteCancel}
       />
     )}
-    <FeatureGuideDialog
-      isOpen={props.showFeatureGuideDialog}
-      onClose={props.onCloseFeatureGuide}
-      onOpenChangelog={props.onOpenChangelogFromFeatureGuide}
-    />
     <ChangelogDialog
       isOpen={props.showChangelogDialog}
       onClose={props.onCloseChangelog}

@@ -374,7 +374,11 @@ public class WebviewInitializer {
                 }
             });
 
+            // Remove any existing content (e.g. initializing placeholder) before adding the browser
+            mainPanel.removeAll();
             mainPanel.add(browserComponent, BorderLayout.CENTER);
+            mainPanel.revalidate();
+            mainPanel.repaint();
 
         } catch (IllegalStateException e) {
             if (e.getMessage() != null && e.getMessage().contains("JCEF")) {

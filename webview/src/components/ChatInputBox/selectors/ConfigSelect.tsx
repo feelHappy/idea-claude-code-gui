@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Switch } from 'antd';
+import ToggleSwitch from '../../shared/ToggleSwitch';
 import { agentProvider, CREATE_NEW_AGENT_ID, EMPTY_STATE_ID, type AgentItem } from '../providers/agentProvider';
 import type { SelectedAgent } from '../types';
 
@@ -261,7 +261,7 @@ export const ConfigSelect = ({
               <span className="codicon codicon-sync" />
               <span>{t('settings.basic.streaming.label')}</span>
             </div>
-            <Switch
+            <ToggleSwitch
               size="small"
               checked={streamingEnabled ?? true}
               onClick={(checked, e) => {
@@ -288,7 +288,7 @@ export const ConfigSelect = ({
               <span className="codicon codicon-lightbulb" />
               <span>{t('common.thinking')}</span>
             </div>
-            <Switch
+            <ToggleSwitch
               size="small"
               checked={alwaysThinkingEnabled ?? false}
               onClick={(checked, e) => {

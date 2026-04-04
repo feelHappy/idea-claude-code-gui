@@ -247,6 +247,10 @@ public class ClaudeChatWindow {
         initializeSessionInfo();
         webviewInitializer.overrideBridgePathIfAvailable();
 
+        // Show a loading indicator on mainPanel while JCEF is being created asynchronously.
+        // This prevents a blank panel flash between bridge-ready and browser-ready.
+        showInitializingPlaceholder();
+
         // Delay JCEF browser creation to avoid service initialization conflicts
         // during JBCefApp$Holder class init (ProxyMigrationService dependency).
         // Operations that depend on browser readiness are also deferred.
@@ -485,6 +489,38 @@ public class ClaudeChatWindow {
         if ("claude".equals(session.getProvider()) && session.getError() == null) {
             com.github.claudecodegui.notifications.ClaudeNotifier.showSuccess(project, "Task completed");
         }
+    }
+
+    /**
+     * Show a lightweight loading placeholder on mainPanel while JCEF browser initializes.
+     * This is replaced by {@link WebviewInitializer#createUIComponents()} when ready.
+     */
+    private void showInitializingPlaceholder() {
+        JPanel placeholder = new JPanel(new GridBagLayout());
+        placeholder.setBackground(com.github.claudecodegui.util.ThemeConfigService.getBackgroundColor());
+
+        JPanel center = new JPanel();
+        center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
+        center.setOpaque(false);
+
+        JPanel spinnerWrapper = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        spinnerWrapper.setOpaque(false);
+        spinnerWrapper.setAlignmentX(Component.CENTER_ALIGNMENT);
+        com.intellij.util.ui.AsyncProcessIcon spinner =
+                new com.intellij.util.ui.AsyncProcessIcon("JCEFInit");
+        spinnerWrapper.add(spinner);
+        center.add(spinnerWrapper);
+
+        center.add(Box.createVerticalStrut(16));
+
+        JLabel label = new JLabel(
+                com.github.claudecodegui.i18n.ClaudeCodeGuiBundle.message("toolwindow.initializingUI"));
+        label.setFont(label.getFont().deriveFont(14f));
+        label.setAlignmentX(Component.CENTER_ALIGNMENT);
+        center.add(label);
+
+        placeholder.add(center);
+        mainPanel.add(placeholder, BorderLayout.CENTER);
     }
 
     private void initializeSessionInfo() {

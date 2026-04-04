@@ -168,7 +168,7 @@ public class ErrorPanelBuilder {
     }
 
     /**
-     * Build a loading panel with icon, title, and description.
+     * Build a loading panel with animated spinner, title, and description.
      */
     public static JPanel buildLoadingPanel(String icon, String title, String description) {
         JPanel panel = new JPanel(new BorderLayout());
@@ -179,10 +179,16 @@ public class ErrorPanelBuilder {
         centerPanel.setBackground(new Color(30, 30, 30));
         centerPanel.setBorder(BorderFactory.createEmptyBorder(100, 50, 100, 50));
 
-        JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 48));
-        iconLabel.setForeground(Color.WHITE);
-        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        // Animated spinner using IntelliJ's built-in AsyncProcessIcon
+        JPanel spinnerWrapper = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        spinnerWrapper.setOpaque(false);
+        spinnerWrapper.setAlignmentX(Component.CENTER_ALIGNMENT);
+        com.intellij.util.ui.AsyncProcessIcon spinner =
+                new com.intellij.util.ui.AsyncProcessIcon("BridgeExtraction");
+        spinnerWrapper.add(spinner);
+        centerPanel.add(spinnerWrapper);
+
+        centerPanel.add(Box.createVerticalStrut(20));
 
         JLabel titleLabel = new JLabel(title);
         titleLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
@@ -196,8 +202,6 @@ public class ErrorPanelBuilder {
         descLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         descLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
-        centerPanel.add(iconLabel);
-        centerPanel.add(Box.createVerticalStrut(20));
         centerPanel.add(titleLabel);
         centerPanel.add(Box.createVerticalStrut(10));
         centerPanel.add(descLabel);
