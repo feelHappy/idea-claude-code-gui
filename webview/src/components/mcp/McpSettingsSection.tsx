@@ -6,6 +6,7 @@
 import { useState, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { McpServer, McpPreset } from '../../types/mcp';
+import type { RegistryTab } from '../../types/registry';
 import { sendToJava } from '../../utils/bridge';
 import { McpServerDialog } from './McpServerDialog';
 import { McpPresetDialog } from './McpPresetDialog';
@@ -26,6 +27,7 @@ import { useToolsUpdate } from './hooks/useToolsUpdate';
 
 // Sub-components
 import { ServerCard } from './ServerCard';
+import { McpRegistryPanel } from './McpRegistryPanel';
 
 /**
  * MCP Server Settings Component
@@ -33,6 +35,7 @@ import { ServerCard } from './ServerCard';
 export function McpSettingsSection({ currentProvider = 'claude' }: McpSettingsSectionProps) {
   const { t } = useTranslation();
   const isCodexMode = currentProvider === 'codex';
+  const [registryTab, setRegistryTab] = useState<RegistryTab>('installed');
 
   // Generate message type prefix based on provider
   const messagePrefix = useMemo(() => (isCodexMode ? 'codex_' : ''), [isCodexMode]);
@@ -318,6 +321,29 @@ export function McpSettingsSection({ currentProvider = 'claude' }: McpSettingsSe
 
   return (
     <div className="mcp-settings-section">
+      {/* Registry Tab Switcher */}
+      <div className="registry-tab-switcher">
+        <button
+          className={`registry-tab-btn ${registryTab === 'installed' ? 'active' : ''}`}
+          onClick={() => setRegistryTab('installed')}
+        >
+          <span className="codicon codicon-server"></span>
+          {t('registry.installed')}
+        </button>
+        <button
+          className={`registry-tab-btn ${registryTab === 'remote' ? 'active' : ''}`}
+          onClick={() => setRegistryTab('remote')}
+        >
+          <span className="codicon codicon-cloud"></span>
+          {t('registry.remoteRepo')}
+        </button>
+      </div>
+
+      {/* Remote Registry Panel */}
+      {registryTab === 'remote' && <McpRegistryPanel />}
+
+      {/* Installed MCP (existing UI) */}
+      {registryTab === 'installed' && <>
       {/* Header */}
       <div className="mcp-header">
         <div className="header-left">
@@ -419,6 +445,7 @@ export function McpSettingsSection({ currentProvider = 'claude' }: McpSettingsSe
           )}
         </div>
       </div>
+      </>}
 
       {/* Dialogs */}
       {showServerDialog && (

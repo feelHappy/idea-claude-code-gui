@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Skill, SkillsConfig, SkillScope, SkillFilter, SkillEnabledFilter } from '../../types/skill';
+import type { RegistryTab } from '../../types/registry';
 import { sendToJava } from '../../utils/bridge';
 import { SkillHelpDialog } from './SkillHelpDialog';
 import { SkillConfirmDialog } from './SkillConfirmDialog';
+import { SkillRegistryPanel } from './SkillRegistryPanel';
 import { ToastContainer, type ToastMessage } from '../Toast';
 
 interface SkillsSettingsSectionProps {
@@ -18,6 +20,9 @@ interface SkillsSettingsSectionProps {
  */
 export function SkillsSettingsSection({ currentProvider = 'claude' }: SkillsSettingsSectionProps) {
   const { t } = useTranslation();
+  // Registry tab state
+  const [registryTab, setRegistryTab] = useState<RegistryTab>('installed');
+
   // Skills data
   const [skills, setSkills] = useState<SkillsConfig>({ global: {}, local: {}, user: {}, repo: {} });
   const [loading, setLoading] = useState(true);
@@ -331,6 +336,29 @@ export function SkillsSettingsSection({ currentProvider = 'claude' }: SkillsSett
 
   return (
     <div className="skills-settings-section">
+      {/* Registry Tab Switcher */}
+      <div className="registry-tab-switcher">
+        <button
+          className={`registry-tab-btn ${registryTab === 'installed' ? 'active' : ''}`}
+          onClick={() => setRegistryTab('installed')}
+        >
+          <span className="codicon codicon-folder-library"></span>
+          {t('registry.installed')}
+        </button>
+        <button
+          className={`registry-tab-btn ${registryTab === 'remote' ? 'active' : ''}`}
+          onClick={() => setRegistryTab('remote')}
+        >
+          <span className="codicon codicon-cloud"></span>
+          {t('registry.remoteRepo')}
+        </button>
+      </div>
+
+      {/* Remote Registry Panel */}
+      {registryTab === 'remote' && <SkillRegistryPanel installedSkills={skills} currentProvider={currentProvider} />}
+
+      {/* Installed Skills (existing UI) */}
+      {registryTab === 'installed' && <>
       {/* Toolbar */}
       <div className="skills-toolbar">
         {/* Filter tabs */}
@@ -545,6 +573,7 @@ export function SkillsSettingsSection({ currentProvider = 'claude' }: SkillsSett
           </div>
         )}
       </div>
+      </>}
 
       {/* Dialogs */}
       {showHelpDialog && (

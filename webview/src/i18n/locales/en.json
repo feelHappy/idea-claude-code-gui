@@ -591,6 +591,23 @@
           }
         }
       },
+      "nacosRegistry": {
+        "label": "Nacos AI Registry",
+        "description": "Connect to your company's Nacos 3.2 instance to browse and install Skills and MCPs from the remote repository.",
+        "enabled": "Enable remote repository",
+        "serverAddr": "Server address",
+        "namespace": "Namespace",
+        "username": "Username",
+        "usernamePlaceholder": "Optional",
+        "password": "Password",
+        "passwordPlaceholder": "Optional",
+        "testConnection": "Test connection",
+        "testSuccess": "Connected — found {{skillCount}} Skills and {{mcpCount}} MCPs",
+        "testFailed": "Connection failed",
+        "saveSuccess": "Nacos Registry config saved",
+        "saveFailed": "Failed to save",
+        "hint": "After configuring the Nacos server address, browse and install from the 'Remote Repository' tab in Skills and MCP pages."
+      },
       "fontSize": {
         "label": "Font Size",
         "level1": "Small (80%)",
@@ -1948,5 +1965,29 @@
     "providerNotConfigured": "Provider Not Configured",
     "providerNotConfiguredDesc": "No AI provider is set up yet. Please add an API key in provider settings before starting a conversation.",
     "goToProviderSettings": "Go to Provider Settings"
+  },
+  "registry": {
+    "installed": "Installed",
+    "remoteRepo": "Remote Repository",
+    "install": "Install",
+    "installToProject": "Install to Project",
+    "installToGlobal": "Install to Global",
+    "installing": "Installing...",
+    "installedStatus": "Installed",
+    "scopeProject": "Project",
+    "scopeGlobal": "Global",
+    "refreshed": "Remote repository list refreshed",
+    "searchPlaceholder": "Search...",
+    "noSkills": "No remote Skills",
+    "noMcps": "No remote MCPs",
+    "configureHint": "Please configure Nacos Registry connection in Settings > Basic > Environment first",
+    "skill": {
+      "installSuccess": "Skill \"{{name}}\" installed successfully",
+      "installFailed": "Failed to install Skill"
+    },
+    "mcp": {
+      "installSuccess": "MCP \"{{name}}\" installed successfully",
+      "installFailed": "Failed to install MCP"
+    }
   }
 }

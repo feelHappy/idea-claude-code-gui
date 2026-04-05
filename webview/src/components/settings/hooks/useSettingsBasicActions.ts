@@ -4,6 +4,7 @@ import {
   createEmptyProjectDatabaseBinding,
   type ProjectDatabaseBinding,
 } from '../projectDatabaseBinding';
+import type { NacosRegistryConfig } from '../../../types/registry';
 
 const sendToJava = (message: string) => {
   if (window.sendToJava) {
@@ -57,6 +58,10 @@ export interface UseSettingsBasicActionsReturn {
   customSoundPath: string;
   diffExpandedByDefault: boolean;
   historyCompletionEnabled: boolean;
+  // Nacos Registry
+  nacosRegistryConfig: NacosRegistryConfig;
+  savingNacosRegistryConfig: boolean;
+  testingNacosConnection: boolean;
 
   // =========================================================================
   // Handler functions (public API for components)
@@ -80,6 +85,12 @@ export interface UseSettingsBasicActionsReturn {
     value: ProjectDatabaseBinding[K]
   ) => void;
   handleSaveProjectDatabaseBinding: () => void;
+  handleNacosRegistryConfigChange: <K extends keyof NacosRegistryConfig>(
+    key: K,
+    value: NacosRegistryConfig[K]
+  ) => void;
+  handleSaveNacosRegistryConfig: () => void;
+  handleTestNacosConnection: () => void;
 
   // =========================================================================
   // @internal — State setters used only by useSettingsWindowCallbacks.
@@ -114,6 +125,9 @@ export interface UseSettingsBasicActionsReturn {
   /** @internal */ setCustomSoundPath: (path: string) => void;
   /** @internal */ setDiffExpandedByDefault: (expanded: boolean) => void;
   /** @internal */ setHistoryCompletionEnabled: (enabled: boolean) => void;
+  /** @internal */ setNacosRegistryConfig: (config: NacosRegistryConfig) => void;
+  /** @internal */ setSavingNacosRegistryConfig: (saving: boolean) => void;
+  /** @internal */ setTestingNacosConnection: (testing: boolean) => void;
 }
 
 export function useSettingsBasicActions({
@@ -188,6 +202,17 @@ export function useSettingsBasicActions({
     const saved = localStorage.getItem('historyCompletionEnabled');
     return saved !== 'false'; // Enabled by default
   });
+
+  // Nacos Registry configuration
+  const [nacosRegistryConfig, setNacosRegistryConfig] = useState<NacosRegistryConfig>({
+    enabled: false,
+    serverAddr: '',
+    namespace: 'public',
+    username: '',
+    password: '',
+  });
+  const [savingNacosRegistryConfig, setSavingNacosRegistryConfig] = useState(false);
+  const [testingNacosConnection, setTestingNacosConnection] = useState(false);
 
   // Diff expanded by default handler
   useEffect(() => {
@@ -322,6 +347,29 @@ export function useSettingsBasicActions({
     sendToJava(`set_project_database_binding:${JSON.stringify(projectDatabaseBinding)}`);
   }, [projectDatabaseBinding]);
 
+  // Nacos Registry config change handler
+  const handleNacosRegistryConfigChange = useCallback(<K extends keyof NacosRegistryConfig>(
+    key: K,
+    value: NacosRegistryConfig[K]
+  ) => {
+    setNacosRegistryConfig((previous) => ({
+      ...previous,
+      [key]: value,
+    }));
+  }, []);
+
+  // Save Nacos Registry config
+  const handleSaveNacosRegistryConfig = useCallback(() => {
+    setSavingNacosRegistryConfig(true);
+    sendToJava(`set_nacos_registry_config:${JSON.stringify(nacosRegistryConfig)}`);
+  }, [nacosRegistryConfig]);
+
+  // Test Nacos connection
+  const handleTestNacosConnection = useCallback(() => {
+    setTestingNacosConnection(true);
+    sendToJava(`test_nacos_connection:${JSON.stringify(nacosRegistryConfig)}`);
+  }, [nacosRegistryConfig]);
+
   return {
     nodePath,
     setNodePath,
@@ -384,5 +432,14 @@ export function useSettingsBasicActions({
     handleSaveCommitPrompt,
     handleProjectDatabaseBindingChange,
     handleSaveProjectDatabaseBinding,
+    nacosRegistryConfig,
+    setNacosRegistryConfig,
+    savingNacosRegistryConfig,
+    setSavingNacosRegistryConfig,
+    testingNacosConnection,
+    setTestingNacosConnection,
+    handleNacosRegistryConfigChange,
+    handleSaveNacosRegistryConfig,
+    handleTestNacosConnection,
   };
 }

@@ -48,6 +48,7 @@ public class CodemossSettingsService {
     private final ProviderManager providerManager;
     private final CodexProviderManager codexProviderManager;
     private final ProjectDatabaseBindingManager projectDatabaseBindingManager;
+    private final NacosRegistryManager nacosRegistryManager;
 
     public CodemossSettingsService() {
         this.gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
@@ -185,6 +186,9 @@ public class CodemossSettingsService {
                 mcpServerManager,
                 codexMcpServerManager
         );
+
+        // Initialize NacosRegistryManager
+        this.nacosRegistryManager = new NacosRegistryManager(pathManager);
     }
 
     // ==================== Basic Config Management ====================
@@ -666,6 +670,10 @@ public class CodemossSettingsService {
 
     public CodexMcpServerManager getCodexMcpServerManager() {
         return codexMcpServerManager;
+    }
+
+    public NacosRegistryManager getNacosRegistryManager() {
+        return nacosRegistryManager;
     }
 
     public List<JsonObject> getCodexMcpServers() throws IOException {

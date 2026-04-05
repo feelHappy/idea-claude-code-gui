@@ -5,6 +5,7 @@ import AppearanceTab from './AppearanceTab';
 import BehaviorTab from './BehaviorTab';
 import EnvironmentTab from './EnvironmentTab';
 import type { ProjectDatabaseBinding } from '../projectDatabaseBinding';
+import type { NacosRegistryConfig } from '../../../types/registry';
 
 type BasicTab = 'appearance' | 'behavior' | 'environment';
 
@@ -36,6 +37,16 @@ interface BasicConfigSectionProps {
   ) => void;
   onSaveProjectDatabaseBinding?: () => void;
   savingProjectDatabaseBinding?: boolean;
+  // Nacos Registry
+  nacosRegistryConfig?: NacosRegistryConfig;
+  onNacosRegistryConfigChange?: <K extends keyof NacosRegistryConfig>(
+    key: K,
+    value: NacosRegistryConfig[K]
+  ) => void;
+  onSaveNacosRegistryConfig?: () => void;
+  savingNacosRegistryConfig?: boolean;
+  onTestNacosConnection?: () => void;
+  testingNacosConnection?: boolean;
   editorFontConfig?: {
     fontFamily: string;
     fontSize: number;
@@ -151,6 +162,12 @@ const BasicConfigSection = (props: BasicConfigSectionProps) => {
           onProjectDatabaseBindingChange={props.onProjectDatabaseBindingChange}
           onSaveProjectDatabaseBinding={props.onSaveProjectDatabaseBinding}
           savingProjectDatabaseBinding={props.savingProjectDatabaseBinding}
+          nacosRegistryConfig={props.nacosRegistryConfig}
+          onNacosRegistryConfigChange={props.onNacosRegistryConfigChange}
+          onSaveNacosRegistryConfig={props.onSaveNacosRegistryConfig}
+          savingNacosRegistryConfig={props.savingNacosRegistryConfig}
+          onTestNacosConnection={props.onTestNacosConnection}
+          testingNacosConnection={props.testingNacosConnection}
         />
       )}
     </div>

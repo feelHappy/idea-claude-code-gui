@@ -1,0 +1,296 @@
+/* ==================== Registry Tab Switcher ==================== */
+.registry-tab-switcher {
+  display: flex;
+  background: var(--bg-secondary);
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary);
+  margin-bottom: 12px;
+  gap: 2px;
+}
+
+.registry-tab-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  .codicon {
+    font-size: 14px;
+  }
+
+  &:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  &.active {
+    background: var(--button-primary-background, #0078d4);
+    color: #ffffff;
+
+    .codicon {
+      color: #ffffff;
+    }
+  }
+}
+
+/* ==================== Registry Panel (Shared) ==================== */
+.registry-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.registry-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.registry-toolbar .search-box {
+  flex: 1;
+}
+
+/* ==================== Registry Tags ==================== */
+.registry-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.registry-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 11px;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 3px;
+}
+
+/* ==================== Registry Scope Selector ==================== */
+.registry-scope-selector {
+  display: flex;
+  background: var(--bg-secondary);
+  padding: 2px;
+  border-radius: 4px;
+  border: 1px solid var(--border-secondary);
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.registry-scope-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+
+  .codicon {
+    font-size: 12px;
+  }
+
+  &:hover {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+  }
+
+  &.active {
+    background: var(--accent-primary);
+    color: #ffffff;
+
+    .codicon {
+      color: #ffffff;
+    }
+  }
+}
+
+/* ==================== Registry Actions ==================== */
+.registry-actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.registry-actions .install-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--accent-primary);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: var(--accent-primary);
+    color: #ffffff;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.registry-actions .installed-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid #10B981;
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.1);
+  color: #10B981;
+  cursor: default;
+  white-space: nowrap;
+
+  &:disabled {
+    opacity: 0.8;
+  }
+}
+
+/* Installed badge in skill header */
+.scope-badge.installed {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10B981;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* ==================== MCP Registry Card ==================== */
+.mcp-registry-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  padding: 12px 16px;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: var(--border-hover);
+  }
+}
+
+.mcp-registry-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.mcp-registry-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  flex-shrink: 0;
+
+  .codicon {
+    font-size: 18px;
+  }
+}
+
+.mcp-registry-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mcp-registry-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mcp-registry-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mcp-registry-version {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--bg-tertiary);
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 3px;
+  opacity: 0.8;
+}
+
+.mcp-registry-type-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.1);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mcp-registry-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+
+  .codicon {
+    font-size: 11px;
+  }
+}
+
+.mcp-registry-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.mcp-registry-endpoint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+  font-family: var(--font-mono, 'Menlo', 'Monaco', monospace);
+
+  .codicon {
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+}

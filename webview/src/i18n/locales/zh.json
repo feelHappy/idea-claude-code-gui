@@ -591,6 +591,23 @@
           }
         }
       },
+      "nacosRegistry": {
+        "label": "Nacos AI Registry",
+        "description": "连接公司 Nacos 3.2 实例，浏览和安装远程仓库中的 Skill 和 MCP。",
+        "enabled": "启用远程仓库",
+        "serverAddr": "服务地址",
+        "namespace": "命名空间",
+        "username": "用户名",
+        "usernamePlaceholder": "可选",
+        "password": "密码",
+        "passwordPlaceholder": "可选",
+        "testConnection": "测试连接",
+        "testSuccess": "连接成功，发现 {{skillCount}} 个 Skill，{{mcpCount}} 个 MCP",
+        "testFailed": "连接失败",
+        "saveSuccess": "Nacos Registry 配置已保存",
+        "saveFailed": "保存失败",
+        "hint": "配置 Nacos 服务地址后，可在 Skills 和 MCP 页面的「远程仓库」Tab 中浏览和安装。"
+      },
       "fontSize": {
         "label": "字体大小",
         "level1": "小（80%）",
@@ -1953,5 +1970,29 @@
     "providerNotConfigured": "供应商未配置",
     "providerNotConfiguredDesc": "尚未配置 AI 供应商，请先在供应商设置中添加 API Key 才能开始对话。",
     "goToProviderSettings": "前往供应商设置"
+  },
+  "registry": {
+    "installed": "已安装",
+    "remoteRepo": "远程仓库",
+    "install": "安装",
+    "installToProject": "安装到项目",
+    "installToGlobal": "安装到全局",
+    "installing": "安装中...",
+    "installedStatus": "已安装",
+    "scopeProject": "项目",
+    "scopeGlobal": "全局",
+    "refreshed": "已刷新远程仓库列表",
+    "searchPlaceholder": "搜索...",
+    "noSkills": "暂无远程 Skill",
+    "noMcps": "暂无远程 MCP",
+    "configureHint": "请先在 基础设置 > 环境 中配置 Nacos Registry 连接",
+    "skill": {
+      "installSuccess": "Skill \"{{name}}\" 安装成功",
+      "installFailed": "Skill 安装失败"
+    },
+    "mcp": {
+      "installSuccess": "MCP \"{{name}}\" 安装成功",
+      "installFailed": "MCP 安装失败"
+    }
   }
 }

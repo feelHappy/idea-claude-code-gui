@@ -4,6 +4,7 @@ import {
   createEmptyProjectDatabaseBinding,
   type ProjectDatabaseBinding,
 } from '../projectDatabaseBinding';
+import type { NacosRegistryConfig } from '../../../types/registry';
 
 export interface EnvironmentTabProps {
   nodePath: string;
@@ -23,6 +24,15 @@ export interface EnvironmentTabProps {
   ) => void;
   onSaveProjectDatabaseBinding?: () => void;
   savingProjectDatabaseBinding?: boolean;
+  nacosRegistryConfig?: NacosRegistryConfig;
+  onNacosRegistryConfigChange?: <K extends keyof NacosRegistryConfig>(
+    key: K,
+    value: NacosRegistryConfig[K]
+  ) => void;
+  onSaveNacosRegistryConfig?: () => void;
+  savingNacosRegistryConfig?: boolean;
+  onTestNacosConnection?: () => void;
+  testingNacosConnection?: boolean;
 }
 
 const EnvironmentTab = ({
@@ -40,6 +50,12 @@ const EnvironmentTab = ({
   onProjectDatabaseBindingChange = () => {},
   onSaveProjectDatabaseBinding = () => {},
   savingProjectDatabaseBinding = false,
+  nacosRegistryConfig = { enabled: false, serverAddr: '', namespace: 'public', username: '', password: '' },
+  onNacosRegistryConfigChange = () => {},
+  onSaveNacosRegistryConfig = () => {},
+  savingNacosRegistryConfig = false,
+  onTestNacosConnection = () => {},
+  testingNacosConnection = false,
 }: EnvironmentTabProps) => {
   const { t } = useTranslation();
   const dbBindingBaseKey = 'settings.basic.databaseBinding';
@@ -376,6 +392,108 @@ const EnvironmentTab = ({
             </small>
           )}
         </div>
+      </div>
+
+      {/* Nacos AI Registry configuration */}
+      <div className={styles.databaseSection}>
+        <div className={styles.fieldHeader}>
+          <span className="codicon codicon-cloud" />
+          <span className={styles.fieldLabel}>{t('settings.basic.nacosRegistry.label')}</span>
+        </div>
+        <p className={styles.sectionHint}>
+          {t('settings.basic.nacosRegistry.description')}
+        </p>
+
+        <label className={styles.checkboxRow}>
+          <input
+            type="checkbox"
+            checked={nacosRegistryConfig.enabled}
+            onChange={(e) => onNacosRegistryConfigChange('enabled', e.target.checked)}
+          />
+          <span>{t('settings.basic.nacosRegistry.enabled')}</span>
+        </label>
+
+        <div className={styles.databaseGrid}>
+          <div className={`${styles.databaseField} ${styles.databaseFieldWide}`}>
+            <label className={styles.databaseFieldLabel}>{t('settings.basic.nacosRegistry.serverAddr')}</label>
+            <div className={styles.databaseFieldControl}>
+              <input
+                type="text"
+                className={`${styles.nodePathInput} ${styles.databaseInput}`}
+                placeholder="http://nacos.company.com:8848"
+                value={nacosRegistryConfig.serverAddr}
+                onChange={(e) => onNacosRegistryConfigChange('serverAddr', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className={styles.databaseField}>
+            <label className={styles.databaseFieldLabel}>{t('settings.basic.nacosRegistry.namespace')}</label>
+            <div className={styles.databaseFieldControl}>
+              <input
+                type="text"
+                className={`${styles.nodePathInput} ${styles.databaseInput}`}
+                placeholder="public"
+                value={nacosRegistryConfig.namespace}
+                onChange={(e) => onNacosRegistryConfigChange('namespace', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className={styles.databaseField}>
+            <label className={styles.databaseFieldLabel}>{t('settings.basic.nacosRegistry.username')}</label>
+            <div className={styles.databaseFieldControl}>
+              <input
+                type="text"
+                className={`${styles.nodePathInput} ${styles.databaseInput}`}
+                placeholder={t('settings.basic.nacosRegistry.usernamePlaceholder')}
+                value={nacosRegistryConfig.username}
+                onChange={(e) => onNacosRegistryConfigChange('username', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className={styles.databaseField}>
+            <label className={styles.databaseFieldLabel}>{t('settings.basic.nacosRegistry.password')}</label>
+            <div className={styles.databaseFieldControl}>
+              <input
+                type="password"
+                className={`${styles.nodePathInput} ${styles.databaseInput}`}
+                placeholder={t('settings.basic.nacosRegistry.passwordPlaceholder')}
+                value={nacosRegistryConfig.password}
+                onChange={(e) => onNacosRegistryConfigChange('password', e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.databaseActions}>
+          <button
+            className={styles.saveBtn}
+            onClick={onTestNacosConnection}
+            disabled={testingNacosConnection || !nacosRegistryConfig.serverAddr}
+          >
+            {testingNacosConnection && (
+              <span className="codicon codicon-loading codicon-modifier-spin" />
+            )}
+            {t('settings.basic.nacosRegistry.testConnection')}
+          </button>
+          <button
+            className={styles.saveBtn}
+            onClick={onSaveNacosRegistryConfig}
+            disabled={savingNacosRegistryConfig}
+          >
+            {savingNacosRegistryConfig && (
+              <span className="codicon codicon-loading codicon-modifier-spin" />
+            )}
+            {t('common.save')}
+          </button>
+        </div>
+
+        <small className={styles.formHint}>
+          <span className="codicon codicon-info" />
+          <span>{t('settings.basic.nacosRegistry.hint')}</span>
+        </small>
       </div>
     </div>
   );

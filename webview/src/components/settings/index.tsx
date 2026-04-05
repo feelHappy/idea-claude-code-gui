@@ -153,6 +153,15 @@ const SettingsView = ({
     handleSaveCommitPrompt,
     handleProjectDatabaseBindingChange,
     handleSaveProjectDatabaseBinding,
+    nacosRegistryConfig,
+    setNacosRegistryConfig,
+    savingNacosRegistryConfig,
+    setSavingNacosRegistryConfig,
+    testingNacosConnection,
+    setTestingNacosConnection,
+    handleNacosRegistryConfigChange,
+    handleSaveNacosRegistryConfig,
+    handleTestNacosConnection,
   } = useSettingsBasicActions({
     streamingEnabledProp,
     onStreamingEnabledChangeProp,
@@ -284,6 +293,9 @@ const SettingsView = ({
     setSoundOnlyWhenUnfocused,
     setSelectedSound,
     setCustomSoundPath,
+    setNacosRegistryConfig,
+    setSavingNacosRegistryConfig,
+    setTestingNacosConnection,
   });
 
   // Save provider (wrapper function with validation logic)
@@ -433,6 +445,12 @@ const SettingsView = ({
               onSaveCustomSoundPath={handleSaveCustomSoundPath}
               onTestSound={handleTestSound}
               onBrowseSound={handleBrowseSound}
+              nacosRegistryConfig={nacosRegistryConfig}
+              onNacosRegistryConfigChange={handleNacosRegistryConfigChange}
+              onSaveNacosRegistryConfig={handleSaveNacosRegistryConfig}
+              savingNacosRegistryConfig={savingNacosRegistryConfig}
+              onTestNacosConnection={handleTestNacosConnection}
+              testingNacosConnection={testingNacosConnection}
             />
           </div>
 

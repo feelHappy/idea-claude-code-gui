@@ -10,6 +10,7 @@ import {
   normalizeProjectDatabaseBinding,
   type ProjectDatabaseBinding,
 } from '../projectDatabaseBinding';
+import type { NacosRegistryConfig } from '../../../types/registry';
 
 const sendToJava = (message: string) => {
   if (window.sendToJava) {
@@ -42,6 +43,10 @@ export interface SettingsWindowCallbacksDeps {
   setSoundOnlyWhenUnfocused?: (enabled: boolean) => void;
   setSelectedSound?: (soundId: string) => void;
   setCustomSoundPath?: (path: string) => void;
+  // Nacos Registry
+  setNacosRegistryConfig?: (config: NacosRegistryConfig) => void;
+  setSavingNacosRegistryConfig?: (saving: boolean) => void;
+  setTestingNacosConnection?: (testing: boolean) => void;
 
   // Hook functions
   updateProviders: (providers: ProviderConfig[]) => void;
@@ -389,6 +394,50 @@ export function useSettingsWindowCallbacks(deps: SettingsWindowCallbacksDeps) {
       }
     };
 
+    // Nacos Registry callbacks
+    window.updateNacosRegistryConfig = (jsonStr: string) => {
+      try {
+        const config: NacosRegistryConfig = JSON.parse(jsonStr);
+        d().setNacosRegistryConfig?.(config);
+      } catch (error) {
+        console.error('[SettingsView] Failed to parse nacos registry config:', error);
+      }
+    };
+
+    window.nacosRegistryConfigSaved = (jsonStr: string) => {
+      try {
+        const result = JSON.parse(jsonStr);
+        d().setSavingNacosRegistryConfig?.(false);
+        if (result.success) {
+          d().addToast(t('settings.basic.nacosRegistry.saveSuccess'), 'success');
+        } else {
+          d().addToast(result.error || t('settings.basic.nacosRegistry.saveFailed'), 'error');
+        }
+      } catch (error) {
+        d().setSavingNacosRegistryConfig?.(false);
+      }
+    };
+
+    window.nacosConnectionTestResult = (jsonStr: string) => {
+      try {
+        const result = JSON.parse(jsonStr);
+        d().setTestingNacosConnection?.(false);
+        if (result.success) {
+          d().addToast(
+            t('settings.basic.nacosRegistry.testSuccess', {
+              skillCount: result.skillCount || 0,
+              mcpCount: result.mcpCount || 0,
+            }),
+            'success'
+          );
+        } else {
+          d().addToast(result.message || t('settings.basic.nacosRegistry.testFailed'), 'error');
+        }
+      } catch (error) {
+        d().setTestingNacosConnection?.(false);
+      }
+    };
+
     // Initial data loading
     d().loadProviders();
     d().loadCodexProviders();
@@ -403,6 +452,7 @@ export function useSettingsWindowCallbacks(deps: SettingsWindowCallbacksDeps) {
     sendToJava('get_codex_sandbox_mode:');
     sendToJava('get_commit_prompt:');
     sendToJava('get_sound_notification_config:');
+    sendToJava('get_nacos_registry_config:');
 
     return () => {
       d().cleanupAgentsTimeout();
@@ -439,6 +489,9 @@ export function useSettingsWindowCallbacks(deps: SettingsWindowCallbacksDeps) {
       window.updateCodexProviders = undefined;
       window.updateActiveCodexProvider = undefined;
       window.updateCurrentCodexConfig = undefined;
+      window.updateNacosRegistryConfig = undefined;
+      window.nacosRegistryConfigSaved = undefined;
+      window.nacosConnectionTestResult = undefined;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t]);

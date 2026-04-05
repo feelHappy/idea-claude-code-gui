@@ -742,4 +742,21 @@ interface Window {
    * Clipboard read callback for paste from IDEA shortcut
    */
   onClipboardRead?: (text: string) => void;
+
+  // ==================== Nacos Registry Callbacks ====================
+
+  /** Update Nacos Registry config from Java backend */
+  updateNacosRegistryConfig?: (json: string) => void;
+  /** Nacos Registry config save result */
+  nacosRegistryConfigSaved?: (json: string) => void;
+  /** Nacos connection test result */
+  nacosConnectionTestResult?: (json: string) => void;
+  /** Update registry skills list */
+  updateRegistrySkills?: (json: string) => void;
+  /** Update registry MCPs list */
+  updateRegistryMcps?: (json: string) => void;
+  /** Registry skill install result */
+  registrySkillInstallResult?: (json: string) => void;
+  /** Registry MCP install result */
+  registryMcpInstallResult?: (json: string) => void;
 }
