@@ -57,6 +57,12 @@ class CodexHistoryParser {
                     messages.add(msg);
 
                     if ("session_meta".equals(msg.type) && msg.payload != null) {
+                        if (msg.payload.has("id") && !msg.payload.get("id").isJsonNull()) {
+                            String actualSessionId = msg.payload.get("id").getAsString();
+                            if (actualSessionId != null && !actualSessionId.isEmpty()) {
+                                session.sessionId = actualSessionId;
+                            }
+                        }
                         if (msg.payload.has("cwd")) {
                             session.cwd = TextSanitizer.sanitizeInvalidSurrogates(msg.payload.get("cwd").getAsString());
                         }

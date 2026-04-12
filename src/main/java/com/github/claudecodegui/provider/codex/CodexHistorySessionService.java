@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -30,31 +31,36 @@ class CodexHistorySessionService {
 
     String getSessionMessagesAsJson(String sessionId) {
         try {
-            Path sessionFile = findSessionFile(sessionId);
-            if (sessionFile == null) {
+            List<Path> sessionFiles = findSessionFiles(sessionId);
+            if (sessionFiles.isEmpty()) {
                 LOG.warn("[CodexHistoryReader] Session file not found for: " + sessionId);
                 return gson.toJson(new ArrayList<>());
             }
 
             List<CodexHistoryReader.CodexMessage> messages = new ArrayList<>();
-            try (BufferedReader reader = Files.newBufferedReader(sessionFile, StandardCharsets.UTF_8)) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (line.trim().isEmpty()) {
-                        continue;
-                    }
-
-                    try {
-                        CodexHistoryReader.CodexMessage msg = gson.fromJson(line, CodexHistoryReader.CodexMessage.class);
-                        if (msg != null) {
-                            messages.add(transformFunctionCall(msg));
+            for (Path sessionFile : sessionFiles) {
+                try (BufferedReader reader = Files.newBufferedReader(sessionFile, StandardCharsets.UTF_8)) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        if (line.trim().isEmpty()) {
+                            continue;
                         }
-                    } catch (Exception e) {
-                        LOG.debug("[CodexHistoryReader] Failed to parse message: " + e.getMessage());
+
+                        try {
+                            CodexHistoryReader.CodexMessage msg = gson.fromJson(line, CodexHistoryReader.CodexMessage.class);
+                            if (msg != null) {
+                                messages.add(transformFunctionCall(msg));
+                            }
+                        } catch (Exception e) {
+                            LOG.debug("[CodexHistoryReader] Failed to parse message: " + e.getMessage());
+                        }
                     }
                 }
             }
 
+            messages.sort(Comparator.comparing(
+                    (CodexHistoryReader.CodexMessage msg) -> msg.timestamp != null ? msg.timestamp : ""
+            ));
             return gson.toJson(messages);
         } catch (Exception e) {
             LOG.error("[CodexHistoryReader] Failed to read session messages: " + e.getMessage(), e);
@@ -62,19 +68,48 @@ class CodexHistorySessionService {
         }
     }
 
-    private Path findSessionFile(String sessionId) throws IOException {
+    private List<Path> findSessionFiles(String sessionId) throws IOException {
         if (!Files.exists(sessionsDir)) {
-            return null;
+            return new ArrayList<>();
         }
 
         try (Stream<Path> paths = Files.walk(sessionsDir)) {
             return paths
                     .filter(Files::isRegularFile)
-                    .filter(path -> path.getFileName().toString().startsWith(sessionId))
                     .filter(path -> path.toString().endsWith(".jsonl"))
-                    .findFirst()
-                    .orElse(null);
+                    .filter(path -> matchesSessionId(path, sessionId))
+                    .sorted()
+                    .toList();
         }
+    }
+
+    private boolean matchesSessionId(Path path, String sessionId) {
+        String fileName = path.getFileName().toString();
+        if (fileName.equals(sessionId + ".jsonl")
+                || fileName.startsWith(sessionId + ".")
+                || fileName.endsWith("-" + sessionId + ".jsonl")) {
+            return true;
+        }
+
+        try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty()) {
+                    continue;
+                }
+                CodexHistoryReader.CodexMessage msg = gson.fromJson(line, CodexHistoryReader.CodexMessage.class);
+                if (msg == null || !"session_meta".equals(msg.type) || msg.payload == null) {
+                    continue;
+                }
+                return msg.payload.has("id")
+                        && !msg.payload.get("id").isJsonNull()
+                        && sessionId.equals(msg.payload.get("id").getAsString());
+            }
+        } catch (Exception e) {
+            LOG.debug("[CodexHistoryReader] Failed to inspect session file: " + path + " - " + e.getMessage());
+        }
+
+        return false;
     }
 
     private CodexHistoryReader.CodexMessage transformFunctionCall(CodexHistoryReader.CodexMessage msg) {

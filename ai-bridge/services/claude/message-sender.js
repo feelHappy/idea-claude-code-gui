@@ -388,8 +388,11 @@ function handleSendError(error, streamState, sdkStderrLines) {
  * @param {boolean} streaming - Whether to enable streaming (optional, defaults to config value)
  */
 export async function sendMessage(message, resumeSessionId = null, cwd = null, permissionMode = null, model = null, openedFiles = null, agentPrompt = null, streaming = null) {
+  // Guard: empty prompt creates a { type: "text", text: "" } content block
+  // that the Anthropic API rejects with "text content blocks must be non-empty".
+  const safeMessage = (message && typeof message === 'string' && message.trim() !== '') ? message : '[Empty message]';
   console.log('[DIAG] ========== sendMessage() START ==========');
-  console.log('[DIAG] params:', { msgLen: message ? message.length : 0, resumeSessionId: resumeSessionId || '(new)', cwd, permissionMode, model });
+  console.log('[DIAG] params:', { msgLen: safeMessage.length, resumeSessionId: resumeSessionId || '(new)', cwd, permissionMode, model });
 
   const sdkStderrLines = [];
   let streamingEnabled = false;
@@ -414,7 +417,7 @@ export async function sendMessage(message, resumeSessionId = null, cwd = null, p
     console.log('[DEBUG] Model:', model, '->', sdkModelName, '(API:', resolvedModel + ')');
     setModelEnvironmentVariables(resolvedModel, model);
 
-    const systemPromptAppend = buildSystemPromptAppend(openedFiles, agentPrompt, message);
+    const systemPromptAppend = buildSystemPromptAppend(openedFiles, agentPrompt, safeMessage);
 
     const effectivePermissionMode = (!permissionMode || permissionMode === '') ? 'default' : permissionMode;
     const { alwaysThinkingEnabled, maxThinkingTokens } = resolveThinkingConfig(settings);
@@ -429,7 +432,7 @@ export async function sendMessage(message, resumeSessionId = null, cwd = null, p
     const queryFn = await loadSdkQueryFunction('');
 
     await executeWithRetry({
-      createQueryResult: () => queryFn({ prompt: message, options }),
+      createQueryResult: () => queryFn({ prompt: safeMessage, options }),
       streamingEnabled,
       resumeSessionId,
       workingDirectory,

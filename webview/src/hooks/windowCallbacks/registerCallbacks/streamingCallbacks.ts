@@ -73,7 +73,12 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
     if (window.__sessionTransitioning) return;
     streamingContentRef.current = '';
     isStreamingRef.current = true;
-    useBackendStreamingRenderRef.current = false;
+    // Default to backend streaming render mode.  This means updateMessages()
+    // will process the full message list (including text content) during streaming.
+    // When the first onContentDelta arrives (Claude mode), we switch to false so
+    // that content delivery is handled by the delta path instead.  Codex does not
+    // emit onContentDelta, so it stays in backend render mode throughout.
+    useBackendStreamingRenderRef.current = true;
     autoExpandedThinkingKeysRef.current.clear();
     setStreamingActive(true);
     streamingTextSegmentsRef.current = [];
@@ -111,6 +116,15 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
   window.onContentDelta = (delta: string) => {
     if (window.__sessionTransitioning) return;
     if (!isStreamingRef.current) return;
+
+    // First delta arrival: switch from backend streaming render to delta mode.
+    // This ensures Claude (which uses onContentDelta) no longer relies on
+    // updateMessages for text content, while Codex (no deltas) stays in
+    // backend render mode where updateMessages delivers content directly.
+    if (useBackendStreamingRenderRef.current) {
+      useBackendStreamingRenderRef.current = false;
+    }
+
     streamingContentRef.current += delta;
     activeThinkingSegmentIndexRef.current = -1;
 
@@ -165,6 +179,12 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
   window.onThinkingDelta = (delta: string) => {
     if (window.__sessionTransitioning) return;
     if (!isStreamingRef.current) return;
+
+    // Same as onContentDelta: switch to delta mode on first thinking delta.
+    if (useBackendStreamingRenderRef.current) {
+      useBackendStreamingRenderRef.current = false;
+    }
+
     activeTextSegmentIndexRef.current = -1;
 
     let forceUpdate = false;
@@ -256,16 +276,25 @@ export function registerStreamingCallbacks(options: UseWindowCallbacksOptions): 
       if (prev.length > 0 && idx >= 0 && idx < prev.length && prev[idx]?.type === 'assistant') {
         const finalContent = streamingContentRef.current;
         newMessages = [...prev];
-        const finalizedAssistant = patchAssistantForStreaming({
-          ...newMessages[idx],
-          content: finalContent || newMessages[idx].content,
-          isStreaming: true,
-        });
-        newMessages[idx] = {
-          ...finalizedAssistant,
-          content: finalContent || finalizedAssistant.content,
-          isStreaming: false,
-        };
+        if (useBackendStreamingRenderRef.current) {
+          // Backend streaming mode (Codex): content was delivered via updateMessages,
+          // not via streamingContentRef. patchAssistantForStreaming would overwrite the
+          // content with streamingContentRef.current (empty for Codex) and clear raw
+          // blocks, erasing all backend-delivered content. Just clear isStreaming.
+          newMessages[idx] = { ...newMessages[idx], isStreaming: false };
+        } else {
+          // Delta streaming mode (Claude): flush final content from streamingContentRef.
+          const finalizedAssistant = patchAssistantForStreaming({
+            ...newMessages[idx],
+            content: finalContent || newMessages[idx].content,
+            isStreaming: true,
+          });
+          newMessages[idx] = {
+            ...finalizedAssistant,
+            content: finalContent || finalizedAssistant.content,
+            isStreaming: false,
+          };
+        }
       } else if (streamingContentRef.current) {
         newMessages = [
           ...prev,

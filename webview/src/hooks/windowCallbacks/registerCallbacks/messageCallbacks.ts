@@ -13,12 +13,20 @@ import { sendBridgeEvent } from '../../../utils/bridge';
 import {
   appendOptimisticMessageIfMissing,
   ensureStreamingAssistantInList,
+  findCurrentTurnAssistantIndex,
   preserveLastAssistantIdentity,
   preserveStreamingAssistantContent,
 } from '../messageSync';
 import { releaseSessionTransition } from '../sessionTransition';
 
 const isTruthy = (v: unknown) => v === true || v === 'true';
+const hasRenderableText = (msg: ClaudeMessage | undefined): boolean =>
+  typeof msg?.content === 'string' && msg.content.trim().length > 0;
+
+const hasToolUseBlocks = (
+  msg: ClaudeMessage | undefined,
+  extractRawBlocks: (raw: ClaudeMessage['raw']) => Array<Record<string, unknown>>,
+): boolean => extractRawBlocks(msg?.raw).some((block) => block?.type === 'tool_use');
 
 /** Safety fallback timer for showLoading(false) suppressed during streaming. */
 let loadingFalseFallbackTimer: ReturnType<typeof setTimeout> | null = null;
@@ -64,6 +72,8 @@ export function registerMessageCallbacks(
     }
     return list;
   };
+  const findActiveTurnAssistantIndex = (messages: ClaudeMessage[]): number =>
+    findCurrentTurnAssistantIndex(messages, findLastAssistantIndex);
 
   window.updateMessages = (json) => {
     // During session transition, ignore message updates from stale session
@@ -92,20 +102,20 @@ export function registerMessageCallbacks(
               return newMsg;
             });
 
-            smartMerged = preserveLastAssistantIdentity(prev, smartMerged, findLastAssistantIndex);
+            smartMerged = preserveLastAssistantIdentity(prev, smartMerged, findActiveTurnAssistantIndex);
             smartMerged = preserveStreamingAssistantContent(
               prev,
               smartMerged,
               isStreamingRef,
               streamingContentRef,
-              findLastAssistantIndex,
+              findActiveTurnAssistantIndex,
               patchAssistantForStreaming,
             );
             const result = appendOptimisticMessageIfMissing(prev, smartMerged);
 
             // FIX: In Claude mode, update streamingMessageIndexRef so that
             // onContentDelta knows which assistant message to update.
-            let lastAssistantIdx = findLastAssistantIndex(result);
+            let lastAssistantIdx = findActiveTurnAssistantIndex(result);
             // Verify the found assistant belongs to the current streaming turn
             if (lastAssistantIdx >= 0 && streamingTurnIdRef.current > 0 &&
                 result[lastAssistantIdx].__turnId !== streamingTurnIdRef.current) {
@@ -150,7 +160,7 @@ export function registerMessageCallbacks(
             return ensureStreamingAssistantPreserved(prev, result);
           }
 
-          const lastAssistantIdx = findLastAssistantIndex(parsed);
+          const lastAssistantIdx = findActiveTurnAssistantIndex(parsed);
           if (lastAssistantIdx < 0) {
             return ensureStreamingAssistantPreserved(prev, appendOptimisticMessageIfMissing(prev, parsed));
           }
@@ -178,8 +188,8 @@ export function registerMessageCallbacks(
           // streaming content. After onStreamEnd the backend's 50ms coalescer
           // may still deliver an older snapshot whose content is shorter than
           // what the frontend already rendered.
-          const prevLastIdx = findLastAssistantIndex(prev);
-          const mergedLastIdx = findLastAssistantIndex(smartMerged);
+          const prevLastIdx = findActiveTurnAssistantIndex(prev);
+          const mergedLastIdx = findActiveTurnAssistantIndex(smartMerged);
           if (
             prevLastIdx >= 0 && mergedLastIdx >= 0 &&
             prev[prevLastIdx].type === 'assistant' &&
@@ -187,20 +197,31 @@ export function registerMessageCallbacks(
           ) {
             const prevContent = prev[prevLastIdx].content || '';
             const mergedContent = smartMerged[mergedLastIdx].content || '';
-            if (prevContent.length > mergedContent.length) {
+            // Only preserve older assistant text when both snapshots are text-bearing
+            // responses. Tool-use assistant messages are intentionally text-empty and
+            // must not be overwritten with the previous commentary, otherwise the UI
+            // shows A + tool + A even though Codex only emitted one commentary block.
+            if (
+              prevContent.length > mergedContent.length &&
+              prev[prevLastIdx].timestamp === smartMerged[mergedLastIdx].timestamp &&
+              hasRenderableText(prev[prevLastIdx]) &&
+              hasRenderableText(smartMerged[mergedLastIdx]) &&
+              !hasToolUseBlocks(prev[prevLastIdx], extractRawBlocks) &&
+              !hasToolUseBlocks(smartMerged[mergedLastIdx], extractRawBlocks)
+            ) {
               smartMerged = [...smartMerged];
               smartMerged[mergedLastIdx] = prev[prevLastIdx];
             }
           }
 
-          smartMerged = preserveLastAssistantIdentity(prev, smartMerged, findLastAssistantIndex);
+          smartMerged = preserveLastAssistantIdentity(prev, smartMerged, findActiveTurnAssistantIndex);
           return ensureStreamingAssistantPreserved(prev, appendOptimisticMessageIfMissing(prev, smartMerged));
         }
 
         // Streaming + !useBackendStreamingRender: only update on tool_use changes
-        const lastAssistantIdx = findLastAssistantIndex(parsed);
+        const lastAssistantIdx = findActiveTurnAssistantIndex(parsed);
         if (lastAssistantIdx < 0) {
-          return ensureStreamingAssistantPreserved(prev, parsed);
+          return ensureStreamingAssistantPreserved(prev, appendOptimisticMessageIfMissing(prev, parsed));
         }
 
         const lastAssistant = parsed[lastAssistantIdx];
@@ -224,17 +245,17 @@ export function registerMessageCallbacks(
 
         let patched = [...parsed];
         patched = appendOptimisticMessageIfMissing(prev, patched);
-        patched = preserveLastAssistantIdentity(prev, patched, findLastAssistantIndex);
+        patched = preserveLastAssistantIdentity(prev, patched, findActiveTurnAssistantIndex);
         patched = preserveStreamingAssistantContent(
           prev,
           patched,
           isStreamingRef,
           streamingContentRef,
-          findLastAssistantIndex,
+          findActiveTurnAssistantIndex,
           patchAssistantForStreaming,
         );
 
-        const patchedAssistantIdx = findLastAssistantIndex(patched);
+        const patchedAssistantIdx = findActiveTurnAssistantIndex(patched);
         if (patchedAssistantIdx >= 0 && patched[patchedAssistantIdx]?.type === 'assistant') {
           streamingMessageIndexRef.current = patchedAssistantIdx;
           patched[patchedAssistantIdx] = patchAssistantForStreaming({
@@ -321,8 +342,23 @@ export function registerMessageCallbacks(
   };
 
   // History load complete callback — triggers Markdown re-rendering
+  // and resets streaming state to ensure a clean slate for new interactions.
   window.historyLoadComplete = () => {
     releaseSessionTransition();
+
+    // Reset streaming-related refs so that stale turn IDs / content buffers
+    // from a previous session do not leak into the next user interaction.
+    // Without this, preserveLastAssistantIdentity and
+    // preserveStreamingAssistantContent may incorrectly merge old content
+    // into new responses when the user sends a message in a restored session.
+    streamingTurnIdRef.current = 0;
+    streamingMessageIndexRef.current = -1;
+    streamingContentRef.current = '';
+    isStreamingRef.current = false;
+    seenToolUseCountRef.current = 0;
+    activeTextSegmentIndexRef.current = -1;
+    activeThinkingSegmentIndexRef.current = -1;
+
     setMessages((prev) => {
       if (prev.length === 0) return prev;
       const updated = [...prev];

@@ -13,6 +13,30 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: '1.0.8',
+    date: '2026-04-12',
+    content: {
+      en: `Fixes
+- Fix Codex edited files not appearing in the Edit panel after file writes
+- Fix Codex file-change detection when a tracked file was already dirty before the current turn
+- Fix Codex change replay for new threads by resolving the runtime thread ID before reading session data
+- Improve Codex file-change payloads with path/status/old_content/new_content for more reliable diff and undo handling
+
+Tests
+- Add regression coverage for clean tracked files modified during a Codex turn
+- Add regression coverage for tracked files that were already dirty before a Codex turn`,
+      zh: `修复
+- 修复 Codex 编辑文件后“编辑”面板不显示改动的问题
+- 修复已处于脏状态的跟踪文件在当前轮次被 Codex 再次修改时无法检测到的问题
+- 修复新建 Codex 会话时未先解析运行时线程 ID，导致文件改动无法正确回放的问题
+- 优化 Codex 文件改动事件载荷，补充 path、status、old_content、new_content，提升 diff 与撤销链路稳定性
+
+测试
+- 新增回归测试，覆盖 Codex 轮次内修改干净跟踪文件的场景
+- 新增回归测试，覆盖 Codex 轮次开始前文件已处于脏状态的场景`,
+    },
+  },
+  {
     version: '0.3.1',
     date: '2026-03-23',
     content: {

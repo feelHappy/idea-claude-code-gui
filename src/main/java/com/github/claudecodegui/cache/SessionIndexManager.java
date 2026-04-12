@@ -37,7 +37,7 @@ public class SessionIndexManager {
     private static final String CLAUDE_INDEX_FILE = "claude-session-index.json";
     private static final String CODEX_INDEX_FILE = "codex-session-index.json";
 
-    private static final int INDEX_VERSION = 2;
+    private static final int INDEX_VERSION = 3;
 
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 

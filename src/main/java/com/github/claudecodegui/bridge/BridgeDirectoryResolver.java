@@ -513,8 +513,10 @@ public class BridgeDirectoryResolver {
                     return waitForExtraction();
                 }
 
-                if (currentState == ExtractionState.COMPLETED && isValidBridgeDir(extractedDir)) {
-                    // Already extracted and valid
+                if (currentState == ExtractionState.COMPLETED
+                        && isValidBridgeDir(extractedDir)
+                        && bridgeSignatureMatches(versionFile, signature)) {
+                    // Already extracted and matches the currently bundled bridge signature
                     this.cachedSdkDir = extractedDir;
                     // Ensure waiters are notified
                     if (!this.extractionReadyFuture.isDone()) {

@@ -50,14 +50,25 @@ export function useScrollBehavior({
   const userPausedRef = useRef(false);
 
   // Scroll to bottom function
+  // FIX: Use setTimeout (150ms) instead of requestAnimationFrame to clear the
+  // isAutoScrollingRef guard. When Codex messages arrive in rapid bursts, new
+  // content renders between rAF callbacks, increasing scrollHeight. The scroll
+  // event handler's rAF fires after isAutoScrollingRef is already cleared by its
+  // own rAF, sees a large distanceFromBottom, and falsely sets isUserAtBottom=false
+  // — breaking auto-scroll. The longer guard window ensures scroll-event rAFs
+  // from content growth are ignored, while still allowing normal user scroll
+  // detection after the burst settles.
+  const autoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollToBottom = useCallback(() => {
     const container = messagesContainerRef.current;
     if (container) {
       isAutoScrollingRef.current = true;
       container.scrollTop = container.scrollHeight;
-      requestAnimationFrame(() => {
+      if (autoScrollTimerRef.current) clearTimeout(autoScrollTimerRef.current);
+      autoScrollTimerRef.current = setTimeout(() => {
+        autoScrollTimerRef.current = null;
         isAutoScrollingRef.current = false;
-      });
+      }, 150);
       return;
     }
 
@@ -69,9 +80,11 @@ export function useScrollBehavior({
       } catch {
         endElement.scrollIntoView(false);
       }
-      requestAnimationFrame(() => {
+      if (autoScrollTimerRef.current) clearTimeout(autoScrollTimerRef.current);
+      autoScrollTimerRef.current = setTimeout(() => {
+        autoScrollTimerRef.current = null;
         isAutoScrollingRef.current = false;
-      });
+      }, 150);
       return;
     }
   }, []);

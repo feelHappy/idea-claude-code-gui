@@ -32,6 +32,7 @@ describe('useWindowCallbacks integration', () => {
     setUsageMaxTokens: vi.fn(),
     setPermissionMode: vi.fn(),
     setClaudePermissionMode: vi.fn(),
+    setCodexPermissionMode: vi.fn(),
     setSelectedClaudeModel: vi.fn(),
     setSelectedCodexModel: vi.fn(),
     setProviderConfigVersion: vi.fn(),
@@ -171,6 +172,100 @@ describe('useWindowCallbacks integration', () => {
 
     // setMessages SHOULD be called
     expect(opts.setMessages).toHaveBeenCalled();
+  });
+
+  it('updateMessages keeps a fresh tool_use assistant instead of overwriting it with previous commentary', () => {
+    const setMessages = vi.fn();
+    const extractRawBlocks = (raw: unknown) => {
+      if (!raw || typeof raw !== 'object') return [];
+      const rawObj = raw as any;
+      const blocks = rawObj.message?.content ?? rawObj.content;
+      return Array.isArray(blocks) ? blocks : [];
+    };
+    const opts = createOptions({ setMessages, extractRawBlocks });
+    renderHook(() => useWindowCallbacks(opts));
+
+    const prompt: ClaudeMessage = {
+      type: 'user',
+      content: '检查代码',
+      timestamp: '2024-01-01T10:00:00.000Z',
+    };
+    const commentary: ClaudeMessage = {
+      type: 'assistant',
+      content: '我会先按代码评审的方式看当前未提交改动。',
+      timestamp: '2024-01-01T10:00:01.000Z',
+      raw: {
+        message: {
+          content: [{ type: 'text', text: '我会先按代码评审的方式看当前未提交改动。' }],
+        },
+      } as any,
+    };
+    const toolUse: ClaudeMessage = {
+      type: 'assistant',
+      content: '',
+      timestamp: '2024-01-01T10:00:02.000Z',
+      raw: {
+        message: {
+          content: [{ type: 'tool_use', id: 'tool-1', name: 'shell', input: { command: 'git status --short' } }],
+        },
+      } as any,
+    };
+
+    act(() => {
+      (window as any).updateMessages(JSON.stringify([prompt, commentary, toolUse]));
+    });
+
+    const updater = setMessages.mock.calls[0]?.[0] as ((prev: ClaudeMessage[]) => ClaudeMessage[]);
+    expect(typeof updater).toBe('function');
+
+    const result = updater([prompt, commentary]);
+    expect(result).toHaveLength(3);
+    expect(result[2].content).toBe('');
+    expect(extractRawBlocks(result[2].raw)[0]?.type).toBe('tool_use');
+  });
+
+  it('updateMessages still preserves a longer previous text-only assistant snapshot', () => {
+    const setMessages = vi.fn();
+    const opts = createOptions({ setMessages });
+    renderHook(() => useWindowCallbacks(opts));
+
+    const prompt: ClaudeMessage = {
+      type: 'user',
+      content: 'hello',
+      timestamp: '2024-01-01T10:00:00.000Z',
+    };
+    const shorterAssistant: ClaudeMessage = {
+      type: 'assistant',
+      content: 'partial',
+      timestamp: '2024-01-01T10:00:01.000Z',
+      raw: {
+        message: {
+          content: [{ type: 'text', text: 'partial' }],
+        },
+      } as any,
+    };
+
+    act(() => {
+      (window as any).updateMessages(JSON.stringify([prompt, shorterAssistant]));
+    });
+
+    const updater = setMessages.mock.calls[0]?.[0] as ((prev: ClaudeMessage[]) => ClaudeMessage[]);
+    expect(typeof updater).toBe('function');
+
+    const previousLongerAssistant: ClaudeMessage = {
+      type: 'assistant',
+      content: 'partial response with more detail',
+      timestamp: '2024-01-01T10:00:01.000Z',
+      raw: {
+        message: {
+          content: [{ type: 'text', text: 'partial response with more detail' }],
+        },
+      } as any,
+    };
+
+    const result = updater([prompt, previousLongerAssistant]);
+    expect(result[1]).toBe(previousLongerAssistant);
+    expect(result[1].content).toBe('partial response with more detail');
   });
 
   it('updateStatus does not release an active transition token', () => {
@@ -320,5 +415,114 @@ describe('useWindowCallbacks integration', () => {
     const result = updater(prev);
     expect(result[1].content).toBe('final summary content');
     expect(result[1].isStreaming).toBe(false);
+  });
+
+  it('updateMessages does not reuse a previous-turn assistant as the current streaming target', () => {
+    const setMessages = vi.fn();
+    const opts = createOptions({
+      setMessages,
+      isStreamingRef: { current: true },
+      useBackendStreamingRenderRef: { current: false },
+      streamingContentRef: { current: 'current turn text' },
+      streamingMessageIndexRef: { current: 3 },
+      streamingTurnIdRef: { current: 2 },
+      extractRawBlocks: (raw) => {
+        if (!raw || typeof raw !== 'object') return [];
+        const rawObj = raw as any;
+        const blocks = rawObj.message?.content ?? rawObj.content;
+        return Array.isArray(blocks) ? blocks : [];
+      },
+    });
+    renderHook(() => useWindowCallbacks(opts));
+
+    const previousTurnAssistant: ClaudeMessage = {
+      type: 'assistant',
+      content: 'previous summary',
+      timestamp: '2024-01-01T10:00:01.000Z',
+      raw: {
+        message: {
+          content: [{ type: 'tool_use', id: 'tool-1', name: 'shell', input: {} }],
+        },
+      } as any,
+    };
+    const currentPrompt: ClaudeMessage = {
+      type: 'user',
+      content: 'second prompt',
+      timestamp: '2024-01-01T10:00:02.000Z',
+    };
+
+    act(() => {
+      (window as any).updateMessages(JSON.stringify([
+        { type: 'user', content: 'first prompt', timestamp: '2024-01-01T10:00:00.000Z' },
+        previousTurnAssistant,
+        currentPrompt,
+      ]));
+    });
+
+    const updater = setMessages.mock.calls[0]?.[0] as ((prev: ClaudeMessage[]) => ClaudeMessage[]);
+    expect(typeof updater).toBe('function');
+
+    const prev: ClaudeMessage[] = [
+      { type: 'user', content: 'first prompt', timestamp: '2024-01-01T10:00:00.000Z' },
+      previousTurnAssistant,
+      currentPrompt,
+      {
+        type: 'assistant',
+        content: 'current turn text',
+        timestamp: '2024-01-01T10:00:03.000Z',
+        isStreaming: true,
+        __turnId: 2,
+      },
+    ];
+
+    const result = updater(prev);
+    expect(result).toHaveLength(4);
+    expect(result[1].content).toBe('previous summary');
+    expect(result[1].__turnId).toBeUndefined();
+    expect(result[3].content).toBe('current turn text');
+    expect(result[3].__turnId).toBe(2);
+  });
+
+  it('updateMessages in non-streaming mode does not preserve previous-turn assistant identity', () => {
+    const setMessages = vi.fn();
+    const opts = createOptions({
+      setMessages,
+      isStreamingRef: { current: false },
+    });
+    renderHook(() => useWindowCallbacks(opts));
+
+    const parsedSnapshot: ClaudeMessage[] = [
+      { type: 'user', content: 'first prompt', timestamp: '2024-01-01T10:00:00.000Z' },
+      { type: 'assistant', content: 'previous turn summary', timestamp: '2024-01-01T10:00:01.000Z' },
+      { type: 'user', content: 'second prompt', timestamp: '2024-01-01T10:00:02.000Z' },
+      { type: 'assistant', content: 'new turn assistant', timestamp: '2024-01-01T10:00:03.000Z' },
+    ];
+
+    act(() => {
+      (window as any).updateMessages(JSON.stringify(parsedSnapshot));
+    });
+
+    const updater = setMessages.mock.calls[0]?.[0] as ((prev: ClaudeMessage[]) => ClaudeMessage[]);
+    expect(typeof updater).toBe('function');
+
+    const prev: ClaudeMessage[] = [
+      { type: 'user', content: 'first prompt', timestamp: '2024-01-01T10:00:00.000Z' },
+      {
+        type: 'assistant',
+        content: 'previous turn summary',
+        timestamp: '2024-01-01T09:59:59.000Z',
+      },
+      { type: 'user', content: 'second prompt', timestamp: '2024-01-01T10:00:02.000Z' },
+      {
+        type: 'assistant',
+        content: 'older different assistant',
+        timestamp: '2024-01-01T10:00:02.500Z',
+      },
+    ];
+
+    const result = updater(prev);
+    expect(result).toHaveLength(4);
+    expect(result[3].content).toBe('new turn assistant');
+    expect(result[3].timestamp).toBe('2024-01-01T10:00:03.000Z');
   });
 });

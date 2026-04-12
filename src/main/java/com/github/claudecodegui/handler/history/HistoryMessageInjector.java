@@ -4,8 +4,10 @@ import com.github.claudecodegui.handler.CodexMessageConverter;
 import com.github.claudecodegui.handler.core.HandlerContext;
 
 import com.github.claudecodegui.provider.codex.CodexHistoryReader;
+import com.github.claudecodegui.session.ClaudeSession;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.intellij.openapi.application.ApplicationManager;
@@ -88,6 +90,18 @@ class HistoryMessageInjector {
                     );
                 });
 
+                // Sync history to backend state BEFORE frontend injection.
+                // This populates state.messages with the correct bridge_item_id /
+                // tool_use id / tool_result id so that CodexMessageHandler's
+                // isReplayDuplicateOfHistory can deduplicate events that the SDK
+                // replays when the thread is resumed for a new turn.
+                for (int i = 0; i < messages.size(); i++) {
+                    JsonObject msg = messages.get(i).getAsJsonObject();
+                    addToBackendStateForDedup(msg);
+                }
+                LOG.info("[HistoryHandler] 同步 " + context.getSession().getState().getMessages().size()
+                        + " 条消息到后端 state 用于去重");
+
                 // Convert Codex messages to frontend format and inject one by one
                 for (int i = 0; i < messages.size(); i++) {
                     JsonObject msg = messages.get(i).getAsJsonObject();
@@ -152,34 +166,142 @@ class HistoryMessageInjector {
 
     /**
      * Process and inject a single Codex message into the frontend.
+     * Handles both response_item (assistant/tool messages) and event_msg (user messages).
      */
     private void processAndInjectCodexMessage(JsonObject msg) {
-        if (!msg.has("type") || !"response_item".equals(msg.get("type").getAsString())) {
+        if (!msg.has("type")) {
             return;
         }
 
+        String msgType = msg.get("type").getAsString();
         JsonObject payload = msg.has("payload") ? msg.getAsJsonObject("payload") : null;
         if (payload == null || !payload.has("type")) {
             return;
         }
 
         String payloadType = payload.get("type").getAsString();
-        JsonObject frontendMsg = null;
         String timestamp = msg.has("timestamp") ? msg.get("timestamp").getAsString() : null;
+        JsonObject frontendMsg = null;
 
-        if ("message".equals(payloadType)) {
-            frontendMsg = CodexMessageConverter.convertCodexMessageToFrontend(payload, timestamp);
-        } else if ("function_call".equals(payloadType)) {
-            frontendMsg = CodexMessageConverter.convertFunctionCallToToolUse(payload, timestamp);
-        } else if ("function_call_output".equals(payloadType)) {
-            frontendMsg = CodexMessageConverter.convertFunctionCallOutputToToolResult(payload, timestamp);
-        } else if ("custom_tool_call".equals(payloadType)) {
-            frontendMsg = CodexMessageConverter.convertCustomToolCallToToolUse(payload, timestamp);
+        if ("event_msg".equals(msgType)) {
+            // Handle user messages from event_msg type
+            if ("user_message".equals(payloadType)) {
+                String message = payload.has("message") ? payload.get("message").getAsString() : "";
+                if (!message.isEmpty()) {
+                    frontendMsg = new JsonObject();
+                    frontendMsg.addProperty("type", "user");
+                    frontendMsg.addProperty("content", message);
+                    if (timestamp != null) {
+                        frontendMsg.addProperty("timestamp", timestamp);
+                    }
+                }
+            }
+            // Skip other event_msg types (task_complete, etc.)
+        } else if ("response_item".equals(msgType)) {
+            if ("message".equals(payloadType)) {
+                frontendMsg = CodexMessageConverter.convertCodexMessageToFrontend(payload, timestamp);
+            } else if ("function_call".equals(payloadType)) {
+                frontendMsg = CodexMessageConverter.convertFunctionCallToToolUse(payload, timestamp);
+            } else if ("function_call_output".equals(payloadType)) {
+                frontendMsg = CodexMessageConverter.convertFunctionCallOutputToToolResult(payload, timestamp);
+            } else if ("custom_tool_call".equals(payloadType)) {
+                frontendMsg = CodexMessageConverter.convertCustomToolCallToToolUse(payload, timestamp);
+            }
         }
 
         if (frontendMsg != null) {
             injectMessageToFrontend(frontendMsg);
         }
+    }
+
+    /**
+     * Add a history message to the backend SessionState for replay deduplication.
+     * Creates a Message with the correct raw format so that
+     * CodexMessageHandler.isReplayDuplicateOfHistory can match replayed SDK events
+     * by bridge_item_id, tool_use id, or tool_result tool_use_id.
+     */
+    private void addToBackendStateForDedup(JsonObject msg) {
+        if (!msg.has("type") || !"response_item".equals(msg.get("type").getAsString())) {
+            return;
+        }
+        JsonObject payload = msg.has("payload") ? msg.getAsJsonObject("payload") : null;
+        if (payload == null || !payload.has("type")) {
+            return;
+        }
+
+        String payloadType = payload.get("type").getAsString();
+        String payloadId = payload.has("id") && !payload.get("id").isJsonNull()
+                ? payload.get("id").getAsString() : null;
+
+        ClaudeSession.Message.Type messageType;
+        JsonObject raw = new JsonObject();
+
+        switch (payloadType) {
+            case "message": {
+                String role = payload.has("role") ? payload.get("role").getAsString() : "assistant";
+                messageType = "user".equals(role)
+                        ? ClaudeSession.Message.Type.USER
+                        : ClaudeSession.Message.Type.ASSISTANT;
+                if (payloadId != null) {
+                    raw.addProperty("bridge_item_id", payloadId);
+                }
+                // Build message.content from payload.content
+                JsonObject message = new JsonObject();
+                message.addProperty("role", role);
+                if (payload.has("content")) {
+                    message.add("content",
+                            CodexMessageConverter.convertToClaudeContentBlocks(payload.get("content")));
+                }
+                raw.add("message", message);
+                break;
+            }
+            case "function_call": {
+                messageType = ClaudeSession.Message.Type.ASSISTANT;
+                if (payloadId != null) {
+                    raw.addProperty("bridge_item_id", payloadId);
+                }
+                String callId = payload.has("call_id") && !payload.get("call_id").isJsonNull()
+                        ? payload.get("call_id").getAsString() : (payloadId != null ? payloadId : "");
+                JsonObject toolUse = new JsonObject();
+                toolUse.addProperty("type", "tool_use");
+                toolUse.addProperty("id", callId);
+                toolUse.addProperty("name",
+                        payload.has("name") ? payload.get("name").getAsString() : "unknown");
+                JsonArray content = new JsonArray();
+                content.add(toolUse);
+                JsonObject message = new JsonObject();
+                message.addProperty("role", "assistant");
+                message.add("content", content);
+                raw.add("message", message);
+                break;
+            }
+            case "function_call_output": {
+                messageType = ClaudeSession.Message.Type.USER;
+                if (payloadId != null) {
+                    raw.addProperty("bridge_item_id", payloadId);
+                }
+                String callId = payload.has("call_id") && !payload.get("call_id").isJsonNull()
+                        ? payload.get("call_id").getAsString() : "";
+                JsonObject toolResult = new JsonObject();
+                toolResult.addProperty("type", "tool_result");
+                toolResult.addProperty("tool_use_id", callId);
+                JsonArray content = new JsonArray();
+                content.add(toolResult);
+                JsonObject message = new JsonObject();
+                message.addProperty("role", "user");
+                message.add("content", content);
+                raw.add("message", message);
+                break;
+            }
+            default:
+                return;
+        }
+
+        String contentText = CodexMessageConverter.extractContentAsString(payload.get("content"));
+        ClaudeSession.Message backendMsg = new ClaudeSession.Message(
+                messageType, contentText != null ? contentText : "");
+        backendMsg.raw = raw;
+        context.getSession().getState().addMessage(backendMsg);
     }
 
     /**

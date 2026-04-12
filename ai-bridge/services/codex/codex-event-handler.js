@@ -11,9 +11,14 @@
  *   - processCodexEventStream(events, state, config) — the main event loop
  */
 
+import { execFile } from 'child_process';
 import { randomUUID } from 'crypto';
 import { existsSync } from 'fs';
 import { readFile, unlink, writeFile } from 'fs/promises';
+import { resolve as pathResolve } from 'path';
+import { promisify } from 'util';
+
+const execFileAsync = promisify(execFile);
 import { requestPermissionFromJava } from '../../permission-handler.js';
 import { findSessionFileByThreadId } from './codex-agents-loader.js';
 import { extractPatchFromResponseItemPayload, parseApplyPatchToOperations } from './codex-patch-parser.js';
@@ -31,16 +36,16 @@ import {
 
 const COMMAND_DENIED_ABORT_ERROR = '__CODEX_COMMAND_DENIED_ABORT__';
 
-function toolUseMsg(id, name, input) {
-  return { type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id, name, input }] } };
+function toolUseMsg(id, name, input, meta = {}) {
+  return { type: 'assistant', ...meta, message: { role: 'assistant', content: [{ type: 'tool_use', id, name, input }] } };
 }
 
-function toolResultMsg(toolUseId, isError, content) {
-  return { type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseId, is_error: isError, content }] } };
+function toolResultMsg(toolUseId, isError, content, meta = {}) {
+  return { type: 'user', ...meta, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseId, is_error: isError, content }] } };
 }
 
-function textMsg(text) {
-  return { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text }] } };
+function textMsg(text, meta = {}) {
+  return { type: 'assistant', ...meta, message: { role: 'assistant', content: [{ type: 'text', text }] } };
 }
 
 /** @typedef {Object} EventProcessingState - see createInitialEventState for fields */
@@ -50,6 +55,7 @@ export function createInitialEventState(emitMessage) {
   return {
     pendingToolUseIds: new Map(),
     emittedToolUseIds: new Set(),
+    emittedItemIds: new Set(),
     deniedCommandToolUseIds: new Set(),
     emittedDeniedCommandToolResultIds: new Set(),
     sessionFilePath: null,
@@ -61,8 +67,16 @@ export function createInitialEventState(emitMessage) {
     runtimePolicyLogged: false,
     suppressNoResponseFallback: false,
     currentThreadId: null,
+    currentTurnId: null,
+    // Deferred error handling: turn.failed/error don't throw immediately.
+    // Only re-thrown after the stream ends if no turn.completed was received.
+    turnCompletedSeen: false,
+    lastDeferredError: null,
     finalResponse: '',
     assistantText: '',
+    // Snapshot of files already modified before this turn started.
+    // Map<absPath, { absPath, relativePath, isUntracked, content }>
+    preExistingModifiedFiles: null,
     emitMessage
   };
 }
@@ -97,8 +111,9 @@ function ensureToolUseId(state, phase, item) {
 
 function ensureSessionFilePath(state, threadId) {
   if (state.sessionFilePath && existsSync(state.sessionFilePath)) return state.sessionFilePath;
-  if (!threadId) return null;
-  state.sessionFilePath = findSessionFileByThreadId(threadId);
+  const effectiveThreadId = threadId || state.currentThreadId;
+  if (!effectiveThreadId) return null;
+  state.sessionFilePath = findSessionFileByThreadId(effectiveThreadId);
   return state.sessionFilePath;
 }
 
@@ -280,6 +295,80 @@ function emitDeniedCommandToolResultOnce(state, toolUseId, messageText = 'Comman
   state.emittedDeniedCommandToolResultIds.add(toolUseId);
 }
 
+function computeAgentMessageUpdate(text, previousAssistantText = '') {
+  const nextText = typeof text === 'string' ? text : '';
+  const previousText = typeof previousAssistantText === 'string' ? previousAssistantText : '';
+  const normalizeCumulativeSuffix = (suffix) => {
+    if (!suffix) return '';
+    if (!previousText.endsWith('\n') && suffix.startsWith('\n')) {
+      return suffix.slice(1);
+    }
+    return suffix;
+  };
+
+  if (!nextText.trim()) {
+    return {
+      emittedText: '',
+      assistantText: previousText,
+      finalResponse: previousText,
+      kind: 'empty',
+    };
+  }
+
+  if (!previousText) {
+    return {
+      emittedText: nextText,
+      assistantText: nextText,
+      finalResponse: nextText,
+      kind: 'initial',
+    };
+  }
+
+  if (nextText === previousText) {
+    return {
+      emittedText: '',
+      assistantText: previousText,
+      finalResponse: previousText,
+      kind: 'duplicate',
+    };
+  }
+
+  if (nextText.startsWith(previousText)) {
+    return {
+      emittedText: normalizeCumulativeSuffix(nextText.slice(previousText.length)),
+      assistantText: nextText,
+      finalResponse: nextText,
+      kind: 'cumulative',
+    };
+  }
+
+  const previousWithNewline = previousText.endsWith('\n') ? previousText : `${previousText}\n`;
+  if (nextText.startsWith(previousWithNewline)) {
+    return {
+      emittedText: nextText.slice(previousWithNewline.length),
+      assistantText: nextText,
+      finalResponse: nextText,
+      kind: 'cumulative',
+    };
+  }
+
+  if (previousText.startsWith(nextText)) {
+    return {
+      emittedText: '',
+      assistantText: previousText,
+      finalResponse: previousText,
+      kind: 'stale',
+    };
+  }
+
+  return {
+    emittedText: nextText,
+    assistantText: `${previousText}\n${nextText}`,
+    finalResponse: `${previousText}\n${nextText}`,
+    kind: 'append',
+  };
+}
+
 async function maybeRequestCommandApprovalViaBridge(state, config, { toolUseId, command, smartTool, description }) {
   const shouldBridgeApproval = config.threadOptions.approvalPolicy && config.threadOptions.approvalPolicy !== 'never';
   if (!shouldBridgeApproval) return true;
@@ -327,6 +416,9 @@ async function maybeLogRuntimePolicy(state, config) {
   if (state.runtimePolicyLogged) return;
   const turnContext = await readLatestTurnContextFromSession(state, config.threadId);
   if (!turnContext) return;
+  if (typeof turnContext.turn_id === 'string' && turnContext.turn_id) {
+    state.currentTurnId = turnContext.turn_id;
+  }
   const actualApproval = typeof turnContext.approval_policy === 'string' ? turnContext.approval_policy : '';
   const actualSandbox = turnContext?.sandbox_policy?.type || '';
   const writableRoots = Array.isArray(turnContext?.sandbox_policy?.writable_roots) ? turnContext.sandbox_policy.writable_roots : [];
@@ -367,22 +459,35 @@ async function handleItemCompleted(item, state, config) {
 }
 
 function handleAgentMessage(item, state) {
+  const itemId = item.id || getStableItemId(item);
+  if (itemId && state.emittedItemIds.has(itemId)) {
+    console.log('[DEBUG] agent_message skipped (duplicate item id):', itemId);
+    return;
+  }
   const text = item.text || '';
-  console.log('[DEBUG] agent_message text length:', text.length);
-  console.log('[DEBUG] agent_message text (first 100 chars):', text.substring(0, 100));
-  state.finalResponse = text;
-  state.assistantText += text;
-  if (text && text.trim()) {
-    state.emitMessage(textMsg(text));
+  const update = computeAgentMessageUpdate(text, state.assistantText);
+  if (itemId) {
+    state.emittedItemIds.add(itemId);
+  }
+  state.finalResponse = update.finalResponse;
+  state.assistantText = update.assistantText;
+  if (update.emittedText && update.emittedText.trim()) {
+    state.emitMessage(textMsg(update.emittedText, itemId ? { bridge_item_id: itemId } : {}));
   }
 }
 
 function handleCommandExecution(item, state) {
   const toolUseId = ensureToolUseId(state, 'completed', item);
+  const itemId = item.id || getStableItemId(item);
+  if (itemId && state.emittedItemIds.has(itemId)) {
+    console.log('[DEBUG] command_execution skipped (duplicate item):', itemId);
+    return;
+  }
   const command = extractCommand(item);
   if (state.deniedCommandToolUseIds.has(toolUseId)) {
     emitDeniedCommandToolResultOnce(state, toolUseId);
     console.log('[DEBUG] Skip command output because approval denied:', command);
+    if (itemId) state.emittedItemIds.add(itemId);
     return;
   }
   const output = item.aggregated_output ?? item.output ?? item.stdout ?? item.result ?? '';
@@ -391,11 +496,13 @@ function handleCommandExecution(item, state) {
   const isError = (typeof item.exit_code === 'number' && item.exit_code !== 0) || item.is_error === true;
   const toolName = smartToolName(command);
   const description = smartDescription(command);
+  const bridgeMeta = itemId ? { bridge_item_id: itemId } : {};
   if (!state.emittedToolUseIds.has(toolUseId)) {
-    state.emitMessage(toolUseMsg(toolUseId, toolName, { command, description }));
+    state.emitMessage(toolUseMsg(toolUseId, toolName, { command, description }, bridgeMeta));
     state.emittedToolUseIds.add(toolUseId);
   }
-  state.emitMessage(toolResultMsg(toolUseId, isError, outputStr && outputStr.trim() ? outputStr : '(no output)'));
+  state.emitMessage(toolResultMsg(toolUseId, isError, outputStr && outputStr.trim() ? outputStr : '(no output)', bridgeMeta));
+  if (itemId) state.emittedItemIds.add(itemId);
 }
 
 async function handleFileChange(item, state, config) {
@@ -434,9 +541,10 @@ function handleMcpToolCall(item, state) {
   const toolUseId = item.id || randomUUID();
   const toolName = `mcp__${item.server}__${item.tool}`;
   const isError = item.status === 'failed' || !!item.error;
+  const bridgeMeta = item.id ? { bridge_item_id: item.id } : {};
   console.log('[DEBUG] MCP tool call completed:', toolName, 'id:', toolUseId, 'error:', isError);
   if (!state.emittedToolUseIds.has(toolUseId)) {
-    state.emitMessage(toolUseMsg(toolUseId, toolName, item.arguments || {}));
+    state.emitMessage(toolUseMsg(toolUseId, toolName, item.arguments || {}, bridgeMeta));
     state.emittedToolUseIds.add(toolUseId);
   }
   let resultContent = '(no output)';
@@ -453,7 +561,148 @@ function handleMcpToolCall(item, state) {
     }
   }
   const truncatedResult = truncateForDisplay(resultContent, MAX_TOOL_RESULT_CHARS);
-  state.emitMessage(toolResultMsg(toolUseId, isError, truncatedResult && truncatedResult.trim() ? truncatedResult : '(no output)'));
+  state.emitMessage(toolResultMsg(toolUseId, isError, truncatedResult && truncatedResult.trim() ? truncatedResult : '(no output)', bridgeMeta));
+}
+
+/**
+ * Return the map of files modified (tracked changes + new untracked) in the working directory
+ * according to git. Returns an empty Map if git is unavailable or not a repo.
+ */
+async function listGitModifiedFiles(cwd) {
+  if (!cwd) return new Map();
+  try {
+    const [{ stdout: diffOut }, { stdout: newOut }] = await Promise.all([
+      execFileAsync('git', ['diff', '--name-only', 'HEAD'], { cwd, timeout: 5000 }).catch(() => ({ stdout: '' })),
+      execFileAsync('git', ['ls-files', '--others', '--exclude-standard'], { cwd, timeout: 5000 }).catch(() => ({ stdout: '' })),
+    ]);
+    const files = new Map();
+    const remember = (relativePath, isUntracked = false) => {
+      const normalizedRelativePath = typeof relativePath === 'string'
+        ? relativePath.trim().replace(/\\/g, '/')
+        : '';
+      if (!normalizedRelativePath) return;
+      const absolutePath = pathResolve(cwd, normalizedRelativePath);
+      files.set(absolutePath, {
+        absPath: absolutePath,
+        relativePath: normalizedRelativePath,
+        isUntracked,
+      });
+    };
+    diffOut.trim().split('\n').filter(Boolean).forEach((relativePath) => remember(relativePath, false));
+    newOut.trim().split('\n').filter(Boolean).forEach((relativePath) => remember(relativePath, true));
+    return files;
+  } catch {
+    return new Map();
+  }
+}
+
+/**
+ * Read UTF-8 text content if the file exists, otherwise return null.
+ */
+async function readFileTextIfExists(filePath) {
+  if (!filePath || !existsSync(filePath)) return null;
+  try {
+    return await readFile(filePath, 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Snapshot the current text contents of files already modified before this turn started.
+ */
+async function snapshotModifiedFiles(cwd) {
+  const modifiedFiles = await listGitModifiedFiles(cwd);
+  const snapshots = new Map();
+  await Promise.all([...modifiedFiles.values()].map(async (entry) => {
+    snapshots.set(entry.absPath, {
+      ...entry,
+      content: await readFileTextIfExists(entry.absPath),
+    });
+  }));
+  return snapshots;
+}
+
+/**
+ * Read the file content stored at HEAD for a tracked path, or return null if the path does not
+ * exist in HEAD (for example, newly created untracked files).
+ */
+async function readGitHeadFileContent(cwd, relativePath) {
+  if (!cwd || !relativePath) return null;
+  try {
+    const normalizedRelativePath = relativePath.replace(/\\/g, '/');
+    const { stdout } = await execFileAsync('git', ['show', `HEAD:${normalizedRelativePath}`], {
+      cwd,
+      timeout: 5000,
+      maxBuffer: 10 * 1024 * 1024,
+      encoding: 'utf8',
+    });
+    return typeof stdout === 'string' ? stdout : String(stdout ?? '');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Compute the files modified by this turn.
+ *
+ * For files that were already dirty before the turn started, compare the pre-turn snapshot content
+ * with the current content so edits to existing dirty files are still reported.
+ */
+async function collectTurnModifiedFiles(state, config) {
+  if (!config.cwd) return [];
+  const currentModified = await listGitModifiedFiles(config.cwd);
+  const preExisting = state.preExistingModifiedFiles instanceof Map
+    ? state.preExistingModifiedFiles
+    : new Map();
+  const turnModified = [];
+
+  for (const entry of currentModified.values()) {
+    const currentContent = await readFileTextIfExists(entry.absPath);
+    if (currentContent == null) {
+      console.log('[DEBUG] collectTurnModifiedFiles skipped unreadable/deleted file:', entry.absPath);
+      continue;
+    }
+
+    const previousSnapshot = preExisting.get(entry.absPath);
+    if (previousSnapshot) {
+      if (previousSnapshot.content === currentContent) {
+        continue;
+      }
+      turnModified.push({
+        path: entry.absPath,
+        status: 'M',
+        old_content: previousSnapshot.content ?? '',
+        new_content: currentContent,
+      });
+      continue;
+    }
+
+    const headContent = await readGitHeadFileContent(config.cwd, entry.relativePath);
+    turnModified.push({
+      path: entry.absPath,
+      status: headContent == null ? 'A' : 'M',
+      old_content: headContent ?? '',
+      new_content: currentContent,
+    });
+  }
+
+  return turnModified;
+}
+
+/**
+ * Emit a codex_file_changes message when this turn changed any files on disk.
+ */
+async function emitTurnModifiedFiles(state, config) {
+  try {
+    const turnModified = await collectTurnModifiedFiles(state, config);
+    if (turnModified.length > 0) {
+      state.emitMessage({ type: 'codex_file_changes', files: turnModified });
+      console.log('[DEBUG] codex_file_changes: ' + turnModified.length + ' file(s) modified this turn');
+    }
+  } catch (e) {
+    console.log('[DEBUG] emitTurnModifiedFiles failed:', e?.message);
+  }
 }
 
 /**
@@ -485,9 +734,23 @@ export async function processCodexEventStream(events, state, config) {
         break;
       }
 
-      case 'turn.started':
-        console.log('[DEBUG] Turn started');
+      case 'turn.started': {
+        // Reset ALL per-turn state so replayed turns don't leak into new turn.
+        state.assistantText = '';
+        state.finalResponse = '';
+        state.turnCompletedSeen = false;
+        state.lastDeferredError = null;
+        state.emittedItemIds.clear();
+        state.emittedToolUseIds.clear();
+        state.emittedDeniedCommandToolResultIds.clear();
+        state.deniedCommandToolUseIds.clear();
+        state.pendingToolUseIds.clear();
+        // Snapshot pre-existing modified file contents so we can still detect
+        // Codex edits to files that were already dirty before this turn.
+        state.preExistingModifiedFiles = await snapshotModifiedFiles(config.cwd);
+        console.log('[DEBUG] turn.started — per-turn state cleared, preExistingModifiedFiles=' + (state.preExistingModifiedFiles?.size ?? 0));
         break;
+      }
 
       case 'item.started': {
         maybeEmitReasoning(state, event.item);
@@ -496,7 +759,8 @@ export async function processCodexEventStream(events, state, config) {
           const command = extractCommand(event.item);
           const toolName = smartToolName(command);
           const description = smartDescription(command);
-          state.emitMessage(toolUseMsg(toolUseId, toolName, { command, description }));
+          const itemId = event.item.id || getStableItemId(event.item);
+          state.emitMessage(toolUseMsg(toolUseId, toolName, { command, description }, itemId ? { bridge_item_id: itemId } : {}));
           state.emittedToolUseIds.add(toolUseId);
           const allowed = await maybeRequestCommandApprovalViaBridge(
             state, config, { toolUseId, command, smartTool: toolName, description }
@@ -526,7 +790,11 @@ export async function processCodexEventStream(events, state, config) {
       }
 
       case 'turn.completed': {
-        console.log('[DEBUG] Turn completed');
+        state.turnCompletedSeen = true;
+        state.lastDeferredError = null;
+        console.log('[DEBUG] turn.completed — assistantText.length=' + state.assistantText.length);
+        // Emit file changes detected during this turn (commands may have modified files on disk).
+        await emitTurnModifiedFiles(state, config);
         if (event.usage) {
           console.log('[DEBUG] Token usage:', event.usage);
           const claudeUsage = {
@@ -546,6 +814,10 @@ export async function processCodexEventStream(events, state, config) {
 
       case 'turn.failed': {
         const errorMsg = event.error?.message || 'Turn failed';
+        if (state.turnCompletedSeen) {
+          console.warn('[DEBUG] turn.failed after turn.completed — treating as graceful disconnect:', errorMsg);
+          break;
+        }
         if (isReconnectNotice(errorMsg)) {
           console.warn('[DEBUG] Codex reconnect notice:', errorMsg);
           emitStatusMessage(state.emitMessage, errorMsg);
@@ -555,12 +827,18 @@ export async function processCodexEventStream(events, state, config) {
           logInfo('PERM_DEBUG', `Ignore turn.failed after command denial abort: ${errorMsg}`);
           break;
         }
-        console.error('[DEBUG] Turn failed:', errorMsg);
-        throw new Error(errorMsg);
+        // Defer instead of throwing — the stream may still deliver turn.completed.
+        state.lastDeferredError = new Error(errorMsg);
+        console.warn('[DEBUG] Turn failed (deferred):', errorMsg);
+        break;
       }
 
       case 'error': {
         const generalError = event.message || 'Unknown error';
+        if (state.turnCompletedSeen) {
+          console.warn('[DEBUG] error after turn.completed — treating as graceful disconnect:', generalError);
+          break;
+        }
         if (isReconnectNotice(generalError)) {
           console.warn('[DEBUG] Codex reconnect notice:', generalError);
           emitStatusMessage(state.emitMessage, generalError);
@@ -570,8 +848,10 @@ export async function processCodexEventStream(events, state, config) {
           logInfo('PERM_DEBUG', `Ignore error event after command denial abort: ${generalError}`);
           break;
         }
-        console.error('[DEBUG] Codex error:', generalError);
-        throw new Error(generalError);
+        // Defer instead of throwing — the stream may still deliver turn.completed.
+        state.lastDeferredError = new Error(generalError);
+        console.warn('[DEBUG] Error event (deferred):', generalError);
+        break;
       }
 
       default: {
@@ -582,6 +862,13 @@ export async function processCodexEventStream(events, state, config) {
         }
       }
       }
+    }
+
+    // Stream ended — check for deferred errors.
+
+    // If a deferred error exists and no turn completed, re-throw.
+    if (state.lastDeferredError && !state.turnCompletedSeen) {
+      throw state.lastDeferredError;
     }
   } catch (streamError) {
     const streamErrorMessage = streamError?.message || String(streamError);
@@ -595,3 +882,9 @@ export async function processCodexEventStream(events, state, config) {
     }
   }
 }
+
+export const __testing = {
+  computeAgentMessageUpdate,
+  collectTurnModifiedFiles,
+  snapshotModifiedFiles,
+};

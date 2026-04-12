@@ -31,6 +31,55 @@ export const stripUuidFromRaw = (raw: unknown): unknown => {
   return rest;
 };
 
+const isToolResultUserMessage = (msg: ClaudeMessage | undefined): boolean => {
+  if (!msg || msg.type !== 'user') return false;
+  if ((msg.content || '').trim() === '[tool_result]') return true;
+
+  const raw = msg.raw;
+  if (!raw || typeof raw !== 'object') return false;
+
+  const rawObj = raw as ClaudeRawMessage;
+  const content = rawObj.message?.content ?? rawObj.content;
+  if (!Array.isArray(content)) return false;
+
+  return content.some(
+    (block) => !!block && typeof block === 'object' && (block as Record<string, unknown>).type === 'tool_result',
+  );
+};
+
+/**
+ * Returns the last real user prompt index while ignoring synthetic tool_result
+ * user messages that belong to the same assistant turn.
+ */
+export const findLastPromptUserIndex = (messages: ClaudeMessage[]): number => {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i]?.type === 'user' && !isToolResultUserMessage(messages[i])) {
+      return i;
+    }
+  }
+  return -1;
+};
+
+/**
+ * Find the assistant message that belongs to the active prompt. If the last
+ * assistant sits before the most recent real user prompt, it belongs to a
+ * previous turn and must not be reused as the current streaming target.
+ */
+export const findCurrentTurnAssistantIndex = (
+  messages: ClaudeMessage[],
+  findLastAssistantIndex: (messages: ClaudeMessage[]) => number,
+): number => {
+  const assistantIdx = findLastAssistantIndex(messages);
+  if (assistantIdx < 0) return -1;
+
+  const promptUserIdx = findLastPromptUserIndex(messages);
+  if (promptUserIdx >= 0 && assistantIdx < promptUserIdx) {
+    return -1;
+  }
+
+  return assistantIdx;
+};
+
 // ---------------------------------------------------------------------------
 // Identity preservation
 // ---------------------------------------------------------------------------
@@ -147,10 +196,10 @@ export const preserveLastAssistantIdentity = (
 
   const prevAssistant = prevList[prevAssistantIdx];
   const nextAssistant = nextList[nextAssistantIdx];
-  // Guard: do not merge identity across different streaming turns
-  // Only block when BOTH have __turnId and they differ; allow merge when either lacks __turnId (backward compat)
-  if (prevAssistant.__turnId !== undefined && nextAssistant.__turnId !== undefined &&
-      prevAssistant.__turnId !== nextAssistant.__turnId) {
+  // Only merge when turn ownership exactly matches. A one-sided turn ID means
+  // the backend snapshot has no trustworthy turn marker, so inheriting the
+  // previous assistant would leak content across turns.
+  if (prevAssistant.__turnId !== nextAssistant.__turnId) {
     return nextList;
   }
   const stabilized = preserveMessageIdentity(prevAssistant, nextAssistant);
@@ -185,10 +234,8 @@ export const preserveStreamingAssistantContent = (
     return nextList;
   }
 
-  // Guard: do not merge content across different streaming turns
-  // Only block when BOTH have __turnId and they differ
-  if (prevAssistant.__turnId !== undefined && nextAssistant.__turnId !== undefined &&
-      prevAssistant.__turnId !== nextAssistant.__turnId) {
+  // Same reasoning as preserveLastAssistantIdentity above.
+  if (prevAssistant.__turnId !== nextAssistant.__turnId) {
     return nextList;
   }
 

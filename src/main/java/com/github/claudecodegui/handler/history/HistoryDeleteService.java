@@ -92,8 +92,8 @@ class HistoryDeleteService {
         try (Stream<Path> paths = Files.walk(sessionDir)) {
             List<Path> sessionFiles = paths
                     .filter(Files::isRegularFile)
-                    .filter(path -> path.getFileName().toString().startsWith(sessionId))
                     .filter(path -> path.toString().endsWith(".jsonl"))
+                    .filter(path -> isCodexSessionFile(path, sessionId))
                     .collect(Collectors.toList());
 
             for (Path sessionFile : sessionFiles) {
@@ -107,6 +107,31 @@ class HistoryDeleteService {
             }
         }
         return deleted;
+    }
+
+    private boolean isCodexSessionFile(Path sessionFile, String sessionId) {
+        String fileName = sessionFile.getFileName().toString();
+        if (fileName.equals(sessionId + ".jsonl")
+                || fileName.startsWith(sessionId + ".")
+                || fileName.endsWith("-" + sessionId + ".jsonl")) {
+            return true;
+        }
+
+        try (BufferedReader reader = Files.newBufferedReader(sessionFile, StandardCharsets.UTF_8)) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty()) {
+                    continue;
+                }
+                if (line.contains("\"type\":\"session_meta\"") && line.contains("\"id\":\"" + sessionId + "\"")) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            LOG.debug("[HistoryHandler] Failed to inspect Codex session file " + sessionFile + ": " + e.getMessage());
+        }
+
+        return false;
     }
 
     /**

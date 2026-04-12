@@ -56,6 +56,37 @@ public class CodexHistoryReaderRefactorTest {
     }
 
     @Test
+    public void readerAggregatesMultipleRolloutFilesByActualThreadId() throws IOException {
+        Path sessionsDir = Files.createTempDirectory("codex-history-aggregate");
+        try {
+            String threadId = "test-thread-aggregate-codex-history";
+            writeCustomSessionFile(
+                    sessionsDir.resolve("2026/04/08/rollout-2026-04-08T03-49-17-084-" + threadId + ".jsonl"),
+                    line("2026-04-08T03:49:17.084Z", "session_meta", "{\"id\":\"" + threadId + "\",\"cwd\":\"D:/WorkProject/idea-claude-code-gui\",\"timestamp\":\"2026-04-08T03:49:17.084Z\"}"),
+                    line("2026-04-08T03:49:17.084Z", "event_msg", "{\"type\":\"user_message\",\"message\":\"First question\"}"),
+                    line("2026-04-08T03:49:18.084Z", "response_item", "{\"type\":\"message\"}")
+            );
+            writeCustomSessionFile(
+                    sessionsDir.resolve("2026/04/08/rollout-2026-04-08T05-46-10-449-" + threadId + ".jsonl"),
+                    line("2026-04-08T05:46:10.449Z", "session_meta", "{\"id\":\"" + threadId + "\",\"cwd\":\"D:/WorkProject/idea-claude-code-gui\",\"timestamp\":\"2026-04-08T05:46:10.449Z\"}"),
+                    line("2026-04-08T05:46:10.449Z", "event_msg", "{\"type\":\"user_message\",\"message\":\"Second question\"}"),
+                    line("2026-04-08T05:46:11.449Z", "response_item", "{\"type\":\"message\"}")
+            );
+
+            CodexHistoryReader reader = new CodexHistoryReader(sessionsDir, gson);
+            List<SessionInfo> sessions = reader.readAllSessions();
+
+            assertEquals(1, sessions.size());
+            assertEquals(threadId, sessions.get(0).sessionId);
+            assertEquals("First question", sessions.get(0).title);
+            assertEquals(2, sessions.get(0).messageCount);
+            assertEquals(Instant.parse("2026-04-08T05:46:11.449Z").toEpochMilli(), sessions.get(0).lastTimestamp);
+        } finally {
+            deleteDirectory(sessionsDir);
+        }
+    }
+
+    @Test
     public void sessionServiceTransformsFileViewingShellCommandToRead() throws IOException {
         Path sessionsDir = Files.createTempDirectory("codex-history-messages");
         try {
@@ -74,6 +105,35 @@ public class CodexHistoryReaderRefactorTest {
             assertEquals(2, messages.size());
             assertEquals("read", messages.get(0).payload.get("name").getAsString());
             assertEquals("shell_command", messages.get(1).payload.get("name").getAsString());
+        } finally {
+            deleteDirectory(sessionsDir);
+        }
+    }
+
+    @Test
+    public void sessionServiceLoadsMessagesFromAllRolloutFilesForSameThreadId() throws IOException {
+        Path sessionsDir = Files.createTempDirectory("codex-history-session-load");
+        try {
+            String threadId = "test-thread-session-load-codex-history";
+            writeCustomSessionFile(
+                    sessionsDir.resolve("2026/04/08/rollout-2026-04-08T03-49-17-084-" + threadId + ".jsonl"),
+                    line("2026-04-08T03:49:17.084Z", "session_meta", "{\"id\":\"" + threadId + "\",\"cwd\":\"/workspace/demo\"}"),
+                    line("2026-04-08T03:49:18.084Z", "response_item", "{\"type\":\"message\",\"role\":\"assistant\",\"content\":[]}")
+            );
+            writeCustomSessionFile(
+                    sessionsDir.resolve("2026/04/08/rollout-2026-04-08T05-46-10-449-" + threadId + ".jsonl"),
+                    line("2026-04-08T05:46:10.449Z", "session_meta", "{\"id\":\"" + threadId + "\",\"cwd\":\"/workspace/demo\"}"),
+                    line("2026-04-08T05:46:11.449Z", "response_item", "{\"type\":\"message\",\"role\":\"assistant\",\"content\":[]}")
+            );
+
+            CodexHistorySessionService service = new CodexHistorySessionService(sessionsDir, gson);
+            Type listType = new TypeToken<List<CodexMessage>>() {}.getType();
+
+            List<CodexMessage> messages = gson.fromJson(service.getSessionMessagesAsJson(threadId), listType);
+
+            assertEquals(4, messages.size());
+            assertEquals("2026-04-08T03:49:17.084Z", messages.get(0).timestamp);
+            assertEquals("2026-04-08T05:46:11.449Z", messages.get(3).timestamp);
         } finally {
             deleteDirectory(sessionsDir);
         }
@@ -120,6 +180,12 @@ public class CodexHistoryReaderRefactorTest {
     private Path writeSessionFile(Path parentDir, String sessionId, String... lines) throws IOException {
         Files.createDirectories(parentDir);
         Path file = parentDir.resolve(sessionId + ".jsonl");
+        Files.write(file, List.of(lines));
+        return file;
+    }
+
+    private Path writeCustomSessionFile(Path file, String... lines) throws IOException {
+        Files.createDirectories(file.getParent());
         Files.write(file, List.of(lines));
         return file;
     }

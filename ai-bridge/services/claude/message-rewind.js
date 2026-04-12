@@ -82,12 +82,20 @@ export async function rewindFiles(sessionId, userMessageId, cwd = null) {
           throw new Error('Claude SDK query function not available. Please reinstall dependencies.');
         }
 
+        // Use a non-empty placeholder prompt. The SDK writes the prompt to
+        // the session JSONL as a user message. An empty string produces a
+        // `{ type: "text", text: "" }` content block that the Anthropic API
+        // rejects with "text content blocks must be non-empty" on the NEXT
+        // real send (which resumes the same JSONL). The placeholder is never
+        // shown to the model because rewindFiles() rolls the conversation
+        // back to the target checkpoint, discarding this message.
+        const rewindPlaceholderPrompt = '[rewind]';
         try {
-          result = query({ prompt: '', options });
+          result = query({ prompt: rewindPlaceholderPrompt, options });
         } catch (queryError) {
           if (isNoConversationFoundError(queryError)) {
             await waitForClaudeProjectSessionFile(sessionId, workingDirectory, 2500, 100);
-            result = query({ prompt: '', options });
+            result = query({ prompt: rewindPlaceholderPrompt, options });
           } else {
             throw queryError;
           }

@@ -262,6 +262,19 @@ public class StreamMessageCoalescer {
                         callbackTarget.isDisposed()
                 );
 
+                // FIX: Force JCEF browser component repaint after message update.
+                // On Windows, JCEF may not trigger a native repaint after JavaScript DOM
+                // updates, causing the rendered content to appear "frozen" until user
+                // interaction (scroll, click). Schedule repaint on the next EDT cycle
+                // to ensure it runs after the JS execution completes.
+                JBCefBrowser repaintBrowser = callbackTarget.getBrowser();
+                if (repaintBrowser != null && !callbackTarget.isDisposed()) {
+                    java.awt.Component component = repaintBrowser.getComponent();
+                    if (component != null) {
+                        component.repaint();
+                    }
+                }
+
                 if (afterSendOnEdt != null) {
                     afterSendOnEdt.run();
                 }

@@ -8,10 +8,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -64,8 +64,9 @@ class CodexHistoryIndexService {
         long startTime = System.currentTimeMillis();
 
         if (updateType == SessionIndexManager.UpdateType.INCREMENTAL && projectIndex != null) {
-            LOG.info("[CodexHistoryReader] Incremental scan for Codex sessions");
-            sessions = incrementalScan(projectIndex);
+            LOG.info("[CodexHistoryReader] Codex incremental updates require thread-level re-aggregation, falling back to full scan");
+            sessions = scanAllSessions();
+            preserveExistingTitles(projectIndex, sessions);
         } else {
             LOG.info("[CodexHistoryReader] Full scan for Codex sessions");
             sessions = scanAllSessions();
@@ -109,44 +110,6 @@ class CodexHistoryIndexService {
         }
 
         LOG.info("[CodexHistoryReader] Preserved " + existingTitles.size() + " existing titles from old index");
-    }
-
-    private List<CodexHistoryReader.SessionInfo> incrementalScan(SessionIndexManager.ProjectIndex existingIndex) throws IOException {
-        Set<String> indexedIds = existingIndex.getIndexedSessionIds();
-        List<CodexHistoryReader.SessionInfo> sessions = restoreSessionsFromIndex(existingIndex);
-        List<CodexHistoryReader.SessionInfo> newSessions = new ArrayList<>();
-
-        try (Stream<Path> paths = Files.walk(sessionsDir)) {
-            List<Path> newFiles = paths
-                    .filter(Files::isRegularFile)
-                    .filter(path -> path.toString().endsWith(".jsonl"))
-                    .filter(path -> {
-                        String fileName = path.getFileName().toString();
-                        String sessionId = fileName.substring(0, fileName.lastIndexOf(".jsonl"));
-                        return !indexedIds.contains(sessionId);
-                    })
-                    .filter(CodexHistoryParser::isNonEmptyFile)
-                    .collect(Collectors.toList());
-
-            LOG.info("[CodexHistoryReader] Found " + newFiles.size() + " new Codex session files");
-
-            for (Path sessionFile : newFiles) {
-                try {
-                    CodexHistoryReader.SessionInfo session = parser.parseSessionFile(sessionFile);
-                    if (session != null && parser.isValidSession(session)) {
-                        newSessions.add(session);
-                    }
-                } catch (Exception e) {
-                    LOG.warn("[CodexHistoryReader] Failed to parse new session file: " + sessionFile + " - " + e.getMessage());
-                }
-            }
-        }
-
-        LOG.info("[CodexHistoryReader] Incremental scan found " + newSessions.size() + " new valid sessions");
-
-        sessions.addAll(newSessions);
-        sessions.sort((a, b) -> Long.compare(b.lastTimestamp, a.lastTimestamp));
-        return sessions;
     }
 
     private List<CodexHistoryReader.SessionInfo> restoreSessionsFromIndex(SessionIndexManager.ProjectIndex projectIndex) {
@@ -200,7 +163,7 @@ class CodexHistoryIndexService {
     }
 
     private List<CodexHistoryReader.SessionInfo> scanAllSessions() throws IOException {
-        List<CodexHistoryReader.SessionInfo> sessions = new ArrayList<>();
+        List<CodexHistoryReader.SessionInfo> parsedSessions = new ArrayList<>();
 
         try (Stream<Path> paths = Files.walk(sessionsDir)) {
             List<Path> jsonlFiles = paths
@@ -215,7 +178,7 @@ class CodexHistoryIndexService {
                 try {
                     CodexHistoryReader.SessionInfo session = parser.parseSessionFile(sessionFile);
                     if (session != null && parser.isValidSession(session)) {
-                        sessions.add(session);
+                        parsedSessions.add(session);
                     }
                 } catch (Exception e) {
                     LOG.warn("[CodexHistoryReader] Failed to parse session file: " + sessionFile + " - " + e.getMessage());
@@ -223,9 +186,44 @@ class CodexHistoryIndexService {
             }
         }
 
+        List<CodexHistoryReader.SessionInfo> sessions = aggregateSessionsById(parsedSessions);
         sessions.sort((a, b) -> Long.compare(b.lastTimestamp, a.lastTimestamp));
         LOG.info("[CodexHistoryReader] Successfully loaded " + sessions.size() + " valid Codex sessions");
         return sessions;
+    }
+
+    private List<CodexHistoryReader.SessionInfo> aggregateSessionsById(List<CodexHistoryReader.SessionInfo> parsedSessions) {
+        Map<String, CodexHistoryReader.SessionInfo> aggregated = new HashMap<>();
+
+        for (CodexHistoryReader.SessionInfo session : parsedSessions) {
+            if (session == null || session.sessionId == null || session.sessionId.isEmpty()) {
+                continue;
+            }
+
+            CodexHistoryReader.SessionInfo existing = aggregated.get(session.sessionId);
+            if (existing == null) {
+                aggregated.put(session.sessionId, session);
+                continue;
+            }
+
+            existing.messageCount += session.messageCount;
+            existing.lastTimestamp = Math.max(existing.lastTimestamp, session.lastTimestamp);
+
+            if (existing.firstTimestamp == 0 || (session.firstTimestamp > 0 && session.firstTimestamp < existing.firstTimestamp)) {
+                existing.firstTimestamp = session.firstTimestamp;
+                if (session.title != null && !session.title.isEmpty()) {
+                    existing.title = session.title;
+                }
+            }
+
+            if ((existing.cwd == null || existing.cwd.isEmpty()) && session.cwd != null && !session.cwd.isEmpty()) {
+                existing.cwd = session.cwd;
+            }
+        }
+
+        return aggregated.values().stream()
+                .sorted(Comparator.comparingLong((CodexHistoryReader.SessionInfo session) -> session.lastTimestamp).reversed())
+                .collect(Collectors.toList());
     }
 
 }

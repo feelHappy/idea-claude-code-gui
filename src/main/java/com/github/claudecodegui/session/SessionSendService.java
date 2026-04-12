@@ -165,7 +165,7 @@ public class SessionSendService {
             List<String> fileTagPaths,
             String effectivePermissionMode
     ) {
-        CodexMessageHandler handler = new CodexMessageHandler(state, callbackFacade.getCallbackHandler());
+        CodexMessageHandler handler = new CodexMessageHandler(project, state, callbackFacade.getCallbackHandler());
         String contextAppend = contextService.buildCodexContextAppend(openedFilesJson, fileTagPaths);
         String finalInput = (input != null ? input : "") + contextAppend;
 

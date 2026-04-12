@@ -5,13 +5,16 @@ plugins {
 
 group = 'com.github.idea-claude-code-gui'
 version = '0.1.0-SNAPSHOT'
+def minimumJavaVersion = 17
+def currentJvmFeatureVersion = JavaVersion.current().majorVersion.toInteger()
+def buildToolchainVersion = Math.max(minimumJavaVersion, currentJvmFeatureVersion)
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.toVersion(minimumJavaVersion)
+    targetCompatibility = JavaVersion.toVersion(minimumJavaVersion)
 
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(buildToolchainVersion)
     }
 }
 

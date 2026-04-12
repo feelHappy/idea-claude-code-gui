@@ -8,6 +8,7 @@ import com.intellij.openapi.diagnostic.Logger;
 
 import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -97,7 +98,7 @@ public class NacosRegistryManager {
         }
 
         String loginUrl = baseUrl + "/v3/auth/user/login";
-        URL url = new URL(loginUrl);
+        URL url = toUrl(loginUrl);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setConnectTimeout(CONNECT_TIMEOUT);
@@ -441,7 +442,7 @@ public class NacosRegistryManager {
      * 创建带 accessToken 认证的 HTTP 连接。
      */
     private HttpURLConnection createAuthenticatedConnection(String urlStr, String method, String accessToken) throws IOException {
-        URL url = new URL(urlStr);
+        URL url = toUrl(urlStr);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod(method);
         conn.setConnectTimeout(CONNECT_TIMEOUT);
@@ -451,6 +452,14 @@ public class NacosRegistryManager {
             conn.setRequestProperty("accessToken", accessToken);
         }
         return conn;
+    }
+
+    private URL toUrl(String urlStr) throws IOException {
+        try {
+            return URI.create(urlStr).toURL();
+        } catch (IllegalArgumentException e) {
+            throw new IOException("Invalid URL: " + urlStr, e);
+        }
     }
 
     private String normalizeServerAddr(String addr) {

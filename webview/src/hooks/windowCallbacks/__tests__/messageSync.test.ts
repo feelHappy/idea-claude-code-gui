@@ -5,6 +5,8 @@ import {
   OPTIMISTIC_MESSAGE_TIME_WINDOW,
   appendOptimisticMessageIfMissing,
   ensureStreamingAssistantInList,
+  findCurrentTurnAssistantIndex,
+  findLastPromptUserIndex,
   getRawUuid,
   preserveLastAssistantIdentity,
   preserveMessageIdentity,
@@ -42,6 +44,16 @@ const makeUserMsg = (content: string, extra?: Partial<ClaudeMessage>) =>
 
 const makeAssistantMsg = (content: string, extra?: Partial<ClaudeMessage>) =>
   makeMsg('assistant', content, extra);
+
+const makeToolResultUserMsg = (toolUseId: string, extra?: Partial<ClaudeMessage>) =>
+  makeMsg('user', '[tool_result]', {
+    raw: {
+      message: {
+        content: [{ type: 'tool_result', tool_use_id: toolUseId, content: 'ok' }],
+      },
+    } as any,
+    ...extra,
+  });
 
 // ---------------------------------------------------------------------------
 // getRawUuid
@@ -435,6 +447,18 @@ describe('preserveStreamingAssistantContent', () => {
     );
     expect(result[0].content).toBe(longContent);
   });
+
+  it('does not merge content when only one side has a turn ID', () => {
+    const longContent = 'current turn streamed content';
+    const prev = [makeAssistantMsg(longContent, { __turnId: 7 })];
+    const next = [makeAssistantMsg('older assistant snapshot')];
+
+    const result = preserveStreamingAssistantContent(
+      prev, next, ref(true), ref(longContent),
+      findLastAssistantIndex, patchAssistantForStreaming,
+    );
+    expect(result).toBe(next);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -470,13 +494,64 @@ describe('preserveLastAssistantIdentity — turn ID guards', () => {
     expect(result[0].timestamp).toBe(prevTs);
   });
 
-  it('allows merge when only one has turn ID (Java message without turnId)', () => {
+  it('does not merge when only one side has a turn ID', () => {
     const prevTs = '2024-01-01T10:00:00.000Z';
     const prev = [makeAssistantMsg('a1', { timestamp: prevTs, __turnId: 1 })];
     const next = [makeAssistantMsg('a1', { timestamp: '2024-01-01T10:00:01.000Z' })];
 
     const result = preserveLastAssistantIdentity(prev, next, findLastAssistantIndex);
-    expect(result[0].timestamp).toBe(prevTs);
+    expect(result).toBe(next);
+    expect(result[0].timestamp).toBe('2024-01-01T10:00:01.000Z');
+  });
+
+  it('does not merge different assistant messages without stable identity', () => {
+    const prev = [makeAssistantMsg('previous assistant', { timestamp: '2024-01-01T10:00:00.000Z' })];
+    const next = [makeAssistantMsg('new assistant', { timestamp: '2024-01-01T10:00:01.000Z' })];
+    const result = preserveLastAssistantIdentity(prev, next, findLastAssistantIndex);
+    expect(result).toBe(next);
+    expect(result[0].timestamp).toBe('2024-01-01T10:00:01.000Z');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Turn-scoped assistant detection
+// ---------------------------------------------------------------------------
+
+describe('findLastPromptUserIndex', () => {
+  it('ignores tool_result user messages and returns the latest real prompt', () => {
+    const messages = [
+      makeUserMsg('first prompt'),
+      makeAssistantMsg('first reply'),
+      makeUserMsg('second prompt'),
+      makeAssistantMsg('running tool'),
+      makeToolResultUserMsg('tool-1'),
+    ];
+
+    expect(findLastPromptUserIndex(messages)).toBe(2);
+  });
+});
+
+describe('findCurrentTurnAssistantIndex', () => {
+  it('returns -1 when the last assistant belongs to a previous turn', () => {
+    const messages = [
+      makeUserMsg('first prompt'),
+      makeAssistantMsg('previous turn summary'),
+      makeUserMsg('second prompt'),
+    ];
+
+    expect(findCurrentTurnAssistantIndex(messages, findLastAssistantIndex)).toBe(-1);
+  });
+
+  it('keeps the current-turn assistant even when tool_result user blocks follow it', () => {
+    const messages = [
+      makeUserMsg('first prompt'),
+      makeAssistantMsg('previous turn summary'),
+      makeUserMsg('second prompt'),
+      makeAssistantMsg('current turn tool call'),
+      makeToolResultUserMsg('tool-2'),
+    ];
+
+    expect(findCurrentTurnAssistantIndex(messages, findLastAssistantIndex)).toBe(3);
   });
 });
 

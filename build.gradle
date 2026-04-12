@@ -55,15 +55,19 @@ checkstyle {
 }
 
 group = 'com.github.idea-claude-code-gui'
-version = '1.0.7'
+version = '1.0.8'
+def minimumJavaVersion = 17
+def currentJvmFeatureVersion = JavaVersion.current().majorVersion.toInteger()
+def buildToolchainVersion = Math.max(minimumJavaVersion, currentJvmFeatureVersion)
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.toVersion(minimumJavaVersion)
+    targetCompatibility = JavaVersion.toVersion(minimumJavaVersion)
 
-    // Use Java Toolchain for consistent JDK across all tasks
+    // Prefer the current Gradle JVM when it already satisfies the minimum
+    // build requirement, while still emitting Java 17 bytecode via --release.
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(buildToolchainVersion)
     }
 }
 
