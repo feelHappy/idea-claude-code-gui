@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ModelSelect } from './ModelSelect';
 import type { ModelInfo } from '../types';
 import { STORAGE_KEYS } from '../../../types/provider';
@@ -14,14 +14,20 @@ describe('ModelSelect', () => {
   const sonnetModel: ModelInfo = {
     id: 'claude-sonnet-4-6',
     label: 'Sonnet 4.6',
-    description: 'Sonnet 4.6 · Use the default model',
+    description: 'Sonnet 4.6 - Use the default model',
+  };
+
+  const codexModel: ModelInfo = {
+    id: 'gpt-5.4',
+    label: 'gpt-5.4',
+    description: 'Latest frontier model with enhanced capabilities.',
   };
 
   beforeEach(() => {
     localStorage.clear();
   });
 
-  it('rerender 后应读取最新的 Claude 模型映射', () => {
+  it('reads the latest Claude model mapping after rerender', () => {
     localStorage.setItem(
       STORAGE_KEYS.CLAUDE_MODEL_MAPPING,
       JSON.stringify({ sonnet: 'glm-4' }),
@@ -55,7 +61,7 @@ describe('ModelSelect', () => {
     expect(screen.getByRole('button').textContent).toContain('glm-5');
   });
 
-  it('没有具体映射时应回退到全局 main 映射', () => {
+  it('falls back to the global main mapping when no specific Claude mapping exists', () => {
     localStorage.setItem(
       STORAGE_KEYS.CLAUDE_MODEL_MAPPING,
       JSON.stringify({ main: 'glm-4.7' }),
@@ -71,5 +77,24 @@ describe('ModelSelect', () => {
     );
 
     expect(screen.getByRole('button').textContent).toContain('glm-4.7');
+  });
+
+  it('does not apply Claude model mapping to Codex models', () => {
+    localStorage.setItem(
+      STORAGE_KEYS.CLAUDE_MODEL_MAPPING,
+      JSON.stringify({ main: 'glm-5.1' }),
+    );
+
+    render(
+      <ModelSelect
+        value={codexModel.id}
+        onChange={vi.fn()}
+        models={[codexModel]}
+        currentProvider="codex"
+      />,
+    );
+
+    expect(screen.getByRole('button').textContent).toContain('models.codex.gpt54.label');
+    expect(screen.getByRole('button').textContent).not.toContain('glm-5.1');
   });
 });

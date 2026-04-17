@@ -125,10 +125,6 @@ export function BmadCommandBar({
   const selectedDescription = t(selectedPreset.descriptionKey, {
     defaultValue: selectedPreset.description,
   });
-  const selectedPresetKind = getPresetKind(selectedPreset);
-  const selectedPresetKindLabel = t(`chat.bmad.kinds.${selectedPresetKind}`, {
-    defaultValue: selectedPresetKind === 'agent' ? 'Agent' : 'Workflow',
-  });
   const installReady = status.nodeAvailable !== false && status.nodeSupported !== false;
   const showInsertActions = status.state === 'ready';
   const showUpdateAction = status.state === 'ready' && status.hasUpdate === true;
@@ -230,169 +226,169 @@ export function BmadCommandBar({
             <span className="bmad-command-badge subtle">→ v{status.latestVersion}</span>
           ) : null}
           <span className={`bmad-command-badge state-${status.state}`}>{statusLabel}</span>
-        </div>
 
-        <div ref={pickerRef} className="bmad-command-picker-wrap">
-          <button
-            type="button"
-            className={`bmad-command-picker${pickerOpen ? ' open' : ''}`}
-            onClick={() => setPickerOpen((open) => !open)}
-            disabled={commandDisabled}
-            aria-label={t('chat.bmad.selectAria', { defaultValue: 'Select a BMad workflow' })}
-            aria-expanded={pickerOpen}
-          >
-            <span className="bmad-command-picker-text">{renderedCommand}</span>
-            <span className={`codicon codicon-chevron-${pickerOpen ? 'up' : 'down'}`} />
-          </button>
+          <div ref={pickerRef} className="bmad-command-picker-wrap">
+            <button
+              type="button"
+              className={`bmad-command-picker${pickerOpen ? ' open' : ''}`}
+              onClick={() => setPickerOpen((open) => !open)}
+              disabled={commandDisabled}
+              aria-label={t('chat.bmad.selectAria', { defaultValue: 'Select a BMad workflow' })}
+              aria-expanded={pickerOpen}
+            >
+              <span className="bmad-command-picker-text">{renderedCommand}</span>
+              <span className={`codicon codicon-chevron-${pickerOpen ? 'up' : 'down'}`} />
+            </button>
 
-          {pickerOpen ? (
-            <div className="bmad-command-menu">
-              <div className="bmad-command-menu-search">
-                <span className="codicon codicon-search" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  className="bmad-command-search-input"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  onKeyDown={(event) => event.stopPropagation()}
-                  placeholder={t('chat.bmad.searchPlaceholder', {
-                    defaultValue: 'Search commands',
-                  })}
-                />
-              </div>
+            {pickerOpen ? (
+              <div className="bmad-command-menu">
+                <div className="bmad-command-menu-search">
+                  <span className="codicon codicon-search" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    className="bmad-command-search-input"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    onKeyDown={(event) => event.stopPropagation()}
+                    placeholder={t('chat.bmad.searchPlaceholder', {
+                      defaultValue: 'Search commands',
+                    })}
+                  />
+                </div>
 
-              {hasFilteredPresets ? (
-                GROUP_ORDER.map((group) => {
-                  const items = filteredGroupedPresets[group];
-                  if (items.length === 0) {
-                    return null;
-                  }
+                {hasFilteredPresets ? (
+                  GROUP_ORDER.map((group) => {
+                    const items = filteredGroupedPresets[group];
+                    if (items.length === 0) {
+                      return null;
+                    }
 
-                  return (
-                    <div key={group} className="bmad-command-menu-group">
-                      <div className="bmad-command-group-label">
-                        {t(`chat.bmad.groups.${group}`, {
-                          defaultValue: GROUP_LABELS[group],
+                    return (
+                      <div key={group} className="bmad-command-menu-group">
+                        <div className="bmad-command-group-label">
+                          {t(`chat.bmad.groups.${group}`, {
+                            defaultValue: GROUP_LABELS[group],
+                          })}
+                        </div>
+                        {items.map((preset) => {
+                          const description = t(preset.descriptionKey, {
+                            defaultValue: preset.description,
+                          });
+                          const presetKind = getPresetKind(preset);
+                          const presetKindLabel = t(`chat.bmad.kinds.${presetKind}`, {
+                            defaultValue: presetKind === 'agent' ? 'Agent' : 'Workflow',
+                          });
+
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              className={`bmad-command-option${preset.id === selectedPreset.id ? ' active' : ''}`}
+                              onClick={() => {
+                                onPresetChange(preset.id);
+                                setPickerOpen(false);
+                              }}
+                            >
+                              <span className="bmad-command-option-heading">
+                                <span className="bmad-command-option-title">{preset.command}</span>
+                                <span className={`bmad-command-kind-badge kind-${presetKind}`}>
+                                  {presetKindLabel}
+                                </span>
+                              </span>
+                              <span className="bmad-command-option-desc">{description}</span>
+                            </button>
+                          );
                         })}
                       </div>
-                      {items.map((preset) => {
-                        const description = t(preset.descriptionKey, {
-                          defaultValue: preset.description,
-                        });
-                        const presetKind = getPresetKind(preset);
-                        const presetKindLabel = t(`chat.bmad.kinds.${presetKind}`, {
-                          defaultValue: presetKind === 'agent' ? 'Agent' : 'Workflow',
-                        });
-
-                        return (
-                          <button
-                            key={preset.id}
-                            type="button"
-                            className={`bmad-command-option${preset.id === selectedPreset.id ? ' active' : ''}`}
-                            onClick={() => {
-                              onPresetChange(preset.id);
-                              setPickerOpen(false);
-                            }}
-                          >
-                            <span className="bmad-command-option-heading">
-                              <span className="bmad-command-option-title">
-                                {preset.command}
-                              </span>
-                              <span className={`bmad-command-kind-badge kind-${presetKind}`}>
-                                {presetKindLabel}
-                              </span>
-                            </span>
-                            <span className="bmad-command-option-desc">{description}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="bmad-command-menu-empty">
-                  {t('chat.bmad.searchEmpty', {
-                    defaultValue: 'No matching BMad commands.',
-                  })}
-                </div>
-              )}
-            </div>
-          ) : null}
+                    );
+                  })
+                ) : (
+                  <div className="bmad-command-menu-empty">
+                    {t('chat.bmad.searchEmpty', {
+                      defaultValue: 'No matching BMad commands.',
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="bmad-command-summary" title={summaryText}>
-          <span className="bmad-command-name">{renderedCommand}</span>
-          <span className={`bmad-command-kind-badge kind-${selectedPresetKind}`}>
-            {selectedPresetKindLabel}
-          </span>
           <span className="bmad-command-summary-text">{summaryText}</span>
-        </div>
-
-        <div className="bmad-command-actions">
-          {showInsertActions ? (
-            <>
-              <button
-                type="button"
-                className="bmad-command-button"
-                onClick={onInsert}
-                disabled={commandDisabled}
-              >
-                {t('chat.bmad.insert', { defaultValue: 'Insert' })}
-              </button>
-              <button
-                type="button"
-                className="bmad-command-button primary"
-                onClick={onInsertAndSend}
-                disabled={commandDisabled}
-              >
-                {t('chat.bmad.insertAndSend', { defaultValue: 'Send' })}
-              </button>
-            </>
-          ) : null}
-
-          {showInstallAction ? (
-            <button
-              type="button"
-              className="bmad-command-button primary"
-              onClick={onInstall}
-              disabled={installDisabled}
-            >
-              {installing
-                ? t('chat.bmad.installing', { defaultValue: 'Installing...' })
-                : installLabel}
-            </button>
-          ) : null}
-
-          {showUpdateAction ? (
-            <button
-              type="button"
-              className="bmad-command-button primary"
-              onClick={onUpdate}
-              disabled={updateDisabled}
-            >
-              {updating
-                ? t('settings.dependency.updating', { defaultValue: 'Updating...' })
-                : t('settings.dependency.update', { defaultValue: 'Update' })}
-            </button>
-          ) : null}
-
-          <button
-            type="button"
-            className="bmad-command-button"
-            onClick={onRefresh}
-            disabled={busy}
-          >
-            {t('chat.bmad.refresh', { defaultValue: 'Refresh' })}
-          </button>
         </div>
       </div>
 
-      {detailText ? (
-        <div className="bmad-command-detail" title={detailText}>
-          {detailText}
+      <div className="bmad-command-feedback">
+        <div className="bmad-command-detail" title={statusHint}>
+          <span className="bmad-command-detail-text">{statusHint}</span>
         </div>
-      ) : null}
+
+        {detailText ? (
+          <div className="bmad-command-detail muted" title={detailText}>
+            <span className="bmad-command-detail-text">{detailText}</span>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="bmad-command-actions">
+        {showInsertActions ? (
+          <>
+            <button
+              type="button"
+              className="bmad-command-button"
+              onClick={onInsert}
+              disabled={commandDisabled}
+            >
+              {t('chat.bmad.insert', { defaultValue: 'Insert' })}
+            </button>
+            <button
+              type="button"
+              className="bmad-command-button primary"
+              onClick={onInsertAndSend}
+              disabled={commandDisabled}
+            >
+              {t('chat.bmad.insertAndSend', { defaultValue: 'Send' })}
+            </button>
+          </>
+        ) : null}
+
+        {showInstallAction ? (
+          <button
+            type="button"
+            className="bmad-command-button primary"
+            onClick={onInstall}
+            disabled={installDisabled}
+          >
+            {installing
+              ? t('chat.bmad.installing', { defaultValue: 'Installing...' })
+              : installLabel}
+          </button>
+        ) : null}
+
+        {showUpdateAction ? (
+          <button
+            type="button"
+            className="bmad-command-button primary"
+            onClick={onUpdate}
+            disabled={updateDisabled}
+          >
+            {updating
+              ? t('settings.dependency.updating', { defaultValue: 'Updating...' })
+              : t('settings.dependency.update', { defaultValue: 'Update' })}
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          className="bmad-command-button"
+          onClick={onRefresh}
+          disabled={busy}
+        >
+          {t('chat.bmad.refresh', { defaultValue: 'Refresh' })}
+        </button>
+      </div>
     </div>
   );
 }

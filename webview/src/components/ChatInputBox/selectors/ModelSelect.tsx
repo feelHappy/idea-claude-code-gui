@@ -100,7 +100,7 @@ export const ModelSelect = ({ value, onChange, models = AVAILABLE_MODELS, curren
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const currentModel = models.find(m => m.id === value) || models[0];
-  const modelMapping = readClaudeModelMapping();
+  const modelMapping = currentProvider === 'claude' ? readClaudeModelMapping() : {};
 
   const getModelLabel = (model: ModelInfo): string => {
     // Check model mapping first (from local settings.json or provider config)

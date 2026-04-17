@@ -1802,3 +1802,18 @@ English:
 ##### 11月19日（v0.0.1） - 实现历史记录读取功能
 
 ##### **2026骞?鏈?鏃ワ紙v1.0.6锛?*
+##### **2026年4月16日（v1.0.9）**
+
+English:
+
+Fixes
+- Fix GitNexus install/repair on Windows by replacing transient `npx/npm exec` execution with a stable shared CLI installation flow
+- Update GitNexus setup, analyze, clean, and install hint commands to use the shared local CLI path
+
+---
+
+中文：
+
+修复
+- 修复 Windows 下 GitNexus 安装/修复失败的问题：不再使用易崩溃的 `npx/npm exec` 临时执行方式，改为稳定的共享 CLI 安装链路
+- 更新 GitNexus 的 setup、analyze、clean 和安装提示命令，统一改为共享本地 CLI 路径

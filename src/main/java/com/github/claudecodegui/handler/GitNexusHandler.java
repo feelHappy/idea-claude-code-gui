@@ -21,7 +21,6 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.util.concurrency.AppExecutorUtil;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -159,11 +158,12 @@ public class GitNexusHandler extends BaseMessageHandler {
                 }
 
                 String nodePath = nodeResult.getNodePath();
-                String npxExecutable = resolveNpxExecutable(nodePath);
+                boolean refreshCli = updateRequested || !forceReindex;
+                Path gitNexusCli = ensureGitNexusCli(providerConfig, nodePath, logs, refreshCli);
 
                 sendInstallProgress(providerConfig, "Running gitnexus setup...");
                 int setupExitCode = runLoggedProcess(
-                        createCommand(npxExecutable, "-y", "gitnexus@latest", "setup"),
+                        createCommand(gitNexusCli.toString(), "setup"),
                         repoRoot,
                         nodePath,
                         providerConfig,
@@ -200,9 +200,7 @@ public class GitNexusHandler extends BaseMessageHandler {
                         ? "Updating the GitNexus index for the current repository..."
                         : "Indexing the current repository with GitNexus...");
                 List<String> analyzeCommand = new ArrayList<>();
-                analyzeCommand.add(npxExecutable);
-                analyzeCommand.add("-y");
-                analyzeCommand.add("gitnexus@latest");
+                analyzeCommand.add(gitNexusCli.toString());
                 analyzeCommand.add("analyze");
                 analyzeCommand.add("--skills");
                 if (forceReindex || updateRequested) {
@@ -289,7 +287,29 @@ public class GitNexusHandler extends BaseMessageHandler {
                     return;
                 }
 
-                // 1. Delete .gitnexus directory (index database + meta)
+                // 1. Run `gitnexus clean` to remove MCP config and global registry entry
+                NodeDetectionResult nodeResult = detectNodeEnvironment();
+                if (nodeResult != null && nodeResult.isFound()) {
+                    Path gitNexusCli = resolveGitNexusCliExecutable();
+                    if (Files.isRegularFile(gitNexusCli)) {
+                        sendInstallProgress(providerConfig,
+                                "Cleaning MCP config and global registry...");
+                        int cleanExitCode = runLoggedProcess(
+                                createCommand(gitNexusCli.toString(), "clean"),
+                                repoRoot,
+                                nodeResult.getNodePath(),
+                                providerConfig,
+                                logs,
+                                5
+                        );
+                        if (cleanExitCode != 0) {
+                            logs.append("gitnexus clean exited with code ")
+                                    .append(cleanExitCode).append('\n');
+                        }
+                    }
+                }
+
+                // 2. Delete .gitnexus directory (index database + meta)
                 Path indexDir = repoRoot.resolve(".gitnexus");
                 if (Files.isDirectory(indexDir)) {
                     sendInstallProgress(providerConfig, "Removing index data (.gitnexus)...");
@@ -297,33 +317,13 @@ public class GitNexusHandler extends BaseMessageHandler {
                     logs.append("Deleted ").append(indexDir).append('\n');
                 }
 
-                // 2. Delete project-level generated skills
+                // 3. Delete project-level generated skills
                 Path generatedSkills = repoRoot.resolve(".claude")
                         .resolve("skills").resolve("generated");
                 if (Files.isDirectory(generatedSkills)) {
                     sendInstallProgress(providerConfig, "Removing generated skills...");
                     deleteDirectoryRecursively(generatedSkills);
                     logs.append("Deleted ").append(generatedSkills).append('\n');
-                }
-
-                // 3. Run `gitnexus clean` to remove MCP config and global registry entry
-                NodeDetectionResult nodeResult = detectNodeEnvironment();
-                if (nodeResult != null && nodeResult.isFound()) {
-                    String npxExecutable = resolveNpxExecutable(nodeResult.getNodePath());
-                    sendInstallProgress(providerConfig,
-                            "Cleaning MCP config and global registry...");
-                    int cleanExitCode = runLoggedProcess(
-                            createCommand(npxExecutable, "-y", "gitnexus@latest", "clean"),
-                            repoRoot,
-                            nodeResult.getNodePath(),
-                            providerConfig,
-                            logs,
-                            5
-                    );
-                    if (cleanExitCode != 0) {
-                        logs.append("gitnexus clean exited with code ")
-                                .append(cleanExitCode).append('\n');
-                    }
                 }
 
                 sendInstallResult(true, providerConfig,
@@ -466,8 +466,9 @@ public class GitNexusHandler extends BaseMessageHandler {
         if (indexSizeMb > 0) {
             status.addProperty("indexSizeMb", Math.round(indexSizeMb * 10.0) / 10.0);
         }
-        status.addProperty("setupHintCommand", "npx -y gitnexus@latest setup");
-        status.addProperty("analyzeHintCommand", "npx -y gitnexus@latest analyze --skills");
+        Path gitNexusCli = resolveGitNexusCliExecutable();
+        status.addProperty("setupHintCommand", "\"" + gitNexusCli + "\" setup");
+        status.addProperty("analyzeHintCommand", "\"" + gitNexusCli + "\" analyze --skills");
         ToolkitVersionUtil.applyVersionInfo(status, installedVersion, latestVersion);
         if (versionTrackingMissing && latestVersion != null && !latestVersion.trim().isEmpty()) {
             status.addProperty("hasUpdate", true);
@@ -789,6 +790,55 @@ public class GitNexusHandler extends BaseMessageHandler {
     /**
      * 检查命令是否可用。
      */
+    /**
+     * Install GitNexus into a stable shared directory so we avoid npm exec/npx
+     * transient cache cleanup failures on Windows.
+     */
+    private Path ensureGitNexusCli(
+            GitNexusProviderConfig providerConfig,
+            String nodePath,
+            StringBuilder logs,
+            boolean refreshRequested
+    ) throws Exception {
+        Path gitNexusCli = resolveGitNexusCliExecutable();
+        if (!refreshRequested && Files.isRegularFile(gitNexusCli)) {
+            return gitNexusCli;
+        }
+
+        Path installRoot = resolveGitNexusCliInstallRoot();
+        Files.createDirectories(installRoot);
+
+        sendInstallProgress(
+                providerConfig,
+                refreshRequested
+                        ? "Installing or updating the shared GitNexus CLI..."
+                        : "Installing the shared GitNexus CLI..."
+        );
+
+        int installExitCode = runLoggedProcess(
+                createCommand(
+                        ToolkitVersionUtil.resolveNpmExecutable(nodePath),
+                        "install",
+                        "--prefix",
+                        installRoot.toString(),
+                        "gitnexus@latest",
+                        "--no-save",
+                        "--audit=false",
+                        "--fund=false"
+                ),
+                installRoot,
+                nodePath,
+                providerConfig,
+                logs,
+                20
+        );
+        if (installExitCode != 0 || !Files.isRegularFile(gitNexusCli)) {
+            throw new IllegalStateException("Failed to install the shared GitNexus CLI.");
+        }
+
+        return gitNexusCli;
+    }
+
     private boolean isCommandAvailable(String command) {
         Process process = null;
         try {
@@ -808,35 +858,15 @@ public class GitNexusHandler extends BaseMessageHandler {
     /**
      * 从 Node.js 所在目录或 PATH 中解析 npx 可执行文件。
      */
-    private String resolveNpxExecutable(String nodePath) {
-        String executableName = PlatformUtils.isWindows() ? "npx.cmd" : "npx";
+    private Path resolveGitNexusCliInstallRoot() {
+        return Paths.get(PlatformUtils.getHomeDirectory(), ".codemoss", "tooling", "gitnexus-cli");
+    }
 
-        if (nodePath != null && !nodePath.trim().isEmpty() && !"node".equalsIgnoreCase(nodePath.trim())) {
-            File nodeFile = new File(nodePath);
-            File nodeDir = nodeFile.getParentFile();
-            if (nodeDir != null) {
-                File npxFile = new File(nodeDir, executableName);
-                if (npxFile.exists()) {
-                    return npxFile.getAbsolutePath();
-                }
-            }
-        }
-
-        String pathEnv = PlatformUtils.getPathEnv();
-        if (pathEnv != null && !pathEnv.isEmpty()) {
-            String[] entries = pathEnv.split(java.util.regex.Pattern.quote(File.pathSeparator));
-            for (String entry : entries) {
-                if (entry == null || entry.trim().isEmpty()) {
-                    continue;
-                }
-                File candidate = new File(entry, executableName);
-                if (candidate.exists()) {
-                    return candidate.getAbsolutePath();
-                }
-            }
-        }
-
-        return executableName;
+    private Path resolveGitNexusCliExecutable() {
+        return resolveGitNexusCliInstallRoot()
+                .resolve("node_modules")
+                .resolve(".bin")
+                .resolve(PlatformUtils.isWindows() ? "gitnexus.cmd" : "gitnexus");
     }
 
     /**
@@ -846,7 +876,12 @@ public class GitNexusHandler extends BaseMessageHandler {
         if (repoRoot == null) {
             return "";
         }
-        return "cd \"" + repoRoot + "\" && npx -y gitnexus@latest setup && npx -y gitnexus@latest analyze --skills";
+        Path installRoot = resolveGitNexusCliInstallRoot();
+        Path gitNexusCli = resolveGitNexusCliExecutable();
+        return "npm install --prefix \"" + installRoot + "\" gitnexus@latest --no-save --audit=false --fund=false"
+                + " && cd \"" + repoRoot + "\""
+                + " && \"" + gitNexusCli + "\" setup"
+                + " && \"" + gitNexusCli + "\" analyze --skills";
     }
 
     /**

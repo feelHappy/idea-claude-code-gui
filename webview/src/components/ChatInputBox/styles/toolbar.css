@@ -235,38 +235,41 @@
 .bmad-command-bar {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   width: 100%;
   min-width: 0;
-  padding-top: 6px;
+  padding-top: 8px;
   border-top: 1px solid var(--border-color);
   position: relative;
 }
 
 .bmad-command-main {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px 8px;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.bmad-command-primary {
+  display: grid;
+  gap: 10px;
   min-width: 0;
 }
 
 .bmad-command-head {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  flex: 0 0 auto;
+  gap: 8px;
+  flex-wrap: wrap;
   min-width: 0;
 }
 
-.bmad-command-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
+.bmad-command-selection {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 10px;
+  min-width: 0;
 }
 
 .bmad-command-badge {
@@ -317,36 +320,48 @@
 
 .bmad-command-picker-wrap {
   position: relative;
-  flex: 0 1 240px;
+  flex: 1 1 280px;
   min-width: 180px;
-  max-width: 280px;
+  max-width: 360px;
+  margin-left: auto;
 }
 
 .bmad-command-picker {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   width: 100%;
-  height: 28px;
-  padding: 0 9px;
+  min-height: 32px;
+  padding: 0 10px;
   color: var(--text-primary);
   background: rgba(0, 0, 0, 0.14);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 12px;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .bmad-command-picker:hover:not(:disabled),
 .bmad-command-picker.open {
   border-color: var(--input-focus-border);
   background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 1px rgba(82, 164, 255, 0.12);
 }
 
 .bmad-command-picker:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.bmad-command-picker-label {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .bmad-command-picker-text {
@@ -355,14 +370,15 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: left;
+  font-weight: 600;
 }
 
 .bmad-command-menu {
   position: absolute;
-  right: 0;
+  left: 0;
   bottom: calc(100% + 6px);
   z-index: 10020;
-  width: min(420px, calc(100vw - 24px));
+  width: min(440px, calc(100vw - 24px));
   max-width: calc(100vw - 24px);
   max-height: 320px;
   overflow-y: auto;
@@ -378,7 +394,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 8px;
+  padding: 7px 9px;
   margin-bottom: 6px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--dropdown-border);
@@ -421,15 +437,16 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
+  gap: 4px;
   width: 100%;
-  padding: 8px;
+  padding: 10px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 6px;
   color: var(--text-primary);
   text-align: left;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .bmad-command-option:hover {
@@ -444,11 +461,13 @@
 .bmad-command-option-title {
   font-family: var(--font-family-mono, monospace);
   font-size: 12px;
+  min-width: 0;
 }
 
 .bmad-command-option-heading {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   width: 100%;
   min-width: 0;
@@ -499,12 +518,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 28px;
-  padding: 0 10px;
+  min-height: 30px;
+  padding: 0 12px;
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 12px;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
@@ -518,8 +537,8 @@
 
 .bmad-command-button.primary {
   color: #fff;
-  background: var(--accent-color);
-  border-color: var(--accent-color);
+  background: var(--accent-color, #2f7dfa);
+  border-color: var(--accent-color, #2f7dfa);
 }
 
 .bmad-command-button.primary:hover:not(:disabled) {
@@ -535,45 +554,77 @@
 .bmad-command-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: nowrap;
-  flex: 0 0 auto;
-  margin-left: auto;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+  margin-top: 2px;
 }
 
 .bmad-command-summary {
   display: flex;
   align-items: center;
+  min-width: 0;
+  padding: 8px 10px;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.bmad-command-summary-label {
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bmad-command-summary-text {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.bmad-command-feedback {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  flex: 1 1 240px;
-  min-width: 220px;
+  min-width: 0;
+}
+
+.bmad-command-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  min-width: 0;
   color: var(--text-secondary);
   font-size: 11px;
-  line-height: 1.35;
+  line-height: 1.45;
 }
 
-.bmad-command-name {
+.bmad-command-detail-label {
   flex-shrink: 0;
-  padding: 2px 6px;
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  font-family: var(--font-family-mono, monospace);
-}
-
-.bmad-command-summary-text,
-.bmad-command-detail {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 600;
   white-space: nowrap;
 }
 
-.bmad-command-detail {
+.bmad-command-detail-text {
+  min-width: 0;
+  white-space: normal;
+}
+
+.bmad-command-detail.muted .bmad-command-detail-label {
   color: var(--text-secondary);
-  font-size: 10px;
-  line-height: 1.35;
+}
+
+.bmad-command-summary-label,
+.bmad-command-detail-label,
+.bmad-command-picker-label {
+  display: none;
 }
 
 .impeccable-bar {
@@ -1615,12 +1666,17 @@
 }
 
 @container button-area (max-width: 1180px) {
-  .bmad-command-summary {
-    flex-basis: 100%;
+  .bmad-command-main {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .bmad-command-actions {
-    margin-left: 0;
+    justify-content: flex-start;
+    max-width: none;
+  }
+
+  .bmad-command-picker-wrap {
+    max-width: none;
   }
 
   .uiux-pro-summary {
@@ -1633,6 +1689,21 @@
 
   .impeccable-summary {
     flex-basis: 100%;
+  }
+}
+
+@container button-area (max-width: 900px) {
+  .bmad-command-selection {
+    grid-template-columns: 1fr;
+  }
+
+  .bmad-command-detail {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .bmad-command-detail-text {
+    white-space: normal;
   }
 }
 
@@ -1659,8 +1730,8 @@
     justify-content: flex-end;
   }
 
-  .bmad-command-main {
-    align-items: stretch;
+  .bmad-command-selection {
+    grid-template-columns: 1fr;
   }
 
   .bmad-command-picker-wrap,
@@ -1673,19 +1744,24 @@
   .bmad-command-actions {
     width: 100%;
     justify-content: flex-end;
-    margin-left: 0;
     flex-wrap: wrap;
   }
 
+  .bmad-command-button {
+    flex: 0 0 auto;
+    min-width: 88px;
+  }
+
   .bmad-command-menu {
-    width: min(420px, calc(100vw - 24px));
+    width: min(440px, calc(100vw - 24px));
   }
 
-  .bmad-command-summary {
-    align-items: flex-start;
+  .bmad-command-detail {
+    flex-direction: column;
+    gap: 4px;
   }
 
-  .bmad-command-summary-text {
+  .bmad-command-detail-text {
     white-space: normal;
   }
 
