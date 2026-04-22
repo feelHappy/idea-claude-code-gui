@@ -167,14 +167,40 @@ public class SessionSendService {
     ) {
         CodexMessageHandler handler = new CodexMessageHandler(project, state, callbackFacade.getCallbackHandler());
         String contextAppend = contextService.buildCodexContextAppend(openedFilesJson, fileTagPaths);
-        String finalInput = (input != null ? input : "") + contextAppend;
+        String currentThreadId = state.getSessionId();
+        String replayPrefix = "";
+        List<ClaudeSession.Attachment> outgoingAttachments = attachments;
+        if (currentThreadId == null || currentThreadId.trim().isEmpty()) {
+            replayPrefix = contextService.buildCodexReplayPrefix(state.getMessagesReference(), input);
+            List<ClaudeSession.Attachment> replayAttachments =
+                    contextService.buildCodexReplayAttachments(state.getMessagesReference(), input);
+            if (!replayPrefix.isEmpty()) {
+                LOG.info("[CodexReplay] Replaying preserved local history into a fresh Codex thread");
+            }
+            if (!replayAttachments.isEmpty()) {
+                outgoingAttachments = new java.util.ArrayList<>();
+                if (attachments != null && !attachments.isEmpty()) {
+                    outgoingAttachments.addAll(attachments);
+                }
+                outgoingAttachments.addAll(replayAttachments);
+                LOG.info("[CodexReplay] Reattached " + replayAttachments.size() + " historical image(s) to the fresh Codex thread");
+            }
+        }
+
+        StringBuilder inputBuilder = new StringBuilder();
+        if (!replayPrefix.isEmpty()) {
+            inputBuilder.append(replayPrefix);
+        }
+        inputBuilder.append(input != null ? input : "");
+        inputBuilder.append(contextAppend);
+        String finalInput = inputBuilder.toString();
 
         return codexSDKBridge.sendMessage(
                 channelId,
                 finalInput,
-                state.getSessionId(),
+                currentThreadId,
                 state.getCwd(),
-                attachments,
+                outgoingAttachments,
                 effectivePermissionMode,
                 state.getModel(),
                 agentPrompt,

@@ -4,6 +4,7 @@ import com.github.claudecodegui.session.ClaudeSession;
 import com.github.claudecodegui.service.RunConfigMonitorService;
 import com.github.claudecodegui.terminal.TerminalMonitorService;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
@@ -29,6 +30,7 @@ import java.util.regex.Pattern;
 public class SessionContextService {
 
     private static final Logger LOG = Logger.getInstance(SessionContextService.class);
+    private static final int CODEX_REPLAY_CHAR_BUDGET = 24 * 1024;
 
     private final Project project;
     private final int maxFileSizeBytes;
@@ -191,6 +193,73 @@ public class SessionContextService {
         }
 
         return hasContent ? sb.toString() : "";
+    }
+
+    public String buildCodexReplayPrefix(List<ClaudeSession.Message> messages, String currentInput) {
+        List<ClaudeSession.Message> replayMessages = collectCodexReplayMessages(messages, currentInput);
+        if (replayMessages.isEmpty()) {
+            return "";
+        }
+
+        List<String> replaySegments = new ArrayList<>();
+        int remainingBudget = CODEX_REPLAY_CHAR_BUDGET;
+        boolean truncated = false;
+
+        for (int i = replayMessages.size() - 1; i >= 0; i--) {
+            String segment = formatCodexReplaySegment(replayMessages.get(i));
+            if (segment.isEmpty()) {
+                continue;
+            }
+
+            int segmentLength = segment.length() + 2;
+            if (segmentLength > remainingBudget) {
+                if (replaySegments.isEmpty()) {
+                    replaySegments.add(0, truncateReplaySegment(segment, remainingBudget));
+                }
+                truncated = true;
+                break;
+            }
+
+            replaySegments.add(0, segment);
+            remainingBudget -= segmentLength;
+        }
+
+        if (replaySegments.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("The previous Codex thread is no longer available. Continue from the preserved conversation state below instead of starting over.\n\n");
+        if (truncated) {
+            sb.append("Some older conversation has been omitted to keep this replay within the prompt budget.\n\n");
+        }
+        sb.append("## Preserved Conversation\n\n");
+        for (String segment : replaySegments) {
+            sb.append(segment).append("\n\n");
+        }
+        sb.append("## Continue From Here\n\n");
+        return sb.toString();
+    }
+
+    public List<ClaudeSession.Attachment> buildCodexReplayAttachments(List<ClaudeSession.Message> messages, String currentInput) {
+        List<ClaudeSession.Attachment> attachments = new ArrayList<>();
+        List<ClaudeSession.Message> replayMessages = collectCodexReplayMessages(messages, currentInput);
+        int replayImageCounter = 1;
+
+        for (ClaudeSession.Message message : replayMessages) {
+            List<ClaudeSession.Attachment> extracted = extractReplayImageAttachments(message);
+            for (ClaudeSession.Attachment attachment : extracted) {
+                String mediaType = attachment.mediaType != null ? attachment.mediaType : "image/png";
+                attachments.add(new ClaudeSession.Attachment(
+                        "replay-image-" + replayImageCounter + getImageExtension(mediaType),
+                        mediaType,
+                        attachment.data
+                ));
+                replayImageCounter += 1;
+            }
+        }
+
+        return attachments;
     }
 
     private String processReferences(
@@ -401,5 +470,249 @@ public class SessionContextService {
             return filePath.substring(lastDot + 1).toLowerCase();
         }
         return "";
+    }
+
+    private String formatCodexReplaySegment(ClaudeSession.Message message) {
+        if (message == null) {
+            return "";
+        }
+        if (message.type != ClaudeSession.Message.Type.USER && message.type != ClaudeSession.Message.Type.ASSISTANT) {
+            return "";
+        }
+        if (message.type == ClaudeSession.Message.Type.USER && isToolResultOnlyUserMessage(message)) {
+            return "";
+        }
+
+        String content = extractReplayContent(message);
+        if (content.isEmpty()) {
+            return "";
+        }
+
+        String label = message.type == ClaudeSession.Message.Type.USER ? "User" : "Assistant";
+        String attachmentNote = buildReplayAttachmentNote(message);
+        return attachmentNote.isEmpty()
+                ? label + ":\n" + content
+                : label + ":\n" + content + "\n" + attachmentNote;
+    }
+
+    private String extractReplayContent(ClaudeSession.Message message) {
+        if (message == null) {
+            return "";
+        }
+
+        if (message.content != null) {
+            String trimmed = message.content.trim();
+            if (!trimmed.isEmpty() && !"[tool_result]".equals(trimmed)) {
+                return trimmed;
+            }
+        }
+
+        if (message.raw == null) {
+            return "";
+        }
+        if (!message.raw.has("message") || !message.raw.get("message").isJsonObject()) {
+            return "";
+        }
+
+        JsonObject rawMessage = message.raw.getAsJsonObject("message");
+        if (!rawMessage.has("content") || !rawMessage.get("content").isJsonArray()) {
+            return "";
+        }
+
+        JsonArray contentBlocks = rawMessage.getAsJsonArray("content");
+        StringBuilder sb = new StringBuilder();
+        for (JsonElement blockEl : contentBlocks) {
+            if (!blockEl.isJsonObject()) {
+                continue;
+            }
+            JsonObject block = blockEl.getAsJsonObject();
+            if (!block.has("type") || !"text".equals(block.get("type").getAsString())) {
+                continue;
+            }
+            if (!block.has("text") || block.get("text").isJsonNull()) {
+                continue;
+            }
+            String text = block.get("text").getAsString().trim();
+            if (text.isEmpty()) {
+                continue;
+            }
+            if (sb.length() > 0) {
+                sb.append("\n");
+            }
+            sb.append(text);
+        }
+        return sb.toString();
+    }
+
+    private boolean isLiveUserPrompt(ClaudeSession.Message message, String currentInput) {
+        if (message == null || message.type != ClaudeSession.Message.Type.USER) {
+            return false;
+        }
+        if (isToolResultOnlyUserMessage(message)) {
+            return false;
+        }
+
+        String content = extractReplayContent(message);
+        if (content.isEmpty()) {
+            return false;
+        }
+
+        String normalizedInput = currentInput != null ? currentInput.trim() : "";
+        return normalizedInput.isEmpty() || content.equals(normalizedInput);
+    }
+
+    private boolean isToolResultOnlyUserMessage(ClaudeSession.Message message) {
+        if (message == null || message.type != ClaudeSession.Message.Type.USER) {
+            return false;
+        }
+
+        if ("[tool_result]".equals(message.content != null ? message.content.trim() : "")) {
+            return true;
+        }
+        if (message.raw == null) {
+            return false;
+        }
+
+        JsonArray contentBlocks = null;
+        if (message.raw.has("content") && message.raw.get("content").isJsonArray()) {
+            contentBlocks = message.raw.getAsJsonArray("content");
+        } else if (message.raw.has("message") && message.raw.get("message").isJsonObject()) {
+            JsonObject rawMessage = message.raw.getAsJsonObject("message");
+            if (rawMessage.has("content") && rawMessage.get("content").isJsonArray()) {
+                contentBlocks = rawMessage.getAsJsonArray("content");
+            }
+        }
+        if (contentBlocks == null) {
+            return false;
+        }
+
+        for (JsonElement blockEl : contentBlocks) {
+            if (!blockEl.isJsonObject()) {
+                continue;
+            }
+            JsonObject block = blockEl.getAsJsonObject();
+            if (block.has("type") && "tool_result".equals(block.get("type").getAsString())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<ClaudeSession.Message> collectCodexReplayMessages(List<ClaudeSession.Message> messages, String currentInput) {
+        if (messages == null || messages.isEmpty()) {
+            return List.of();
+        }
+
+        List<ClaudeSession.Message> snapshot;
+        synchronized (messages) {
+            snapshot = new ArrayList<>(messages);
+        }
+        if (snapshot.isEmpty()) {
+            return List.of();
+        }
+
+        int historyLimit = snapshot.size();
+        if (historyLimit > 0 && isLiveUserPrompt(snapshot.get(historyLimit - 1), currentInput)) {
+            historyLimit -= 1;
+        }
+        if (historyLimit <= 0) {
+            return List.of();
+        }
+        return new ArrayList<>(snapshot.subList(0, historyLimit));
+    }
+
+    private String buildReplayAttachmentNote(ClaudeSession.Message message) {
+        List<ClaudeSession.Attachment> attachments = extractReplayImageAttachments(message);
+        if (attachments.isEmpty()) {
+            return "";
+        }
+        int count = attachments.size();
+        return count == 1
+                ? "[This preserved user turn included 1 image attachment. It will be reattached with the current request.]"
+                : "[This preserved user turn included " + count + " image attachments. They will be reattached with the current request.]";
+    }
+
+    private List<ClaudeSession.Attachment> extractReplayImageAttachments(ClaudeSession.Message message) {
+        List<ClaudeSession.Attachment> attachments = new ArrayList<>();
+        if (message == null || message.raw == null) {
+            return attachments;
+        }
+
+        JsonObject rawMessage = null;
+        if (message.raw.has("message") && message.raw.get("message").isJsonObject()) {
+            rawMessage = message.raw.getAsJsonObject("message");
+        }
+        if (rawMessage == null || !rawMessage.has("content") || !rawMessage.get("content").isJsonArray()) {
+            return attachments;
+        }
+
+        JsonArray contentBlocks = rawMessage.getAsJsonArray("content");
+        for (JsonElement blockEl : contentBlocks) {
+            if (!blockEl.isJsonObject()) {
+                continue;
+            }
+            JsonObject block = blockEl.getAsJsonObject();
+            if (!block.has("type") || !"image".equals(block.get("type").getAsString())) {
+                continue;
+            }
+
+            if (block.has("source") && block.get("source").isJsonObject()) {
+                JsonObject source = block.getAsJsonObject("source");
+                if (!source.has("data") || source.get("data").isJsonNull()) {
+                    continue;
+                }
+                String mediaType = source.has("media_type") && !source.get("media_type").isJsonNull()
+                        ? source.get("media_type").getAsString()
+                        : "image/png";
+                attachments.add(new ClaudeSession.Attachment(
+                        null,
+                        mediaType,
+                        source.get("data").getAsString()
+                ));
+            }
+        }
+
+        return attachments;
+    }
+
+    private String truncateReplaySegment(String segment, int maxLength) {
+        if (segment == null || segment.isEmpty()) {
+            return "";
+        }
+        if (maxLength <= 0) {
+            return "";
+        }
+        if (segment.length() <= maxLength) {
+            return segment;
+        }
+
+        String marker = "\n...[truncated]";
+        int sliceLength = Math.max(0, maxLength - marker.length());
+        if (sliceLength <= 0) {
+            return marker.trim();
+        }
+        return segment.substring(0, sliceLength) + marker;
+    }
+
+    private String getImageExtension(String mediaType) {
+        if (mediaType == null) {
+            return ".png";
+        }
+        switch (mediaType.toLowerCase()) {
+            case "image/jpeg":
+            case "image/jpg":
+                return ".jpg";
+            case "image/gif":
+                return ".gif";
+            case "image/webp":
+                return ".webp";
+            case "image/bmp":
+                return ".bmp";
+            case "image/svg+xml":
+                return ".svg";
+            case "image/png":
+            default:
+                return ".png";
+        }
     }
 }

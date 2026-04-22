@@ -11,6 +11,11 @@
   min-height: 32px;
 }
 
+.chat-input-box.panel-collapsed .context-bar {
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
 /* Ensure the first visible child element (usually ContextBar or AttachmentList) has rounded corners */
 /* ResizeHandles are absolutely positioned :first-child, so select the next visible element after them */
 .chat-input-box > .resize-handle + * {
@@ -94,6 +99,16 @@
 
 .status-panel-toggle:hover .codicon {
   color: var(--text-primary);
+}
+
+.input-panel-toggle .codicon {
+  transition: transform 0.2s ease;
+}
+
+.input-panel-toggle-icon {
+  display: block;
+  color: currentColor;
+  transition: opacity 0.2s ease;
 }
 
 .context-item {

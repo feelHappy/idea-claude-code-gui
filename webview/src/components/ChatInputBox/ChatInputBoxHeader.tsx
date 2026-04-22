@@ -26,6 +26,8 @@ export function ChatInputBoxHeader({
   onRewind,
   statusPanelExpanded,
   onToggleStatusPanel,
+  inputPanelCollapsed,
+  onToggleInputPanelCollapse,
   messageQueue,
   onRemoveFromQueue,
   showOpenSourceBanner,
@@ -54,6 +56,8 @@ export function ChatInputBoxHeader({
   onRewind?: () => void;
   statusPanelExpanded: boolean;
   onToggleStatusPanel?: () => void;
+  inputPanelCollapsed: boolean;
+  onToggleInputPanelCollapse?: () => void;
   messageQueue?: QueuedMessage[];
   onRemoveFromQueue?: (id: string) => void;
   showOpenSourceBanner?: boolean;
@@ -63,8 +67,7 @@ export function ChatInputBoxHeader({
 }) {
   return (
     <>
-      {/* Open source banner */}
-      {showOpenSourceBanner && (
+      {!inputPanelCollapsed && showOpenSourceBanner && (
         <div className="open-source-banner">
           <span className="banner-text">{t('chat.openSourceBanner')}</span>
           <button
@@ -81,7 +84,7 @@ export function ChatInputBoxHeader({
       )}
 
       {/* SDK status loading or not installed warning bar */}
-      {(sdkStatusLoading || !sdkInstalled) && (
+      {!inputPanelCollapsed && (sdkStatusLoading || !sdkInstalled) && (
         <div className={`sdk-warning-bar ${sdkStatusLoading ? 'sdk-loading' : ''}`}>
           <span
             className={`codicon ${sdkStatusLoading ? 'codicon-loading codicon-modifier-spin' : 'codicon-warning'}`}
@@ -108,7 +111,7 @@ export function ChatInputBoxHeader({
       )}
 
       {/* Message queue */}
-      {messageQueue && messageQueue.length > 0 && (
+      {!inputPanelCollapsed && messageQueue && messageQueue.length > 0 && (
         <MessageQueue
           queue={messageQueue}
           onRemove={onRemoveFromQueue ?? (() => {})}
@@ -116,7 +119,7 @@ export function ChatInputBoxHeader({
       )}
 
       {/* Attachment list */}
-      {attachments.length > 0 && (
+      {!inputPanelCollapsed && attachments.length > 0 && (
         <AttachmentList attachments={attachments} onRemove={onRemoveAttachment} />
       )}
 
@@ -137,6 +140,8 @@ export function ChatInputBoxHeader({
         onRewind={onRewind}
         statusPanelExpanded={statusPanelExpanded}
         onToggleStatusPanel={onToggleStatusPanel}
+        inputPanelCollapsed={inputPanelCollapsed}
+        onToggleInputPanelCollapse={onToggleInputPanelCollapse}
         autoOpenFileEnabled={autoOpenFileEnabled}
         onRequestEnableFileContext={onRequestEnableFileContext}
       />

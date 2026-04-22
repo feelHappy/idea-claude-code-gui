@@ -25,6 +25,10 @@ interface ContextBarProps {
   statusPanelExpanded?: boolean;
   /** Toggle StatusPanel expand/collapse */
   onToggleStatusPanel?: () => void;
+  /** Whether input panel is collapsed */
+  inputPanelCollapsed?: boolean;
+  /** Toggle input panel collapse */
+  onToggleInputPanelCollapse?: () => void;
   /** Whether auto open file is enabled */
   autoOpenFileEnabled?: boolean;
   /** Callback to enable file context (called from placeholder click) */
@@ -47,6 +51,8 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
   onRewind,
   statusPanelExpanded = true,
   onToggleStatusPanel,
+  inputPanelCollapsed = false,
+  onToggleInputPanelCollapse,
   autoOpenFileEnabled = false,
   onRequestEnableFileContext,
 }) => {
@@ -130,6 +136,50 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
   const fullDisplayText = activeFile ? (
     selectedLines ? `${activeFile}#${selectedLines}` : activeFile
   ) : '';
+
+  const renderInputPanelToggleIcon = (collapsed: boolean) => {
+    if (collapsed) {
+      // Collapsed state: show "expand" metaphor (panel grows downward)
+      return (
+        <svg
+          className="input-panel-toggle-icon"
+          viewBox="0 0 16 16"
+          width="14"
+          height="14"
+          aria-hidden="true"
+        >
+          <path
+            d="M3 3.75A.75.75 0 0 1 3.75 3h8.5a.75.75 0 0 1 0 1.5h-8.5A.75.75 0 0 1 3 3.75ZM3 7.75A.75.75 0 0 1 3.75 7h8.5a.75.75 0 0 1 0 1.5h-8.5A.75.75 0 0 1 3 7.75Z"
+            fill="currentColor"
+          />
+          <path
+            d="M8 12.8a.6.6 0 0 1-.43-.18l-2.35-2.4a.6.6 0 1 1 .86-.84L8 11.33l1.92-1.95a.6.6 0 1 1 .86.84l-2.35 2.4a.6.6 0 0 1-.43.18Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    }
+
+    // Expanded state: show "collapse" metaphor (panel folds up)
+    return (
+      <svg
+        className="input-panel-toggle-icon"
+        viewBox="0 0 16 16"
+        width="14"
+        height="14"
+        aria-hidden="true"
+      >
+        <path
+          d="M3 12.25a.75.75 0 0 1 .75-.75h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1-.75-.75ZM3 8.25a.75.75 0 0 1 .75-.75h8.5a.75.75 0 0 1 0 1.5h-8.5A.75.75 0 0 1 3 8.25Z"
+          fill="currentColor"
+        />
+        <path
+          d="M8 3.2c.16 0 .31.07.43.18l2.35 2.4a.6.6 0 0 1-.86.84L8 4.67 6.08 6.62a.6.6 0 1 1-.86-.84l2.35-2.4A.6.6 0 0 1 8 3.2Z"
+          fill="currentColor"
+        />
+      </svg>
+    );
+  };
 
   return (
     <div className="context-bar">
@@ -265,9 +315,25 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
           <button
             className={`context-tool-btn status-panel-toggle has-tooltip ${statusPanelExpanded ? 'expanded' : 'collapsed'}`}
             onClick={onToggleStatusPanel}
+            type="button"
             data-tooltip={statusPanelExpanded ? t('statusPanel.collapse') : t('statusPanel.expand')}
           >
             <span className={`codicon ${statusPanelExpanded ? 'codicon-chevron-down' : 'codicon-layers'}`} />
+          </button>
+        )}
+
+        {onToggleInputPanelCollapse && (
+          <button
+            className={`context-tool-btn input-panel-toggle has-tooltip ${inputPanelCollapsed ? 'collapsed' : 'expanded'}`}
+            onClick={onToggleInputPanelCollapse}
+            type="button"
+            data-tooltip={
+              inputPanelCollapsed
+                ? t('inputPanel.expand', { defaultValue: 'Expand input panel' })
+                : t('inputPanel.collapse', { defaultValue: 'Collapse input panel' })
+            }
+          >
+            {renderInputPanelToggleIcon(inputPanelCollapsed)}
           </button>
         )}
 
@@ -277,6 +343,7 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
             className="context-tool-btn has-tooltip"
             onClick={onRewind}
             disabled={!hasMessages}
+            type="button"
             data-tooltip={t('rewind.tooltip')}
           >
             <span className="codicon codicon-discard" />

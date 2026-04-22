@@ -62,6 +62,7 @@ public class ImpeccableHandler extends BaseMessageHandler {
             "extract",
             "frontend-design",
             "harden",
+            "impeccable",
             "normalize",
             "onboard",
             "optimize",
@@ -238,8 +239,10 @@ public class ImpeccableHandler extends BaseMessageHandler {
             availableCommands.add("/prompts:" + promptName);
         }
 
-        boolean hasFrontendDesign = plainAvailableNames.contains("frontend-design");
-        boolean hasTeachCommand = plainAvailableNames.contains("teach-impeccable");
+        boolean hasFrontendDesign = plainAvailableNames.contains("frontend-design")
+                || plainAvailableNames.contains("impeccable");
+        boolean hasTeachCommand = plainAvailableNames.contains("teach-impeccable")
+                || plainAvailableNames.contains("impeccable");
         int readyCommandCount = countReadyCommands(plainAvailableNames);
         int skillCount = installedSkillNames.size();
         int legacyPromptCount = legacyPromptNames.size();

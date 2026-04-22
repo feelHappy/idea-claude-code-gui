@@ -96,6 +96,8 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       onRewind,
       statusPanelExpanded = true,
       onToggleStatusPanel,
+      inputPanelCollapsed = false,
+      onToggleInputPanelCollapse,
       sdkInstalled = true, // Default to true to avoid disabling input box on initial state
       sdkStatusLoading = false, // SDK status loading state
       onInstallSdk,
@@ -592,7 +594,7 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
 
     return (
       <div
-        className={`chat-input-box ${isResizingInputBox ? 'is-resizing' : ''}`}
+        className={`chat-input-box ${isResizingInputBox ? 'is-resizing' : ''} ${inputPanelCollapsed ? 'panel-collapsed' : ''}`}
         onClick={focusInput}
         ref={containerRef}
         style={containerStyle}
@@ -621,6 +623,8 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
           onRewind={onRewind}
           statusPanelExpanded={statusPanelExpanded}
           onToggleStatusPanel={onToggleStatusPanel}
+          inputPanelCollapsed={inputPanelCollapsed}
+          onToggleInputPanelCollapse={onToggleInputPanelCollapse}
           messageQueue={messageQueue}
           onRemoveFromQueue={onRemoveFromQueue}
           showOpenSourceBanner={showOpenSourceBanner}
@@ -629,6 +633,8 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
           onRequestEnableFileContext={handleRequestEnableFileContext}
         />
 
+        {!inputPanelCollapsed && (
+          <>
         {/* Input area */}
         <div
           ref={editableWrapperRef}
@@ -753,6 +759,8 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
           impeccable={toolkit.impeccable}
           minimax={toolkit.minimax}
         />
+          </>
+        )}
       </div>
     );
   }

@@ -30,6 +30,10 @@
   box-shadow: 0 0 0 1px var(--input-focus-border);
 }
 
+.chat-input-box.panel-collapsed {
+  overflow: hidden;
+}
+
 /* ============================================================
    Resize handles (Augment-like)
    ============================================================ */

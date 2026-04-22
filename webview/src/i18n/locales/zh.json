@@ -1593,6 +1593,10 @@
     "discardAllFailed": "撤销失败: {{error}}",
     "keepAllSuccess": "已保存全部，改动记录已重置"
   },
+  "inputPanel": {
+    "expand": "展开输入面板",
+    "collapse": "折叠输入面板"
+  },
   "skills": {
     "title": "Skills",
     "all": "全部",

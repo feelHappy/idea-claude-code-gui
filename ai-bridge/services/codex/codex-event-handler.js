@@ -56,8 +56,12 @@ export function createInitialEventState(emitMessage) {
     pendingToolUseIds: new Map(),
     emittedToolUseIds: new Set(),
     emittedItemIds: new Set(),
+    emittedSyntheticToolResults: new Set(),
+    emittedTodoSnapshots: new Map(),
     deniedCommandToolUseIds: new Set(),
     emittedDeniedCommandToolResultIds: new Set(),
+    bridgedFunctionCalls: new Map(),
+    subagentToolUseIdsByAgentId: new Map(),
     sessionFilePath: null,
     sessionLineCursor: 0,
     processedPatchCallIds: new Set(),
@@ -295,6 +299,361 @@ function emitDeniedCommandToolResultOnce(state, toolUseId, messageText = 'Comman
   state.emittedDeniedCommandToolResultIds.add(toolUseId);
 }
 
+function safeJsonParse(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeTodoStatus(status) {
+  const normalized = String(status ?? '').trim().toLowerCase();
+  if (normalized === 'completed' || normalized === 'done') return 'completed';
+  if (normalized === 'in_progress' || normalized === 'in-progress' || normalized === 'in progress') {
+    return 'in_progress';
+  }
+  return 'pending';
+}
+
+function extractFunctionCallArguments(payload) {
+  if (!payload || typeof payload !== 'object') return {};
+  const rawArguments = payload.arguments;
+  if (rawArguments && typeof rawArguments === 'object' && !Array.isArray(rawArguments)) {
+    return rawArguments;
+  }
+  return safeJsonParse(rawArguments) ?? {};
+}
+
+function buildTodoWriteInputFromUpdatePlan(args, callId) {
+  const plan = Array.isArray(args?.plan) ? args.plan : [];
+  const todos = plan
+    .map((item, index) => {
+      if (!item || typeof item !== 'object') return null;
+      const content = typeof item.step === 'string'
+        ? item.step.trim()
+        : typeof item.title === 'string'
+          ? item.title.trim()
+          : '';
+      if (!content) return null;
+      return {
+        id: `${callId}_${index}`,
+        content,
+        status: normalizeTodoStatus(item.status),
+      };
+    })
+    .filter(Boolean);
+
+  const input = { todos, source: 'codex_update_plan' };
+  if (typeof args?.explanation === 'string' && args.explanation.trim()) {
+    input.explanation = args.explanation.trim();
+  }
+  return input;
+}
+
+function buildTodoWriteInputFromTodoList(item) {
+  const todoListId = typeof item?.id === 'string' && item.id.trim()
+    ? item.id.trim()
+    : randomUUID();
+  const todos = (Array.isArray(item?.items) ? item.items : [])
+    .map((todo, index) => {
+      if (!todo || typeof todo !== 'object') return null;
+      const content = typeof todo.text === 'string' ? todo.text.trim() : '';
+      if (!content) return null;
+      return {
+        id: `${todoListId}_${index}`,
+        content,
+        status: todo.completed === true ? 'completed' : 'pending',
+      };
+    })
+    .filter(Boolean);
+  return { todos, source: 'codex_todo_list' };
+}
+
+function summarizeFunctionCallItems(items) {
+  if (!Array.isArray(items)) return '';
+  return items
+    .map((item) => {
+      if (!item || typeof item !== 'object') return '';
+      if (typeof item.text === 'string' && item.text.trim()) return item.text.trim();
+      if (typeof item.path === 'string' && item.path.trim()) return item.path.trim();
+      if (typeof item.name === 'string' && item.name.trim()) return item.name.trim();
+      return '';
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+function firstNonEmptyLine(text) {
+  if (typeof text !== 'string') return '';
+  const line = text.split(/\r?\n/).map((part) => part.trim()).find(Boolean);
+  return line ?? '';
+}
+
+function truncateSingleLine(text, maxChars = 120) {
+  if (typeof text !== 'string') return '';
+  const singleLine = text.replace(/\s+/g, ' ').trim();
+  if (singleLine.length <= maxChars) return singleLine;
+  return `${singleLine.slice(0, Math.max(0, maxChars - 3))}...`;
+}
+
+function buildSubagentInputFromSpawnAgent(args) {
+  const prompt = typeof args?.message === 'string' && args.message.trim()
+    ? args.message.trim()
+    : summarizeFunctionCallItems(args?.items);
+  const descriptionSource = typeof args?.description === 'string' && args.description.trim()
+    ? args.description.trim()
+    : firstNonEmptyLine(prompt);
+  return {
+    subagent_type: typeof args?.agent_type === 'string' && args.agent_type.trim()
+      ? args.agent_type.trim()
+      : 'default',
+    description: truncateSingleLine(descriptionSource || 'Subagent task'),
+    prompt,
+    source: 'codex_spawn_agent',
+  };
+}
+
+function emitSyntheticToolResultOnce(state, toolUseId, isError, content, meta = {}) {
+  if (!toolUseId || state.emittedSyntheticToolResults.has(toolUseId)) return;
+  state.emitMessage(toolResultMsg(toolUseId, isError, content, meta));
+  state.emittedSyntheticToolResults.add(toolUseId);
+}
+
+function emitTodoSnapshotIfChanged(state, toolUseId, input, meta = {}) {
+  if (!toolUseId || !input || typeof input !== 'object') return;
+  const snapshot = JSON.stringify(input);
+  if (state.emittedTodoSnapshots.get(toolUseId) === snapshot) return;
+  state.emitMessage(toolUseMsg(toolUseId, 'TodoWrite', input, meta));
+  state.emittedToolUseIds.add(toolUseId);
+  state.emittedTodoSnapshots.set(toolUseId, snapshot);
+}
+
+function extractFunctionCallOutputText(payload) {
+  if (!payload || typeof payload !== 'object') return '';
+  const output = payload.output;
+  if (typeof output === 'string') return output;
+  if (output == null) return '';
+  try {
+    return JSON.stringify(output);
+  } catch {
+    return String(output);
+  }
+}
+
+function collectAgentIds(value, collected = new Set(), force = false) {
+  if (!value || collected.size >= 8) return collected;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed && (force || /^([a-z0-9_-]+)$/i.test(trimmed))) {
+      collected.add(trimmed);
+    }
+    return collected;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((entry) => collectAgentIds(entry, collected, force));
+    return collected;
+  }
+  if (typeof value !== 'object') return collected;
+
+  const directKeys = ['id', 'agent_id', 'agentId', 'target', 'target_id', 'targetId'];
+  directKeys.forEach((key) => {
+    if (key in value) collectAgentIds(value[key], collected, true);
+  });
+
+  const nestedKeys = ['agent', 'agents', 'result', 'results', 'status', 'statuses', 'data'];
+  nestedKeys.forEach((key) => {
+    if (key in value) collectAgentIds(value[key], collected, force);
+  });
+  return collected;
+}
+
+function handleFunctionCallPayload(payload, state) {
+  const functionName = typeof payload?.name === 'string' ? payload.name : '';
+  const callId = typeof payload?.call_id === 'string' && payload.call_id.trim()
+    ? payload.call_id.trim()
+    : '';
+  if (!functionName || !callId) return;
+
+  const args = extractFunctionCallArguments(payload);
+  const bridgeMeta = { bridge_item_id: callId };
+
+  if (functionName === 'update_plan') {
+    const input = buildTodoWriteInputFromUpdatePlan(args, callId);
+    if (!input) return;
+    if (!state.emittedToolUseIds.has(callId)) {
+      state.emitMessage(toolUseMsg(callId, 'TodoWrite', input, bridgeMeta));
+      state.emittedToolUseIds.add(callId);
+    }
+    state.bridgedFunctionCalls.set(callId, { type: 'update_plan', toolUseId: callId, bridgeMeta });
+    return;
+  }
+
+  if (functionName === 'spawn_agent') {
+    const input = buildSubagentInputFromSpawnAgent(args);
+    if (!state.emittedToolUseIds.has(callId)) {
+      state.emitMessage(toolUseMsg(callId, 'agent', input, bridgeMeta));
+      state.emittedToolUseIds.add(callId);
+    }
+    state.bridgedFunctionCalls.set(callId, { type: 'spawn_agent', toolUseId: callId, bridgeMeta });
+    return;
+  }
+
+  if (functionName === 'wait_agent') {
+    const targets = Array.isArray(args?.targets)
+      ? args.targets.filter((target) => typeof target === 'string' && target.trim())
+      : [];
+    state.bridgedFunctionCalls.set(callId, { type: 'wait_agent', targets });
+  }
+}
+
+function handleFunctionCallOutputPayload(payload, state) {
+  const callId = typeof payload?.call_id === 'string' && payload.call_id.trim()
+    ? payload.call_id.trim()
+    : '';
+  if (!callId) return;
+
+  const bridgedCall = state.bridgedFunctionCalls.get(callId);
+  if (!bridgedCall) return;
+
+  const outputText = extractFunctionCallOutputText(payload).trim();
+  if (bridgedCall.type === 'update_plan') {
+    emitSyntheticToolResultOnce(
+      state,
+      bridgedCall.toolUseId,
+      false,
+      outputText || 'Plan updated',
+      bridgedCall.bridgeMeta ?? {}
+    );
+    state.bridgedFunctionCalls.delete(callId);
+    return;
+  }
+
+  if (bridgedCall.type === 'spawn_agent') {
+    const parsedOutput = safeJsonParse(outputText);
+    const agentIds = [...collectAgentIds(parsedOutput ?? outputText)];
+    agentIds.forEach((agentId) => state.subagentToolUseIdsByAgentId.set(agentId, bridgedCall.toolUseId));
+    state.bridgedFunctionCalls.delete(callId);
+    return;
+  }
+
+  if (bridgedCall.type === 'wait_agent') {
+    const resultText = outputText || 'Agent completed';
+    bridgedCall.targets.forEach((agentId) => {
+      const toolUseId = state.subagentToolUseIdsByAgentId.get(agentId);
+      if (!toolUseId) return;
+      emitSyntheticToolResultOnce(state, toolUseId, false, resultText);
+    });
+    state.bridgedFunctionCalls.delete(callId);
+  }
+}
+
+function handleResponseItemPayload(payload, state) {
+  if (!payload || typeof payload !== 'object') return;
+  if (payload.type === 'function_call') {
+    handleFunctionCallPayload(payload, state);
+  } else if (payload.type === 'function_call_output') {
+    handleFunctionCallOutputPayload(payload, state);
+  }
+}
+
+function extractCollabReceiverIds(item) {
+  const agentIds = new Set();
+  if (Array.isArray(item?.receiver_thread_ids)) {
+    item.receiver_thread_ids.forEach((agentId) => {
+      if (typeof agentId === 'string' && agentId.trim()) {
+        agentIds.add(agentId.trim());
+      }
+    });
+  }
+  if (item?.agents_states && typeof item.agents_states === 'object') {
+    Object.keys(item.agents_states).forEach((agentId) => {
+      if (typeof agentId === 'string' && agentId.trim()) {
+        agentIds.add(agentId.trim());
+      }
+    });
+  }
+  return [...agentIds];
+}
+
+function buildSubagentInputFromCollabToolCall(item) {
+  const prompt = typeof item?.prompt === 'string' ? item.prompt.trim() : '';
+  const description = truncateSingleLine(firstNonEmptyLine(prompt) || 'Subagent task');
+  return {
+    subagent_type: 'default',
+    description,
+    prompt,
+    source: 'codex_collab_tool_call',
+  };
+}
+
+function normalizeCollabAgentStatus(status) {
+  const normalized = String(status ?? '').trim().toLowerCase();
+  if (normalized === 'completed' || normalized === 'done' || normalized === 'success') {
+    return 'completed';
+  }
+  if (normalized === 'failed' || normalized === 'error' || normalized === 'errored' || normalized === 'cancelled') {
+    return 'error';
+  }
+  return 'running';
+}
+
+function handleTodoListItem(item, state) {
+  const toolUseId = typeof item?.id === 'string' && item.id.trim() ? item.id.trim() : randomUUID();
+  const bridgeMeta = item?.id ? { bridge_item_id: item.id } : {};
+  emitTodoSnapshotIfChanged(state, toolUseId, buildTodoWriteInputFromTodoList(item), bridgeMeta);
+}
+
+function handleCollabToolCallItem(item, state) {
+  const tool = typeof item?.tool === 'string' ? item.tool.trim().toLowerCase() : '';
+  const bridgeMeta = item?.id ? { bridge_item_id: item.id } : {};
+
+  if (tool === 'spawn_agent') {
+    const toolUseId = typeof item?.id === 'string' && item.id.trim() ? item.id.trim() : randomUUID();
+    if (!state.emittedToolUseIds.has(toolUseId)) {
+      state.emitMessage(toolUseMsg(toolUseId, 'agent', buildSubagentInputFromCollabToolCall(item), bridgeMeta));
+      state.emittedToolUseIds.add(toolUseId);
+    }
+    extractCollabReceiverIds(item).forEach((agentId) => state.subagentToolUseIdsByAgentId.set(agentId, toolUseId));
+    if (String(item?.status ?? '').trim().toLowerCase() === 'failed') {
+      emitSyntheticToolResultOnce(state, toolUseId, true, 'Subagent launch failed', bridgeMeta);
+    }
+    return;
+  }
+
+  if (tool !== 'wait') return;
+
+  const agentStates = item?.agents_states && typeof item.agents_states === 'object'
+    ? Object.entries(item.agents_states)
+    : [];
+
+  if (agentStates.length > 0) {
+    agentStates.forEach(([agentId, agentState]) => {
+      const toolUseId = state.subagentToolUseIdsByAgentId.get(agentId);
+      if (!toolUseId) return;
+      const status = normalizeCollabAgentStatus(agentState?.status ?? item?.status);
+      if (status === 'running') return;
+      const messageText = typeof agentState?.message === 'string' && agentState.message.trim()
+        ? agentState.message.trim()
+        : status === 'error'
+          ? 'Subagent failed'
+          : 'Subagent completed';
+      emitSyntheticToolResultOnce(state, toolUseId, status === 'error', messageText, bridgeMeta);
+    });
+    return;
+  }
+
+  if (String(item?.status ?? '').trim().toLowerCase() !== 'failed') return;
+  extractCollabReceiverIds(item).forEach((agentId) => {
+    const toolUseId = state.subagentToolUseIdsByAgentId.get(agentId);
+    if (!toolUseId) return;
+    emitSyntheticToolResultOnce(state, toolUseId, true, 'Subagent wait failed', bridgeMeta);
+  });
+}
+
 function computeAgentMessageUpdate(text, previousAssistantText = '') {
   const nextText = typeof text === 'string' ? text : '';
   const previousText = typeof previousAssistantText === 'string' ? previousAssistantText : '';
@@ -453,6 +812,10 @@ async function handleItemCompleted(item, state, config) {
     await handleFileChange(item, state, config);
   } else if (item.type === 'mcp_tool_call') {
     handleMcpToolCall(item, state);
+  } else if (item.type === 'todo_list') {
+    handleTodoListItem(item, state);
+  } else if (item.type === 'collab_tool_call') {
+    handleCollabToolCallItem(item, state);
   } else {
     console.log('[DEBUG] Unhandled item.completed item type:', item.type);
   }
@@ -742,9 +1105,13 @@ export async function processCodexEventStream(events, state, config) {
         state.lastDeferredError = null;
         state.emittedItemIds.clear();
         state.emittedToolUseIds.clear();
+        state.emittedSyntheticToolResults.clear();
+        state.emittedTodoSnapshots.clear();
         state.emittedDeniedCommandToolResultIds.clear();
         state.deniedCommandToolUseIds.clear();
         state.pendingToolUseIds.clear();
+        state.bridgedFunctionCalls.clear();
+        state.subagentToolUseIdsByAgentId.clear();
         // Snapshot pre-existing modified file contents so we can still detect
         // Codex edits to files that were already dirty before this turn.
         state.preExistingModifiedFiles = await snapshotModifiedFiles(config.cwd);
@@ -775,17 +1142,31 @@ export async function processCodexEventStream(events, state, config) {
           console.log('[DEBUG] MCP tool call started:', toolName, 'id:', toolUseId);
           state.emitMessage(toolUseMsg(toolUseId, toolName, event.item.arguments || {}));
           state.emittedToolUseIds.add(toolUseId);
+        } else if (event.item && event.item.type === 'todo_list') {
+          handleTodoListItem(event.item, state);
+        } else if (event.item && event.item.type === 'collab_tool_call') {
+          handleCollabToolCallItem(event.item, state);
         }
         break;
       }
 
       case 'item.updated':
         maybeEmitReasoning(state, event.item);
+        if (event.item && event.item.type === 'todo_list') {
+          handleTodoListItem(event.item, state);
+        } else if (event.item && event.item.type === 'collab_tool_call') {
+          handleCollabToolCallItem(event.item, state);
+        }
         break;
 
       case 'item.completed': {
         if (!event.item) break;
         await handleItemCompleted(event.item, state, config);
+        break;
+      }
+
+      case 'response_item': {
+        handleResponseItemPayload(event.payload, state);
         break;
       }
 
@@ -884,6 +1265,10 @@ export async function processCodexEventStream(events, state, config) {
 }
 
 export const __testing = {
+  buildTodoWriteInputFromUpdatePlan,
+  buildTodoWriteInputFromTodoList,
+  buildSubagentInputFromSpawnAgent,
+  handleResponseItemPayload,
   computeAgentMessageUpdate,
   collectTurnModifiedFiles,
   snapshotModifiedFiles,

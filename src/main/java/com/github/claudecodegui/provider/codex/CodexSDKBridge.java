@@ -14,9 +14,11 @@ import com.github.claudecodegui.util.PlatformUtils;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -251,7 +253,7 @@ public class CodexSDKBridge extends BaseSDKBridge {
             StringBuilder assistantContent = new StringBuilder();
             final String[] lastNodeError = {null};
             final boolean[] hadSendError = {false};
-            final List<File> tempImageFiles = new ArrayList<>();  // Track temp images for cleanup
+            final List<File> tempUploadedFiles = new ArrayList<>();  // Track temp files for cleanup
 
             try {
                 String node = nodeDetector.findNodeExecutable();
@@ -274,6 +276,13 @@ public class CodexSDKBridge extends BaseSDKBridge {
                     LOG.info("[Agent] ✓ Appending agentPrompt to user message for Codex (length: " + agentPrompt.length() + " chars)");
                 }
 
+                CodexAttachmentPayload attachmentPayload = buildCodexAttachmentPayload(attachments, tempUploadedFiles);
+                if (!attachmentPayload.stagedFilePaths.isEmpty()) {
+                    finalMessage = appendUploadedFilesContext(finalMessage, attachmentPayload.stagedFilePaths);
+                    LOG.info("[Codex] Added " + attachmentPayload.stagedFilePaths.size()
+                            + " staged non-image attachment path(s) into prompt context");
+                }
+
                 // Build stdin input JSON
                 // Note: Codex uses 'threadId' (not 'sessionId')
                 JsonObject stdinInput = new JsonObject();
@@ -290,7 +299,7 @@ public class CodexSDKBridge extends BaseSDKBridge {
 
                 // Process attachments for Codex (images need to be saved as temp files)
                 // Codex SDK requires local file paths, not base64 data
-                JsonArray attachmentsArray = buildCodexAttachments(attachments, tempImageFiles);
+                JsonArray attachmentsArray = attachmentPayload.imageEntries;
                 if (attachmentsArray.size() > 0) {
                     stdinInput.add("attachments", attachmentsArray);
                     LOG.info("[Codex] ✓ Prepared " + attachmentsArray.size() + " image attachment(s)");
@@ -442,14 +451,14 @@ public class CodexSDKBridge extends BaseSDKBridge {
                 } finally {
                     processManager.unregisterProcess(channelId, process);
                     processManager.waitForProcessTermination(process);
-                    cleanupTempImages(tempImageFiles);  // Cleanup temp image files
+                    cleanupTempImages(tempUploadedFiles);  // Cleanup temp files
                 }
 
             } catch (Exception e) {
                 result.success = false;
                 result.error = e.getMessage();
                 callback.onError(e.getMessage());
-                cleanupTempImages(tempImageFiles);  // Cleanup temp image files on error
+                cleanupTempImages(tempUploadedFiles);  // Cleanup temp files on error
                 return result;
             }
         });
@@ -773,81 +782,106 @@ public class CodexSDKBridge extends BaseSDKBridge {
     // Utility methods
     // ============================================================================
 
+    private static final class CodexAttachmentPayload {
+        private final JsonArray imageEntries = new JsonArray();
+        private final List<String> stagedFilePaths = new ArrayList<>();
+    }
+
     /**
-     * Build Codex-compatible attachments array.
-     * Codex SDK requires local file paths for images, not base64 data.
-     * This method saves base64 image data to temporary files and returns file paths.
-     * Files are marked for deletion on JVM exit and tracked for cleanup after message send.
-     *
-     * @param attachments List of attachments from the UI
-     * @param tempFiles List to collect temp files for cleanup after send (optional, can be null)
-     * @return JsonArray with local_image entries for Codex SDK
+     * Build Codex-compatible attachment payload.
+     * - image/* attachments -> local_image entries consumed by Codex SDK
+     * - non-image attachments -> staged local files whose paths are injected into user prompt
      */
-    private JsonArray buildCodexAttachments(List<ClaudeSession.Attachment> attachments, List<File> tempFiles) {
-        JsonArray result = new JsonArray();
+    private CodexAttachmentPayload buildCodexAttachmentPayload(List<ClaudeSession.Attachment> attachments, List<File> tempFiles) {
+        CodexAttachmentPayload payload = new CodexAttachmentPayload();
 
         if (attachments == null || attachments.isEmpty()) {
-            return result;
+            return payload;
         }
 
-        // Use system temp directory (clean, no project pollution)
-        File tempDir = new File(System.getProperty("java.io.tmpdir"), "codex-images");
+        File imageTempDir = new File(System.getProperty("java.io.tmpdir"), "codex-images");
+        if (!imageTempDir.exists()) {
+            imageTempDir.mkdirs();
+        }
 
-        // Create temp directory if not exists
-        if (!tempDir.exists()) {
-            tempDir.mkdirs();
+        File fileTempDir = new File(System.getProperty("java.io.tmpdir"), "codex-files");
+        if (!fileTempDir.exists()) {
+            fileTempDir.mkdirs();
         }
 
         for (ClaudeSession.Attachment attachment : attachments) {
-            if (attachment == null) continue;
+            if (attachment == null) {
+                continue;
+            }
 
-            String type = attachment.mediaType;
+            String mediaType = attachment.mediaType != null ? attachment.mediaType : "";
             String data = attachment.data;
-
-            // Only process image types
-            if (type == null || !type.startsWith("image/") || data == null) {
-                LOG.debug("[Codex] Skipping non-image attachment: " + type);
+            if (data == null || data.isEmpty()) {
+                LOG.debug("[Codex] Skipping attachment without payload data: " + attachment.fileName);
                 continue;
             }
 
             try {
-                // Determine file extension from MIME type
-                String extension = getImageExtension(type);
+                if (mediaType.startsWith("image/")) {
+                    String extension = getImageExtension(mediaType);
+                    String filename = "codex-img-" + System.currentTimeMillis() + "-" +
+                            java.util.UUID.randomUUID().toString().substring(0, 8) + extension;
+                    File imageFile = new File(imageTempDir, filename);
+                    byte[] imageBytes = Base64.getDecoder().decode(data);
+                    try (FileOutputStream fos = new FileOutputStream(imageFile)) {
+                        fos.write(imageBytes);
+                    }
 
-                // Generate unique filename
-                String filename = "codex-img-" + System.currentTimeMillis() + "-" +
-                                  java.util.UUID.randomUUID().toString().substring(0, 8) + extension;
-                File imageFile = new File(tempDir, filename);
+                    imageFile.deleteOnExit();
+                    if (tempFiles != null) {
+                        tempFiles.add(imageFile);
+                    }
 
-                // Decode base64 and write to file
-                byte[] imageBytes = java.util.Base64.getDecoder().decode(data);
-                try (java.io.FileOutputStream fos = new java.io.FileOutputStream(imageFile)) {
-                    fos.write(imageBytes);
+                    JsonObject imageEntry = new JsonObject();
+                    imageEntry.addProperty("type", "local_image");
+                    imageEntry.addProperty("path", imageFile.getAbsolutePath());
+                    payload.imageEntries.add(imageEntry);
+                    LOG.info("[Codex] Saved temp image: " + imageFile.getAbsolutePath()
+                            + " (" + imageBytes.length + " bytes, will auto-delete)");
+                } else {
+                    String extension = getAttachmentExtension(attachment.fileName);
+                    String filename = "codex-file-" + System.currentTimeMillis() + "-" +
+                            java.util.UUID.randomUUID().toString().substring(0, 8) + extension;
+                    File stagedFile = new File(fileTempDir, filename);
+                    byte[] fileBytes = Base64.getDecoder().decode(data);
+                    try (FileOutputStream fos = new FileOutputStream(stagedFile)) {
+                        fos.write(fileBytes);
+                    }
+
+                    stagedFile.deleteOnExit();
+                    if (tempFiles != null) {
+                        tempFiles.add(stagedFile);
+                    }
+                    payload.stagedFilePaths.add(stagedFile.getAbsolutePath());
+                    LOG.info("[Codex] Staged non-image attachment: " + stagedFile.getAbsolutePath()
+                            + " (" + fileBytes.length + " bytes)");
                 }
-
-                // Mark for deletion on JVM exit (fallback cleanup)
-                imageFile.deleteOnExit();
-
-                // Track for immediate cleanup after send
-                if (tempFiles != null) {
-                    tempFiles.add(imageFile);
-                }
-
-                LOG.info("[Codex] Saved temp image: " + imageFile.getAbsolutePath() +
-                         " (" + imageBytes.length + " bytes, will auto-delete)");
-
-                // Add to result array in Codex SDK format
-                JsonObject imageEntry = new JsonObject();
-                imageEntry.addProperty("type", "local_image");
-                imageEntry.addProperty("path", imageFile.getAbsolutePath());
-                result.add(imageEntry);
-
             } catch (Exception e) {
-                LOG.warn("[Codex] Failed to process image attachment: " + e.getMessage());
+                LOG.warn("[Codex] Failed to process attachment: " + e.getMessage());
             }
         }
 
-        return result;
+        return payload;
+    }
+
+    private String appendUploadedFilesContext(String message, List<String> stagedFilePaths) {
+        if (stagedFilePaths == null || stagedFilePaths.isEmpty()) {
+            return message;
+        }
+        String safeMessage = message != null ? message : "";
+        StringBuilder sb = new StringBuilder(safeMessage);
+        sb.append("\n\n## Uploaded Files\n");
+        sb.append("The user uploaded non-image files. They are available at these local paths:\n");
+        for (String path : stagedFilePaths) {
+            sb.append("- `").append(path).append("`\n");
+        }
+        sb.append("\nPlease read these files directly using available tools before answering.\n");
+        return sb.toString();
     }
 
     /**
@@ -890,6 +924,21 @@ public class CodexSDKBridge extends BaseSDKBridge {
             default:
                 return ".png";
         }
+    }
+
+    private String getAttachmentExtension(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return ".bin";
+        }
+        int idx = fileName.lastIndexOf('.');
+        if (idx <= 0 || idx == fileName.length() - 1) {
+            return ".bin";
+        }
+        String ext = fileName.substring(idx);
+        if (ext.length() > 15) {
+            return ".bin";
+        }
+        return ext;
     }
 
     private String extractAssistantText(JsonObject msg) {

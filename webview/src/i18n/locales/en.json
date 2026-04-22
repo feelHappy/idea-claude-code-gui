@@ -1588,6 +1588,10 @@
     "discardAllFailed": "Discard failed: {{error}}",
     "keepAllSuccess": "All changes kept, tracking reset"
   },
+  "inputPanel": {
+    "expand": "Expand input panel",
+    "collapse": "Collapse input panel"
+  },
   "skills": {
     "title": "Skills",
     "all": "All",

@@ -518,6 +518,10 @@ export interface ChatInputBoxProps {
   statusPanelExpanded?: boolean;
   /** Toggle StatusPanel expand/collapse */
   onToggleStatusPanel?: () => void;
+  /** Whether the whole input panel is collapsed */
+  inputPanelCollapsed?: boolean;
+  /** Toggle input panel collapse */
+  onToggleInputPanelCollapse?: () => void;
 
   /** SDK installed status (disable input when not installed) */
   sdkInstalled?: boolean;

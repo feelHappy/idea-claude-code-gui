@@ -221,12 +221,54 @@ class HistoryMessageInjector {
      * by bridge_item_id, tool_use id, or tool_result tool_use_id.
      */
     private void addToBackendStateForDedup(JsonObject msg) {
-        if (!msg.has("type") || !"response_item".equals(msg.get("type").getAsString())) {
-            return;
+        ClaudeSession.Message backendMsg = createBackendStateMessageForHistory(msg);
+        if (backendMsg != null) {
+            context.getSession().getState().addMessage(backendMsg);
         }
+    }
+
+    static ClaudeSession.Message createBackendStateMessageForHistory(JsonObject msg) {
+        if (msg == null || !msg.has("type")) {
+            return null;
+        }
+
+        String msgType = msg.get("type").getAsString();
         JsonObject payload = msg.has("payload") ? msg.getAsJsonObject("payload") : null;
         if (payload == null || !payload.has("type")) {
-            return;
+            return null;
+        }
+
+        if ("event_msg".equals(msgType) && "user_message".equals(payload.get("type").getAsString())) {
+            String userMessageText = payload.has("message") && !payload.get("message").isJsonNull()
+                    ? payload.get("message").getAsString()
+                    : "";
+            if (userMessageText.isEmpty()) {
+                return null;
+            }
+
+            JsonObject textBlock = new JsonObject();
+            textBlock.addProperty("type", "text");
+            textBlock.addProperty("text", userMessageText);
+            JsonArray content = new JsonArray();
+            content.add(textBlock);
+
+            JsonObject message = new JsonObject();
+            message.addProperty("role", "user");
+            message.add("content", content);
+
+            JsonObject raw = new JsonObject();
+            raw.add("message", message);
+
+            ClaudeSession.Message backendMsg = new ClaudeSession.Message(
+                    ClaudeSession.Message.Type.USER,
+                    userMessageText
+            );
+            backendMsg.raw = raw;
+            return backendMsg;
+        }
+
+        if (!"response_item".equals(msgType)) {
+            return null;
         }
 
         String payloadType = payload.get("type").getAsString();
@@ -245,7 +287,6 @@ class HistoryMessageInjector {
                 if (payloadId != null) {
                     raw.addProperty("bridge_item_id", payloadId);
                 }
-                // Build message.content from payload.content
                 JsonObject message = new JsonObject();
                 message.addProperty("role", role);
                 if (payload.has("content")) {
@@ -294,14 +335,14 @@ class HistoryMessageInjector {
                 break;
             }
             default:
-                return;
+                return null;
         }
 
         String contentText = CodexMessageConverter.extractContentAsString(payload.get("content"));
         ClaudeSession.Message backendMsg = new ClaudeSession.Message(
                 messageType, contentText != null ? contentText : "");
         backendMsg.raw = raw;
-        context.getSession().getState().addMessage(backendMsg);
+        return backendMsg;
     }
 
     /**

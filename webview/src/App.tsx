@@ -88,6 +88,7 @@ const App = () => {
   // StatusPanel collapse state
   const userCollapsedRef = useRef(false);
   const [, forceStatusUpdate] = useState(0);
+  const [inputPanelCollapsed, setInputPanelCollapsed] = useState(false);
 
   // Changelog dialog state (manual open only)
   const [showChangelogDialog, setShowChangelogDialog] = useState(false);
@@ -628,6 +629,8 @@ const App = () => {
               onRewind={handleOpenRewindSelectDialog}
               statusPanelExpanded={statusPanelExpanded}
               onToggleStatusPanel={() => { userCollapsedRef.current = !userCollapsedRef.current; forceStatusUpdate(c => c + 1); }}
+              inputPanelCollapsed={inputPanelCollapsed}
+              onToggleInputPanelCollapse={() => setInputPanelCollapsed((collapsed) => !collapsed)}
               addToast={addToast}
               messageQueue={messageQueue}
               onRemoveFromQueue={dequeueMessage}
