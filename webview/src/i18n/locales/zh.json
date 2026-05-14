@@ -479,6 +479,49 @@
           "prompt": "请使用 GitNexus，帮我评估我接下来提到的模块、类或接口改动影响面，包括可能受影响的文件、上游调用方、下游消费者和需要关注的测试范围。"
         }
       }
+    },
+    "harness": {
+      "title": "知识体系",
+      "install": "安装",
+      "repair": "修复",
+      "refresh": "刷新",
+      "playbooks": "条经验",
+      "hideLog": "▼ 收起日志",
+      "showLog": "▶ 展开日志",
+      "readyHint": "知识体系已激活，开发过程中经验会自动沉淀为 Playbook。",
+      "missingHint": "安装 Harness 知识体系，开启开发经验自动沉淀。",
+      "partialHint": "Harness 目录存在但不完整，建议重新安装。",
+      "loadingHint": "正在检查知识体系状态...",
+      "status": {
+        "loading": "检查中",
+        "ready": "已激活",
+        "partial": "不完整",
+        "missing": "未安装",
+        "error": "异常"
+      }
+    },
+    "debate": {
+      "title": "Bug 辩论",
+      "start": "发起辩论",
+      "stop": "停止",
+      "viewFile": "查看记录",
+      "roundProgress": "第 {{current}}/{{max}} 轮",
+      "dialog": {
+        "title": "发起 Bug 辩论",
+        "topicPlaceholder": "主题（可选）",
+        "descPlaceholder": "描述 bug 或问题...",
+        "maxRounds": "最大轮次："
+      },
+      "status": {
+        "idle": "空闲",
+        "starting": "启动中",
+        "awaiting_claude": "等待 Claude",
+        "awaiting_codex": "等待 Codex",
+        "consensus": "已达成共识",
+        "max_rounds_reached": "已达上限",
+        "stopped": "已停止",
+        "error": "异常"
+      }
     }
   },
   "settings": {

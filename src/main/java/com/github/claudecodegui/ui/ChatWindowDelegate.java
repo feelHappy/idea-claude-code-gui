@@ -10,7 +10,9 @@ import com.github.claudecodegui.handler.CursorHandler;
 import com.github.claudecodegui.handler.CodexMcpServerHandler;
 import com.github.claudecodegui.handler.DependencyHandler;
 import com.github.claudecodegui.handler.DiffHandler;
+import com.github.claudecodegui.handler.DebateHandler;
 import com.github.claudecodegui.handler.GitNexusHandler;
+import com.github.claudecodegui.handler.HarnessHandler;
 import com.github.claudecodegui.handler.ImpeccableHandler;
 import com.github.claudecodegui.handler.MiniMaxHandler;
 import com.github.claudecodegui.handler.NacosRegistryHandler;
@@ -290,6 +292,8 @@ public class ChatWindowDelegate {
         messageDispatcher.registerHandler(new ImpeccableHandler(handlerContext));
         messageDispatcher.registerHandler(new MiniMaxHandler(handlerContext));
         messageDispatcher.registerHandler(new GitNexusHandler(handlerContext));
+        messageDispatcher.registerHandler(new HarnessHandler(handlerContext));
+        messageDispatcher.registerHandler(new DebateHandler(handlerContext));
         messageDispatcher.registerHandler(new ClipboardHandler(handlerContext));
         messageDispatcher.registerHandler(new CursorHandler(handlerContext));
         messageDispatcher.registerHandler(new NacosRegistryHandler(handlerContext, settingsService.getNacosRegistryManager()));

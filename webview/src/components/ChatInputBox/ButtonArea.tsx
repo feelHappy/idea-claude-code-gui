@@ -11,7 +11,11 @@ import { DesignToolkitBar } from './DesignToolkitBar.js';
 import { GitNexusBar } from './GitNexusBar.js';
 import { MiniMaxBar } from './MiniMaxBar.js';
 
-type AddonPanelId = 'bmad' | 'gitNexus' | 'uiUxPro' | 'minimax';
+import { HarnessBar } from './HarnessBar.js';
+import { useHarnessIntegration } from './hooks/useHarnessIntegration.js';
+import { DebatePanel } from './DebatePanel.js';
+
+type AddonPanelId = 'bmad' | 'gitNexus' | 'uiUxPro' | 'minimax' | 'harness' | 'debate';
 
 /**
  * Get custom Codex model list from localStorage
@@ -104,6 +108,7 @@ export const ButtonArea = ({
 }: ButtonAreaProps) => {
   const { t } = useTranslation();
   const toolkitLabel = t('chat.toolbar.tools', { defaultValue: 'Tools' });
+  const harnessProps = useHarnessIntegration();
   // const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Track changes to custom models in localStorage
@@ -297,8 +302,24 @@ export const ButtonArea = ({
       });
     }
 
+    if (harnessProps) {
+      items.push({
+        id: 'harness',
+        label: t('chat.harness.title', { defaultValue: 'Harness' }),
+        icon: 'codicon-book',
+        content: <HarnessBar {...harnessProps} />,
+      });
+    }
+
+    items.push({
+      id: 'debate',
+      label: t('chat.debate.title', { defaultValue: 'Debate' }),
+      icon: 'codicon-comment-discussion',
+      content: <DebatePanel />,
+    });
+
     return items;
-  }, [bmad, gitNexus, impeccable, minimax, t, uiUxPro]);
+  }, [bmad, gitNexus, harnessProps, impeccable, minimax, t, uiUxPro]);
 
   const [activeAddon, setActiveAddon] = useState<AddonPanelId | null>(addonItems[0]?.id ?? null);
   const [toolkitMenuOpen, setToolkitMenuOpen] = useState(false);

@@ -479,6 +479,49 @@
           "prompt": "Use GitNexus to analyze the impact of changing the module, class, or API I mention, including likely affected files, upstream callers, downstream consumers, and test areas."
         }
       }
+    },
+    "harness": {
+      "title": "Harness",
+      "install": "Install",
+      "repair": "Repair",
+      "refresh": "Refresh",
+      "playbooks": "playbook(s)",
+      "hideLog": "▼ Hide log",
+      "showLog": "▶ Show log",
+      "readyHint": "Knowledge system active. Playbooks auto-accumulate as you develop.",
+      "missingHint": "Install the Harness knowledge system to enable auto-learning from your development.",
+      "partialHint": "Harness directory exists but is incomplete.",
+      "loadingHint": "Checking harness status...",
+      "status": {
+        "loading": "Checking",
+        "ready": "Active",
+        "partial": "Incomplete",
+        "missing": "Not Installed",
+        "error": "Error"
+      }
+    },
+    "debate": {
+      "title": "Bug Debate",
+      "start": "Start Debate",
+      "stop": "Stop",
+      "viewFile": "View",
+      "roundProgress": "Round {{current}}/{{max}}",
+      "dialog": {
+        "title": "Start Bug Debate",
+        "topicPlaceholder": "Topic (optional)",
+        "descPlaceholder": "Describe the bug or problem...",
+        "maxRounds": "Max rounds:"
+      },
+      "status": {
+        "idle": "Idle",
+        "starting": "Starting",
+        "awaiting_claude": "Waiting for Claude",
+        "awaiting_codex": "Waiting for Codex",
+        "consensus": "Consensus",
+        "max_rounds_reached": "Max Rounds",
+        "stopped": "Stopped",
+        "error": "Error"
+      }
     }
   },
   "settings": {
