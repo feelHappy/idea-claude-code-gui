@@ -35,30 +35,40 @@ import { setActiveQueryResult } from './message-session-registry.js';
 /**
  * Resolve Extended Thinking configuration from settings.
  * @param {object|null} settings - Claude settings object
- * @returns {{ alwaysThinkingEnabled: boolean, maxThinkingTokens: number|undefined }}
+ * @param {string|null} reasoningEffort - Optional reasoning effort override ('low'|'medium'|'high'|'xhigh'|'max')
+ * @returns {{ maxThinkingTokens: number|undefined, effort: string|undefined }}
  */
-function resolveThinkingConfig(settings) {
+function resolveThinkingConfig(settings, reasoningEffort) {
   const alwaysThinkingEnabled = settings?.alwaysThinkingEnabled ?? true;
   const configuredMaxThinkingTokens = settings?.maxThinkingTokens
     || parseInt(process.env.MAX_THINKING_TOKENS || '0', 10)
     || 10000;
+
+  if (reasoningEffort && reasoningEffort !== '') {
+    return {
+      maxThinkingTokens: undefined,
+      effort: reasoningEffort
+    };
+  }
+
   return {
-    alwaysThinkingEnabled,
-    maxThinkingTokens: alwaysThinkingEnabled ? configuredMaxThinkingTokens : undefined
+    maxThinkingTokens: alwaysThinkingEnabled ? configuredMaxThinkingTokens : undefined,
+    effort: undefined
   };
 }
 
 /**
  * Build query options object shared by both send functions.
  */
-function buildQueryOptions({ workingDirectory, permissionMode, sdkModelName, maxThinkingTokens, streamingEnabled, systemPromptAppend, preToolUseHook, sdkStderrLines }) {
+function buildQueryOptions({ workingDirectory, permissionMode, sdkModelName, maxThinkingTokens, effort, streamingEnabled, systemPromptAppend, preToolUseHook, sdkStderrLines, maxTurns }) {
   return {
     cwd: workingDirectory,
     permissionMode,
     model: sdkModelName,
-    maxTurns: 100,
+    maxTurns: maxTurns || 100,
     enableFileCheckpointing: true,
-    ...(maxThinkingTokens !== undefined && { maxThinkingTokens }),
+    ...(effort !== undefined && { effort }),
+    ...(effort === undefined && maxThinkingTokens !== undefined && { maxThinkingTokens }),
     ...(streamingEnabled && { includePartialMessages: true }),
     additionalDirectories: Array.from(
       new Set([workingDirectory, process.env.IDEA_PROJECT_PATH, process.env.PROJECT_PATH].filter(Boolean))
@@ -387,7 +397,7 @@ function handleSendError(error, streamState, sdkStderrLines) {
  * @param {string} agentPrompt - Agent prompt (optional)
  * @param {boolean} streaming - Whether to enable streaming (optional, defaults to config value)
  */
-export async function sendMessage(message, resumeSessionId = null, cwd = null, permissionMode = null, model = null, openedFiles = null, agentPrompt = null, streaming = null) {
+export async function sendMessage(message, resumeSessionId = null, cwd = null, permissionMode = null, model = null, openedFiles = null, agentPrompt = null, streaming = null, reasoningEffort = null, maxTurns = null) {
   // Guard: empty prompt creates a { type: "text", text: "" } content block
   // that the Anthropic API rejects with "text content blocks must be non-empty".
   const safeMessage = (message && typeof message === 'string' && message.trim() !== '') ? message : '[Empty message]';
@@ -420,12 +430,13 @@ export async function sendMessage(message, resumeSessionId = null, cwd = null, p
     const systemPromptAppend = buildSystemPromptAppend(openedFiles, agentPrompt, safeMessage);
 
     const effectivePermissionMode = (!permissionMode || permissionMode === '') ? 'default' : permissionMode;
-    const { alwaysThinkingEnabled, maxThinkingTokens } = resolveThinkingConfig(settings);
+    const { maxThinkingTokens, effort } = resolveThinkingConfig(settings, reasoningEffort);
     streamingEnabled = streaming != null ? streaming : (settings?.streamingEnabled ?? false);
-    console.log('[DEBUG] Config:', { effectivePermissionMode, alwaysThinkingEnabled, maxThinkingTokens, streamingEnabled });
+    console.log('[DEBUG] Config:', { effectivePermissionMode, maxThinkingTokens, effort, streamingEnabled, reasoningEffort });
 
     const preToolUseHook = createPreToolUseHook(effectivePermissionMode, workingDirectory);
-    const options = buildQueryOptions({ workingDirectory, permissionMode: effectivePermissionMode, sdkModelName, maxThinkingTokens, streamingEnabled, systemPromptAppend, preToolUseHook, sdkStderrLines });
+    const effectiveMaxTurns = (maxTurns && Number.isInteger(maxTurns) && maxTurns > 0) ? maxTurns : undefined;
+    const options = buildQueryOptions({ workingDirectory, permissionMode: effectivePermissionMode, sdkModelName, maxThinkingTokens, effort, streamingEnabled, systemPromptAppend, preToolUseHook, sdkStderrLines, maxTurns: effectiveMaxTurns });
 
     await prepareSessionResume(options, resumeSessionId, workingDirectory);
 
@@ -488,12 +499,13 @@ export async function sendMessageWithAttachments(message, resumeSessionId = null
     const normalizedPermissionMode = (!permissionMode || permissionMode === '') ? 'default' : permissionMode;
     const preToolUseHook = createPreToolUseHook(normalizedPermissionMode, workingDirectory);
 
-    const { alwaysThinkingEnabled, maxThinkingTokens } = resolveThinkingConfig(settings);
+    const reasoningEffortParam = stdinData?.reasoningEffort || null;
+    const { maxThinkingTokens, effort } = resolveThinkingConfig(settings, reasoningEffortParam);
     const streamingParam = stdinData?.streaming;
     streamingEnabled = streamingParam != null ? streamingParam : (settings?.streamingEnabled ?? false);
-    console.log('[DEBUG] (withAttachments) Config:', { normalizedPermissionMode, alwaysThinkingEnabled, maxThinkingTokens, streamingEnabled });
+    console.log('[DEBUG] (withAttachments) Config:', { normalizedPermissionMode, maxThinkingTokens, effort, streamingEnabled, reasoningEffort: reasoningEffortParam });
 
-    const options = buildQueryOptions({ workingDirectory, permissionMode: normalizedPermissionMode, sdkModelName, maxThinkingTokens, streamingEnabled, systemPromptAppend, preToolUseHook, sdkStderrLines });
+    const options = buildQueryOptions({ workingDirectory, permissionMode: normalizedPermissionMode, sdkModelName, maxThinkingTokens, effort, streamingEnabled, systemPromptAppend, preToolUseHook, sdkStderrLines });
 
     await prepareSessionResume(options, resumeSessionId, workingDirectory);
 

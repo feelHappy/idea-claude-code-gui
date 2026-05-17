@@ -15,7 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -37,15 +37,20 @@ public class HarnessHandler extends BaseMessageHandler {
     private static final String TEMPLATE_VARIANTS = "/harness-templates/variants/";
     private static final String TEMPLATE_SHARED_PLAYBOOKS = "/harness-templates/shared-playbooks/";
     private static final String CLAUDE_MD_SNIPPET = "/harness-templates/claude-md-snippet.md";
+    private static final String AGENTS_MD_SNIPPET = "/harness-templates/agents-md-snippet.md";
+    private static final String PLANNING_README = "/harness-templates/base/planning-readme.md";
 
     private static final String[] BASE_FILES = {
             "rules/auto-ingest.md",
             "rules/development-flow.md",
             "rules/progress-management.md",
+            "rules/trace-management.md",
             "playbooks/index.md",
+            "traces/index.md",
             "skills/index.md",
             "templates/playbook-template.md",
-            "templates/summary.md"
+            "templates/summary.md",
+            "log.md"
     };
 
     private static final String[] SHARED_PLAYBOOKS = {
@@ -138,8 +143,14 @@ public class HarnessHandler extends BaseMessageHandler {
                 sendInstallProgress("Injecting CLAUDE.md configuration...");
                 injectClaudeMdSnippet(Paths.get(workspaceRoot), projectName);
 
-                // 5. Create _bmad-output/planning directory
-                Files.createDirectories(Paths.get(workspaceRoot, "_bmad-output", "planning"));
+                // 4b. Inject AGENTS.md snippet (for Codex compatibility)
+                sendInstallProgress("Generating AGENTS.md for Codex...");
+                injectAgentsMdSnippet(Paths.get(workspaceRoot), projectName);
+
+                // 5. Create _bmad-output/planning directory with README
+                Path planningDir = Paths.get(workspaceRoot, "_bmad-output", "planning");
+                Files.createDirectories(planningDir);
+                copyTemplateFile(PLANNING_README, planningDir.resolve("README.md"), projectName);
 
                 sendInstallResult(true,
                         "Harness knowledge system installed successfully (" + variant + " variant). "
@@ -170,8 +181,11 @@ public class HarnessHandler extends BaseMessageHandler {
         boolean hasHarness = Files.isDirectory(harnessDir);
         boolean hasRules = Files.isDirectory(harnessDir.resolve("rules"));
         boolean hasPlaybooks = Files.isDirectory(harnessDir.resolve("playbooks"));
+        boolean hasTraces = Files.isDirectory(harnessDir.resolve("traces"));
         boolean hasOwner = Files.isRegularFile(harnessDir.resolve("agents/owner.md"));
         boolean hasAutoIngest = Files.isRegularFile(harnessDir.resolve("rules/auto-ingest.md"));
+        boolean hasAgentsMd = Files.isRegularFile(Paths.get(workspaceRoot, "AGENTS.md"));
+        boolean hasLog = Files.isRegularFile(harnessDir.resolve("log.md"));
 
         int playbookCount = countFiles(harnessDir.resolve("playbooks"), ".md") - 1; // minus index.md
         if (playbookCount < 0) playbookCount = 0;
@@ -179,14 +193,17 @@ public class HarnessHandler extends BaseMessageHandler {
         status.addProperty("hasHarness", hasHarness);
         status.addProperty("hasRules", hasRules);
         status.addProperty("hasPlaybooks", hasPlaybooks);
+        status.addProperty("hasTraces", hasTraces);
         status.addProperty("hasOwner", hasOwner);
         status.addProperty("hasAutoIngest", hasAutoIngest);
+        status.addProperty("hasAgentsMd", hasAgentsMd);
+        status.addProperty("hasLog", hasLog);
         status.addProperty("playbookCount", playbookCount);
 
         String detectedVariant = detectVariantFromExisting(workspaceRoot);
         status.addProperty("variant", detectedVariant);
 
-        if (hasHarness && hasRules && hasPlaybooks && hasOwner && hasAutoIngest) {
+        if (hasHarness && hasRules && hasPlaybooks && hasTraces && hasOwner && hasAutoIngest && hasAgentsMd && hasLog) {
             status.addProperty("state", "ready");
             status.addProperty("message",
                     "Harness is active (" + detectedVariant + "). " + playbookCount + " playbook(s) accumulated.");
@@ -338,6 +355,31 @@ public class HarnessHandler extends BaseMessageHandler {
         } else {
             // Create new CLAUDE.md with snippet
             Files.write(claudeMdPath, snippet.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    private void injectAgentsMdSnippet(Path projectRoot, String projectName) throws IOException {
+        Path agentsMdPath = projectRoot.resolve("AGENTS.md");
+        String snippet;
+        try (InputStream is = getClass().getResourceAsStream(AGENTS_MD_SNIPPET)) {
+            if (is == null) {
+                LOG.warn("[HarnessHandler] AGENTS.md snippet resource not found.");
+                return;
+            }
+            snippet = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            snippet = snippet.replace("{{PROJECT_NAME}}", projectName);
+        }
+
+        String marker = "# Harness Knowledge System";
+        if (Files.isRegularFile(agentsMdPath)) {
+            String existing = new String(Files.readAllBytes(agentsMdPath), StandardCharsets.UTF_8);
+            if (existing.contains(marker)) {
+                return;
+            }
+            String merged = existing + "\n\n---\n\n" + snippet;
+            Files.write(agentsMdPath, merged.getBytes(StandardCharsets.UTF_8));
+        } else {
+            Files.write(agentsMdPath, snippet.getBytes(StandardCharsets.UTF_8));
         }
     }
 

@@ -4,12 +4,14 @@ import com.github.claudecodegui.provider.common.MessageCallback;
 import com.github.claudecodegui.provider.common.SDKResult;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.intellij.openapi.diagnostic.Logger;
 
 /**
  * Adapts tagged Node.js output lines into bridge callbacks and SDKResult updates.
  */
 class ClaudeStreamAdapter {
 
+    private static final Logger LOG = Logger.getInstance(ClaudeStreamAdapter.class);
     private final Gson gson;
 
     ClaudeStreamAdapter(Gson gson) {
@@ -24,6 +26,11 @@ class ClaudeStreamAdapter {
             boolean[] hadSendError,
             String[] lastNodeError
     ) {
+        // Debate debug: log every line type received
+        if (line.startsWith("[")) {
+            String tag = line.contains("]") ? line.substring(0, line.indexOf(']') + 1) : line.substring(0, Math.min(20, line.length()));
+            LOG.info("[StreamAdapter] " + tag + " contentSoFar=" + assistantContent.length());
+        }
         if (line.startsWith("[STDIN_ERROR]")
                 || line.startsWith("[STDIN_PARSE_ERROR]")
                 || line.startsWith("[GET_SESSION_ERROR]")

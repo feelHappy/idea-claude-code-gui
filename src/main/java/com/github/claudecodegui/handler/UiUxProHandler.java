@@ -271,7 +271,7 @@ public class UiUxProHandler extends BaseMessageHandler {
         status.addProperty("providerLabel", providerConfig.providerLabel);
         status.addProperty("installed", false);
 
-        Path workspacePath = getWorkspacePath();
+        Path workspacePath = resolveInstallRoot();
         UiUxProjectLayout projectLayout = resolveProjectLayout(providerConfig, workspacePath);
         if (projectLayout.projectRoot != null) {
             status.addProperty("projectRoot", projectLayout.projectRoot.toString());

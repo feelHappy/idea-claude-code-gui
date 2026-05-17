@@ -32,7 +32,47 @@ class ClaudeRequestParamsBuilder {
             JsonObject openedFiles,
             String agentPrompt,
             Boolean streaming,
-            Boolean disableThinking
+            Boolean disableThinking,
+            String reasoningEffort
+    ) {
+        return buildSendParams(message, sessionId, runtimeSessionEpoch, cwd, permissionMode, model,
+                attachments, openedFiles, agentPrompt, streaming, disableThinking, reasoningEffort, null);
+    }
+
+    JsonObject buildSendParams(
+            String message,
+            String sessionId,
+            String runtimeSessionEpoch,
+            String cwd,
+            String permissionMode,
+            String model,
+            List<ClaudeSession.Attachment> attachments,
+            JsonObject openedFiles,
+            String agentPrompt,
+            Boolean streaming,
+            Boolean disableThinking,
+            String reasoningEffort,
+            Integer maxTurns
+    ) {
+        return buildSendParams(message, sessionId, runtimeSessionEpoch, cwd, permissionMode, model,
+                attachments, openedFiles, agentPrompt, streaming, disableThinking, reasoningEffort, maxTurns, false);
+    }
+
+    JsonObject buildSendParams(
+            String message,
+            String sessionId,
+            String runtimeSessionEpoch,
+            String cwd,
+            String permissionMode,
+            String model,
+            List<ClaudeSession.Attachment> attachments,
+            JsonObject openedFiles,
+            String agentPrompt,
+            Boolean streaming,
+            Boolean disableThinking,
+            String reasoningEffort,
+            Integer maxTurns,
+            boolean denyAllTools
     ) {
         JsonObject params = new JsonObject();
         params.addProperty("message", message);
@@ -58,6 +98,15 @@ class ClaudeRequestParamsBuilder {
         }
         if (disableThinking != null && disableThinking) {
             params.addProperty("disableThinking", true);
+        }
+        if (reasoningEffort != null && !reasoningEffort.isEmpty()) {
+            params.addProperty("reasoningEffort", reasoningEffort);
+        }
+        if (maxTurns != null) {
+            params.addProperty("maxTurns", maxTurns);
+        }
+        if (denyAllTools) {
+            params.addProperty("denyAllTools", true);
         }
 
         return params;

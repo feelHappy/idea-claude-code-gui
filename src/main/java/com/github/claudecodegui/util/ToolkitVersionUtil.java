@@ -253,6 +253,8 @@ public final class ToolkitVersionUtil {
             status.addProperty("latestVersion", latestVersion.trim());
             if (installedVersion != null && !installedVersion.trim().isEmpty()) {
                 status.addProperty("hasUpdate", compareVersions(installedVersion, latestVersion) < 0);
+            } else {
+                status.addProperty("hasUpdate", true);
             }
         }
     }

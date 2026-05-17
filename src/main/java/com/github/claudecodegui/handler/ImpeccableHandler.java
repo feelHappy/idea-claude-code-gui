@@ -56,25 +56,31 @@ public class ImpeccableHandler extends BaseMessageHandler {
             "bolder",
             "clarify",
             "colorize",
+            "craft",
             "critique",
             "delight",
             "distill",
+            "document",
             "extract",
             "frontend-design",
             "harden",
             "impeccable",
+            "layout",
+            "live",
             "normalize",
             "onboard",
             "optimize",
             "overdrive",
             "polish",
             "quieter",
+            "shape",
             "teach-impeccable",
             "typeset"
     );
     private static final Set<String> READY_COMMAND_NAMES = Set.of(
             "teach-impeccable",
             "audit",
+            "craft",
             "critique",
             "clarify",
             "normalize",
@@ -82,7 +88,8 @@ public class ImpeccableHandler extends BaseMessageHandler {
             "polish",
             "typeset",
             "arrange",
-            "extract"
+            "extract",
+            "shape"
     );
     private static final int READY_COMMAND_THRESHOLD = 6;
     private static final long REMOTE_VERSION_TTL_MILLIS = TimeUnit.MINUTES.toMillis(30);
@@ -209,7 +216,7 @@ public class ImpeccableHandler extends BaseMessageHandler {
         status.addProperty("commandPrefix", providerConfig.commandPrefix);
         status.addProperty("installed", false);
 
-        Path workspacePath = getWorkspacePath();
+        Path workspacePath = resolveInstallRoot();
         ImpeccableProjectLayout projectLayout = resolveProjectLayout(providerConfig, workspacePath);
         if (projectLayout.projectRoot != null) {
             status.addProperty("projectRoot", projectLayout.projectRoot.toString());
@@ -470,6 +477,9 @@ public class ImpeccableHandler extends BaseMessageHandler {
     }
 
     private int countReadyCommands(Set<String> availableNames) {
+        if (availableNames.contains("impeccable")) {
+            return READY_COMMAND_NAMES.size();
+        }
         int count = 0;
         for (String commandName : READY_COMMAND_NAMES) {
             if (availableNames.contains(commandName)) {

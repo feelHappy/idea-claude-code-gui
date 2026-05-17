@@ -77,27 +77,53 @@ public class DebateHandler extends BaseMessageHandler {
                     return;
                 }
 
-                if (context.getSession() == null || context.getSession().getChannelId() == null) {
+                if (context.getSession() == null) {
                     sendDebateEvent("error", "No active session. Please start a conversation first.");
                     return;
                 }
 
-                // Snapshot session info at start time to avoid mid-debate session switching issues
-                String channelId = context.getSession().getChannelId();
-                String sessionId = context.getSession().getSessionId();
-                String cwd = context.getSession().getCwd();
+                // Auto-launch channel if not yet created (user hasn't sent any message yet)
+                if (context.getSession().getChannelId() == null) {
+                    try {
+                        context.getSession().launchClaude().get(30, java.util.concurrent.TimeUnit.SECONDS);
+                    } catch (Exception e) {
+                        LOG.warn("[DebateHandler] Failed to auto-launch session: " + e.getMessage());
+                        sendDebateEvent("error", "Failed to initialize session: " + e.getMessage());
+                        return;
+                    }
+                }
 
-                service.setClaudeSession(channelId, sessionId, cwd);
-                service.setCodexSession(channelId, null);
+                if (context.getSession().getChannelId() == null) {
+                    sendDebateEvent("error", "Failed to create a session channel.");
+                    return;
+                }
+
+                // 辩论必须使用独立 session，不能复用当前聊天 session
+                // 否则辩论消息会混入用户的对话上下文
+                String debateChannelId = context.getSession().getChannelId() + "_debate_claude";
+                String cwd = context.getSession().getCwd();
+                String model = context.getCurrentModel();
+
+                // sessionId 传 null，让 SDK 创建全新的独立会话
+                // Claude 辩论使用 default 模式，配合 denyAllTools 由 canUseTool 拦截所有工具
+                service.setClaudeSession(debateChannelId, null, cwd, model, "default");
+                service.setCodexSession(context.getSession().getChannelId() + "_debate_codex", null, null, "bypassPermissions", "high");
 
                 service.setStateListener((state, message) ->
                         ApplicationManager.getApplication().invokeLater(() -> {
                             JsonObject event = new JsonObject();
+                            event.addProperty("active", service.isActive());
                             event.addProperty("state", state.name());
                             event.addProperty("message", message != null ? message : "");
                             if (service.getCurrentSession() != null) {
+                                event.addProperty("debateId", service.getCurrentSession().getDebateId());
+                                event.addProperty("topic", service.getCurrentSession().getTopic());
                                 event.addProperty("round", service.getCurrentSession().getCurrentRound());
                                 event.addProperty("maxRounds", service.getCurrentSession().getConfig().getMaxRounds());
+                                String corrId = service.getCurrentSession().getCurrentCorrelationId();
+                                if (corrId != null) {
+                                    event.addProperty("correlationId", corrId);
+                                }
                                 if (service.getCurrentSession().getDebateFilePath() != null) {
                                     event.addProperty("filePath", service.getCurrentSession().getDebateFilePath().toString());
                                 }
@@ -112,7 +138,18 @@ public class DebateHandler extends BaseMessageHandler {
                             event.addProperty("provider", provider);
                             event.addProperty("content", response);
                             event.addProperty("round", service.getCurrentSession().getCurrentRound());
+                            event.addProperty("debateId", service.getCurrentSession().getDebateId());
                             sendDebateRound(event);
+                        })
+                );
+
+                service.setStreamListener((provider, delta) ->
+                        ApplicationManager.getApplication().invokeLater(() -> {
+                            JsonObject event = new JsonObject();
+                            event.addProperty("provider", provider);
+                            event.addProperty("delta", delta);
+                            event.addProperty("round", service.getCurrentSession().getCurrentRound());
+                            sendDebateStream(event);
                         })
                 );
 
@@ -138,6 +175,7 @@ public class DebateHandler extends BaseMessageHandler {
             DebateSession session = debateService.getCurrentSession();
             status.addProperty("active", debateService.isActive());
             status.addProperty("state", session.getState().name());
+            status.addProperty("debateId", session.getDebateId());
             status.addProperty("topic", session.getTopic());
             status.addProperty("round", session.getCurrentRound());
             status.addProperty("maxRounds", session.getConfig().getMaxRounds());
@@ -192,6 +230,13 @@ public class DebateHandler extends BaseMessageHandler {
         String payload = gson.toJson(round);
         ApplicationManager.getApplication().invokeLater(() ->
                 callJavaScript("window.updateDebateRound", escapeJs(payload))
+        );
+    }
+
+    private void sendDebateStream(JsonObject stream) {
+        String payload = gson.toJson(stream);
+        ApplicationManager.getApplication().invokeLater(() ->
+                callJavaScript("window.updateDebateStream", escapeJs(payload))
         );
     }
 }

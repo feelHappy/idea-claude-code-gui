@@ -1,14 +1,18 @@
 package com.github.claudecodegui.debate;
 
 /**
- * @description 辩论配置
+ * 辩论配置参数
+ *
  * @author zyl
  * @date 2026/05/14
  */
 public class DebateConfig {
 
+    /** 默认最大轮次 */
     public static final int DEFAULT_MAX_ROUNDS = 5;
-    public static final long DEFAULT_TURN_TIMEOUT_MS = 3 * 60 * 1000L;
+    /** 默认单轮超时时间（毫秒） */
+    public static final long DEFAULT_TURN_TIMEOUT_MS = 10 * 60 * 1000L;
+    /** 辩论记录存储目录 */
     public static final String DEBATES_DIR = ".codemoss/debates";
 
     private int maxRounds;

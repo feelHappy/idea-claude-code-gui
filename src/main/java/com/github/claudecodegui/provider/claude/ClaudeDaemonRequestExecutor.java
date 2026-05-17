@@ -48,6 +48,9 @@ class ClaudeDaemonRequestExecutor {
             String agentPrompt,
             Boolean streaming,
             Boolean disableThinking,
+            String reasoningEffort,
+            Integer maxTurns,
+            boolean denyAllTools,
             MessageCallback callback
     ) {
         return CompletableFuture.supplyAsync(() -> {
@@ -68,7 +71,10 @@ class ClaudeDaemonRequestExecutor {
                         openedFiles,
                         agentPrompt,
                         streaming,
-                        disableThinking
+                        disableThinking,
+                        reasoningEffort,
+                        maxTurns,
+                        denyAllTools
                 );
 
                 boolean hasAttachments = attachments != null && !attachments.isEmpty() && params.has("attachments");

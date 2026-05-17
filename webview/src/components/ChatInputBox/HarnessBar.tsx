@@ -61,7 +61,7 @@ export function HarnessBar({
             t('chat.harness.loadingHint', { defaultValue: 'Checking harness status...' });
 
   return (
-    <div className="bmad-command-bar">
+    <div className="bmad-command-bar harness-bar">
       <div className="bmad-command-main">
         <div className="bmad-command-head">
           <span className={`bmad-command-badge ${STATE_CLASSES[status.state]}`}>

@@ -54,6 +54,13 @@
   transition: max-width 0.2s ease, opacity 0.2s ease, margin 0.2s ease;
 }
 
+/* Mode selector text always visible */
+.mode-selector .selector-button-text {
+  max-width: 100% !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+}
+
 /* Container query for Claude: hide text when narrow (< 400px) */
 @container button-area (max-width: 350px) {
   .button-area[data-provider="claude"] .selector-button-text {

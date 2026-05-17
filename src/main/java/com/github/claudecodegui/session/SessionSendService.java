@@ -10,6 +10,9 @@ import com.google.gson.JsonObject;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -87,6 +90,8 @@ public class SessionSendService {
             List<String> fileTagPaths,
             String requestedPermissionMode
     ) {
+        String finalInput = injectColdStartReminderIfNeeded(input);
+
         String agentPrompt = externalAgentPrompt;
         if (agentPrompt == null) {
             agentPrompt = getAgentPrompt();
@@ -114,7 +119,7 @@ public class SessionSendService {
         if ("codex".equals(currentProvider)) {
             return sendToCodex(
                     channelId,
-                    input,
+                    finalInput,
                     attachments,
                     openedFilesJson,
                     agentPrompt,
@@ -123,7 +128,7 @@ public class SessionSendService {
             );
         }
 
-        return sendToClaude(channelId, input, attachments, openedFilesJson, agentPrompt, effectivePermissionMode);
+        return sendToClaude(channelId, finalInput, attachments, openedFilesJson, agentPrompt, effectivePermissionMode);
     }
 
     public static String normalizeRequestedPermissionMode(String mode) {
@@ -247,6 +252,7 @@ public class SessionSendService {
                         agentPrompt,
                         streaming,
                         false,
+                        state.getReasoningEffort(),
                         handler
                 ).thenApply(result -> null);
     }
@@ -306,5 +312,39 @@ public class SessionSendService {
             LOG.warn("[Agent] ✗ Failed to get agent prompt: " + e.getMessage());
         }
         return null;
+    }
+
+    /**
+     * 首条消息冷启动注入：当项目存在 .harness/ 目录时，在新会话的第一条消息前注入冷启动提醒。
+     * 这是对 CLAUDE.md/AGENTS.md 中冷启动序列的机械化强制——确保 Agent 不会跳过进度追踪。
+     */
+    private String injectColdStartReminderIfNeeded(String input) {
+        boolean isNewSession = state.getSessionId() == null || state.getSessionId().trim().isEmpty();
+        if (!isNewSession) {
+            return input;
+        }
+
+        String cwd = state.getCwd();
+        if (cwd == null || cwd.trim().isEmpty()) {
+            return input;
+        }
+
+        try {
+            Path harnessDir = Paths.get(cwd, ".harness");
+            if (!Files.isDirectory(harnessDir)) {
+                return input;
+            }
+
+            LOG.info("[Harness] Cold-start reminder injected for new session with .harness/ detected");
+            String reminder = "[HARNESS COLD-START] 检测到 .harness/ 知识体系。"
+                    + "在开始任何工作前，必须执行冷启动序列："
+                    + "1) 检查 _bmad-output/planning/ 是否有进行中的任务；"
+                    + "2) 有则恢复，无则创建 progress.md；"
+                    + "3) 判断快速通道 or 完整流程。\n\n";
+            return reminder + (input != null ? input : "");
+        } catch (Exception e) {
+            LOG.warn("[Harness] Failed to check .harness/ directory: " + e.getMessage());
+            return input;
+        }
     }
 }

@@ -23,7 +23,8 @@ export function buildRuntimeSignature(options, systemPromptAppend, streamingEnab
     systemPromptAppend: systemPromptAppend || '',
     streamingEnabled: !!streamingEnabled,
     runtimeSessionEpoch: runtimeSessionEpoch || '',
-    model: options.model || ''
+    model: options.model || '',
+    effort: options.effort || ''
   };
   return JSON.stringify(material);
 }
@@ -162,7 +163,8 @@ async function applyDynamicControls(runtime, requestContext) {
   }
 
   const targetThinking = requestContext.maxThinkingTokens ?? null;
-  if (runtime.currentMaxThinkingTokens !== targetThinking && typeof runtime.query?.setMaxThinkingTokens === 'function') {
+  const hasEffort = requestContext.options?.effort !== undefined;
+  if (!hasEffort && runtime.currentMaxThinkingTokens !== targetThinking && typeof runtime.query?.setMaxThinkingTokens === 'function') {
     try {
       await runtime.query.setMaxThinkingTokens(targetThinking);
       runtime.currentMaxThinkingTokens = targetThinking;

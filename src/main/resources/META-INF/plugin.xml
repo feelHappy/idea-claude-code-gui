@@ -144,7 +144,7 @@
         <!-- Generate Commit Message with AI Action -->
         <action id="ClaudeCodeGUI.GenerateCommitMessageAction"
                 class="com.github.claudecodegui.action.vcs.GenerateCommitMessageAction"
-                icon="/icons/logo-16.png">
+                icon="/icons/ai-commit.svg">
             <!-- Add to VCS Commit toolbar -->
             <add-to-group group-id="Vcs.MessageActionGroup" anchor="last"/>
         </action>

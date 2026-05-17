@@ -51,6 +51,9 @@ import {
 } from './stream-event-processor.js';
 
 function resolveThinkingTokens(params, settings) {
+  if (params.reasoningEffort && params.reasoningEffort !== '') {
+    return undefined;
+  }
   const alwaysThinkingEnabled = settings?.alwaysThinkingEnabled ?? true;
   const configuredMax = settings?.maxThinkingTokens
     || parseInt(process.env.MAX_THINKING_TOKENS || '0', 10)
@@ -76,14 +79,31 @@ function buildSystemPromptAppend(params) {
   return buildIDEContextPrompt(openedFiles, agentPrompt);
 }
 
-function buildQueryOptions(workingDirectory, sdkModelName, permissionMode, maxThinkingTokens, streamingEnabled, systemPromptAppend, requestedSessionId) {
+function buildQueryOptions(workingDirectory, sdkModelName, permissionMode, maxThinkingTokens, streamingEnabled, systemPromptAppend, requestedSessionId, effort, maxTurns, denyAllTools) {
+  if (denyAllTools) {
+    return {
+      cwd: workingDirectory,
+      permissionMode: 'default',
+      model: sdkModelName,
+      maxTurns: 1,
+      tools: [],
+      thinking: { type: 'disabled' },
+      systemPrompt: {
+        type: 'preset',
+        preset: 'claude_code',
+        ...(systemPromptAppend && { append: systemPromptAppend })
+      }
+    };
+  }
+
   return {
     cwd: workingDirectory,
     permissionMode,
     model: sdkModelName,
-    maxTurns: 100,
+    maxTurns: maxTurns || 100,
     enableFileCheckpointing: true,
-    ...(maxThinkingTokens !== undefined && { maxThinkingTokens }),
+    ...(effort !== undefined && { effort }),
+    ...(effort === undefined && maxThinkingTokens !== undefined && { maxThinkingTokens }),
     ...(streamingEnabled && { includePartialMessages: true }),
     additionalDirectories: Array.from(
       new Set(
@@ -153,12 +173,15 @@ async function buildRequestContext(params, withAttachments) {
 
   const permissionMode = normalizePermissionMode(params.permissionMode);
   const streamingEnabled = resolveStreamingEnabled(params, settings);
+  const reasoningEffort = (params.reasoningEffort && params.reasoningEffort !== '') ? params.reasoningEffort : undefined;
   const maxThinkingTokens = resolveThinkingTokens(params, settings);
   const systemPromptAppend = buildSystemPromptAppend(params);
+  const maxTurns = (params.maxTurns && Number.isInteger(params.maxTurns) && params.maxTurns > 0) ? params.maxTurns : undefined;
+  const denyAllTools = !!params.denyAllTools;
 
   const options = buildQueryOptions(
     workingDirectory, sdkModelName, permissionMode,
-    maxThinkingTokens, streamingEnabled, systemPromptAppend, requestedSessionId
+    maxThinkingTokens, streamingEnabled, systemPromptAppend, requestedSessionId, reasoningEffort, maxTurns, denyAllTools
   );
 
   const userMessage = await buildUserMessage(params, withAttachments, requestedSessionId);
@@ -242,6 +265,21 @@ async function executeTurn(runtime, requestContext, turnMeta) {
 
       if (shouldOutputMessage(msg, turnState)) {
         console.log('[MESSAGE]', JSON.stringify(msg));
+      }
+
+      // Debug trace for debate diagnostics
+      if (msg?.type === 'assistant') {
+        const content = msg.message?.content;
+        const hasToolUse = Array.isArray(content) && content.some(b => b.type === 'tool_use');
+        const textLen = Array.isArray(content)
+          ? content.filter(b => b.type === 'text').reduce((sum, b) => sum + (b.text?.length || 0), 0)
+          : (typeof content === 'string' ? content.length : 0);
+        const stopReason = msg.message?.stop_reason || msg.stop_reason || 'unknown';
+        console.error(`[DEBATE_TRACE] assistant msg: textLen=${textLen}, hasToolUse=${hasToolUse}, stopReason=${stopReason}, blocks=${Array.isArray(content) ? content.map(b => b.type).join(',') : 'string'}`);
+      } else if (msg?.type === 'result') {
+        console.error(`[DEBATE_TRACE] result msg: is_error=${msg.is_error}, result_len=${(msg.result || '').length}, lastAssistantContent_len=${turnState.lastAssistantContent.length}`);
+      } else if (msg?.type !== 'stream_event') {
+        console.error(`[DEBATE_TRACE] msg type=${msg?.type}`);
       }
 
       processMessageContent(msg, turnState);

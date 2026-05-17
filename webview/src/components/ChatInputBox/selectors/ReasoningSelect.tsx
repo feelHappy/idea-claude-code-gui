@@ -1,32 +1,33 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { REASONING_LEVELS, type ReasoningEffort } from '../types';
+import { CLAUDE_REASONING_LEVELS, CODEX_REASONING_LEVELS, type ReasoningEffort, type ReasoningInfo } from '../types';
 
 interface ReasoningSelectProps {
   value: ReasoningEffort;
   onChange: (effort: ReasoningEffort) => void;
   disabled?: boolean;
+  provider?: string;
 }
 
 /**
- * ReasoningSelect - Codex Reasoning Effort Selector
- * Controls the depth of reasoning for Codex models
- * Options: Minimal, Low, Medium (default), High
+ * ReasoningSelect - Reasoning Effort Selector
+ * Controls the depth of reasoning for Claude and Codex models
  */
-export const ReasoningSelect = ({ value, onChange, disabled }: ReasoningSelectProps) => {
+export const ReasoningSelect = ({ value, onChange, disabled, provider }: ReasoningSelectProps) => {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const currentLevel = REASONING_LEVELS.find(l => l.id === value) || REASONING_LEVELS[2]; // default to 'medium'
+  const levels: ReasoningInfo[] = provider === 'codex' ? CODEX_REASONING_LEVELS : CLAUDE_REASONING_LEVELS;
+  const currentLevel = levels.find(l => l.id === value) || levels[2];
 
   /**
    * Get translated text for reasoning level
    */
   const getReasoningText = (levelId: ReasoningEffort, field: 'label' | 'description') => {
     const key = `reasoning.${levelId}.${field}`;
-    const fallback = REASONING_LEVELS.find(l => l.id === levelId)?.[field] || levelId;
+    const fallback = levels.find(l => l.id === levelId)?.[field] || levelId;
     return t(key, { defaultValue: fallback });
   };
 
@@ -100,7 +101,7 @@ export const ReasoningSelect = ({ value, onChange, disabled }: ReasoningSelectPr
             zIndex: 10000,
           }}
         >
-          {REASONING_LEVELS.map((level) => (
+          {levels.map((level) => (
             <div
               key={level.id}
               className={`selector-option ${level.id === value ? 'selected' : ''}`}

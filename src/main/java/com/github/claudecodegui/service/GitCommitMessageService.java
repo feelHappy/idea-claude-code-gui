@@ -17,6 +17,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Locale;
 
 /**
  * Git commit message generation service.
@@ -26,7 +27,10 @@ public class GitCommitMessageService {
 
     private static final Logger LOG = Logger.getInstance(GitCommitMessageService.class);
 
-    private static final int MAX_DIFF_LENGTH = 4000; // Limit diff length to avoid exceeding token limits
+    private static final int MAX_DIFF_LENGTH = 8000; // Limit diff length to avoid exceeding token limits
+    private static final int MAX_FILE_CONTENT_SAMPLE_LENGTH = 1200;
+    private static final int MAX_CHANGED_LINES_PER_FILE = 80;
+    private static final int MAX_LINE_LENGTH = 240;
 
     /**
      * Default model used for commit message generation.
@@ -66,7 +70,10 @@ public class GitCommitMessageService {
 - 主题行不超过 72 字符
 - 保持简洁专业
 - **必须用 `<commit></commit>` 标签包裹，标签外不要有任何内容**
-- 语言默认使用英文
+- 语言默认使用中文
+- 只基于下方“已选择的变更”生成，不要推断未展示的文件或行为
+- 小变更优先生成单行提交；只有多项相关变更时才添加正文
+- 根据主要变更路径选择 scope，避免使用过宽泛的 scope
 
 ## 提交类型映射
 
@@ -184,43 +191,12 @@ Footer 包含：
      */
     private String generateGitDiff(@NotNull Collection<Change> changes) {
         StringBuilder diff = new StringBuilder();
+        appendChangeSummary(diff, changes);
 
         for (Change change : changes) {
             try {
-                FilePath filePath = ChangesUtil.getFilePath(change);
-                Change.Type changeType = change.getType();
-
-                diff.append("\n=== ").append(changeType.name()).append(": ")
-                        .append(filePath.getPath()).append(" ===\n");
-
-                ContentRevision beforeRevision = change.getBeforeRevision();
-                ContentRevision afterRevision = change.getAfterRevision();
-
-                if (changeType == Change.Type.NEW && afterRevision != null) {
-                    // New file: include content up to 500 characters
-                    String content = afterRevision.getContent();
-                    if (content != null && content.length() <= 500) {
-                        diff.append("+++ ").append(content).append("\n");
-                    } else if (content != null) {
-                        diff.append("+++ [文件过大，仅显示前500字符]\n");
-                        diff.append(content, 0, Math.min(500, content.length())).append("\n");
-                    }
-                } else if (changeType == Change.Type.DELETED && beforeRevision != null) {
-                    // Deleted file marker
-                    diff.append("--- 文件已删除\n");
-                } else if (changeType == Change.Type.MODIFICATION && beforeRevision != null && afterRevision != null) {
-                    // Modified file: generate a simple diff
-                    String before = beforeRevision.getContent();
-                    String after = afterRevision.getContent();
-
-                    if (before != null && after != null) {
-                        diff.append(generateSimpleDiff(before, after));
-                    }
-                }
-
-                // Limit total length
-                if (diff.length() > MAX_DIFF_LENGTH) {
-                    diff.append("\n... (diff 过长，已截断)");
+                String section = buildChangeSection(change);
+                if (!appendWithinLimit(diff, section)) {
                     break;
                 }
 
@@ -232,39 +208,193 @@ Footer 包含：
         return diff.toString();
     }
 
+    private void appendChangeSummary(StringBuilder diff, @NotNull Collection<Change> changes) {
+        int added = 0;
+        int modified = 0;
+        int deleted = 0;
+        int moved = 0;
+
+        for (Change change : changes) {
+            Change.Type type = change.getType();
+            if (type == Change.Type.NEW) {
+                added++;
+            } else if (type == Change.Type.DELETED) {
+                deleted++;
+            } else if (type == Change.Type.MOVED) {
+                moved++;
+            } else {
+                modified++;
+            }
+        }
+
+        diff.append("Selected change summary:\n");
+        diff.append("- Files: ").append(changes.size()).append("\n");
+        diff.append("- Added: ").append(added)
+                .append(", Modified: ").append(modified)
+                .append(", Deleted: ").append(deleted)
+                .append(", Moved: ").append(moved)
+                .append("\n");
+    }
+
+    private String buildChangeSection(@NotNull Change change) throws VcsException {
+        StringBuilder section = new StringBuilder();
+        FilePath filePath = ChangesUtil.getFilePath(change);
+        Change.Type changeType = change.getType();
+        ContentRevision beforeRevision = change.getBeforeRevision();
+        ContentRevision afterRevision = change.getAfterRevision();
+
+        String beforePath = getRevisionPath(beforeRevision);
+        String afterPath = getRevisionPath(afterRevision);
+        String displayPath = afterPath != null ? afterPath : beforePath != null ? beforePath : filePath.getPath();
+
+        section.append("\n---\n");
+        section.append("File: ").append(displayPath).append("\n");
+        section.append("Status: ").append(changeType.name()).append("\n");
+
+        if (beforePath != null && afterPath != null && !beforePath.equals(afterPath)) {
+            section.append("Previous path: ").append(beforePath).append("\n");
+            section.append("Current path: ").append(afterPath).append("\n");
+        }
+
+        String before = beforeRevision != null ? beforeRevision.getContent() : null;
+        String after = afterRevision != null ? afterRevision.getContent() : null;
+
+        if (changeType == Change.Type.NEW) {
+            appendContentSample(section, "Added content sample:", '+', after);
+        } else if (changeType == Change.Type.DELETED) {
+            appendContentSample(section, "Deleted content sample:", '-', before);
+        } else {
+            String lineDiff = before != null && after != null ? generateSimpleDiff(before, after) : "";
+            if (!lineDiff.isEmpty()) {
+                section.append("Line changes:\n");
+                section.append(lineDiff);
+            } else if (beforePath != null && afterPath != null && !beforePath.equals(afterPath)) {
+                section.append("Path changed without text content changes.\n");
+            } else {
+                section.append("Text diff unavailable or empty.\n");
+            }
+        }
+
+        return section.toString();
+    }
+
+    private String getRevisionPath(ContentRevision revision) {
+        if (revision == null || revision.getFile() == null) {
+            return null;
+        }
+        return revision.getFile().getPath();
+    }
+
+    private void appendContentSample(StringBuilder section, String title, char prefix, String content) {
+        if (content == null || content.isEmpty()) {
+            section.append(title).append(" [empty or unavailable]\n");
+            return;
+        }
+
+        section.append(title).append("\n");
+        String sample = content.length() > MAX_FILE_CONTENT_SAMPLE_LENGTH
+                ? content.substring(0, MAX_FILE_CONTENT_SAMPLE_LENGTH)
+                : content;
+        for (String line : splitLines(sample)) {
+            section.append(prefix).append(' ').append(limitLine(line)).append("\n");
+        }
+        if (content.length() > sample.length()) {
+            section.append("... (file content sample truncated)\n");
+        }
+    }
+
+    private boolean appendWithinLimit(StringBuilder diff, String section) {
+        int remaining = MAX_DIFF_LENGTH - diff.length();
+        if (remaining <= 0) {
+            diff.append("\n... (diff truncated)");
+            return false;
+        }
+
+        if (section.length() <= remaining) {
+            diff.append(section);
+            return true;
+        }
+
+        diff.append(section, 0, Math.max(0, remaining));
+        diff.append("\n... (diff truncated)");
+        return false;
+    }
+
     /**
      * Generate a simple diff (showing added/removed lines).
      */
     private String generateSimpleDiff(String before, String after) {
-        String[] beforeLines = before.split("\n");
-        String[] afterLines = after.split("\n");
+        String[] beforeLines = splitLines(before);
+        String[] afterLines = splitLines(after);
+
+        int prefix = 0;
+        while (prefix < beforeLines.length
+                && prefix < afterLines.length
+                && beforeLines[prefix].equals(afterLines[prefix])) {
+            prefix++;
+        }
+
+        int beforeEnd = beforeLines.length - 1;
+        int afterEnd = afterLines.length - 1;
+        while (beforeEnd >= prefix
+                && afterEnd >= prefix
+                && beforeLines[beforeEnd].equals(afterLines[afterEnd])) {
+            beforeEnd--;
+            afterEnd--;
+        }
 
         StringBuilder diff = new StringBuilder();
-        int maxLines = Math.max(beforeLines.length, afterLines.length);
         int shownLines = 0;
-        int maxShownLines = 30; // Maximum lines to display
+        int omittedLines = 0;
 
-        for (int i = 0; i < maxLines && shownLines < maxShownLines; i++) {
-            String beforeLine = i < beforeLines.length ? beforeLines[i] : "";
-            String afterLine = i < afterLines.length ? afterLines[i] : "";
-
-            if (!beforeLine.equals(afterLine)) {
-                if (!beforeLine.isEmpty()) {
-                    diff.append("- ").append(beforeLine).append("\n");
-                    shownLines++;
-                }
-                if (!afterLine.isEmpty() && shownLines < maxShownLines) {
-                    diff.append("+ ").append(afterLine).append("\n");
-                    shownLines++;
-                }
+        for (int i = prefix; i <= beforeEnd; i++) {
+            if (shownLines < MAX_CHANGED_LINES_PER_FILE) {
+                appendChangedLine(diff, '-', beforeLines[i]);
+                shownLines++;
+            } else {
+                omittedLines++;
             }
         }
 
-        if (maxLines > maxShownLines) {
-            diff.append("... (更多变更已省略)\n");
+        for (int i = prefix; i <= afterEnd; i++) {
+            if (shownLines < MAX_CHANGED_LINES_PER_FILE) {
+                appendChangedLine(diff, '+', afterLines[i]);
+                shownLines++;
+            } else {
+                omittedLines++;
+            }
+        }
+
+        if (omittedLines > 0) {
+            diff.append("... (").append(omittedLines).append(" more changed lines omitted)\n");
         }
 
         return diff.toString();
+    }
+
+    private String[] splitLines(String content) {
+        if (content == null || content.isEmpty()) {
+            return new String[0];
+        }
+        String normalized = content.replace("\r\n", "\n").replace('\r', '\n');
+        if (normalized.endsWith("\n")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        if (normalized.isEmpty()) {
+            return new String[0];
+        }
+        return normalized.split("\n", -1);
+    }
+
+    private void appendChangedLine(StringBuilder diff, char prefix, String line) {
+        diff.append(prefix).append(' ').append(limitLine(line)).append("\n");
+    }
+
+    private String limitLine(String line) {
+        if (line == null || line.length() <= MAX_LINE_LENGTH) {
+            return line == null ? "" : line;
+        }
+        return line.substring(0, MAX_LINE_LENGTH) + " ...";
     }
 
     /**
@@ -324,6 +454,7 @@ Footer 包含：
         prompt.append("重要规则：\n");
         prompt.append("1. 必须使用 <commit> 和 </commit> 标签包裹\n");
         prompt.append("2. 标签外不要有任何其他内容（不要分析、不要解释、不要说明）\n");
+        prompt.append("3. 不要把 diff 截断提示、文件状态说明当成提交内容本身\n");
 
         return prompt.toString();
     }
@@ -489,44 +620,33 @@ Footer 包含：
             return "";
         }
 
-        String cleaned = message;
+        String cleaned = message.trim();
 
         // 0. Remove thinking markers first (e.g. "Thinking >" etc.)
         cleaned = removeThinkingMarkers(cleaned);
 
         // 1. First try to extract from <commit>...</commit> tags
-        int startIdx = cleaned.indexOf(COMMIT_TAG_START);
-        int endIdx = cleaned.indexOf(COMMIT_TAG_END);
-
-        if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
-            cleaned = cleaned.substring(startIdx + COMMIT_TAG_START.length(), endIdx);
-            // Convert literal \n to actual newlines
-            return convertLiteralNewlines(cleaned.trim());
+        String taggedCommit = extractCommitTagContent(cleaned);
+        if (taggedCommit != null) {
+            return normalizeCommitMessage(taggedCommit);
         }
 
         // 2. Fallback: try to extract from markdown code blocks
-        if (cleaned.contains("```")) {
-            int codeBlockStart = cleaned.indexOf("```");
-            // Find the first newline after the code block opener
-            int contentStart = cleaned.indexOf('\n', codeBlockStart);
-            if (contentStart != -1) {
-                int codeBlockEnd = cleaned.indexOf("```", contentStart);
-                if (codeBlockEnd != -1) {
-                    cleaned = cleaned.substring(contentStart + 1, codeBlockEnd);
-                    return convertLiteralNewlines(cleaned.trim());
-                }
-            }
+        String codeBlock = extractFirstCodeBlock(cleaned);
+        if (codeBlock != null) {
+            String codeBlockTaggedCommit = extractCommitTagContent(codeBlock);
+            return normalizeCommitMessage(codeBlockTaggedCommit != null ? codeBlockTaggedCommit : codeBlock);
         }
 
         // 3. Fallback: try to extract the first conventional commit formatted line
         // Format: type(scope): description or type: description
         String[] lines = cleaned.split("\n");
-        for (String line : lines) {
+        for (int idx = 0; idx < lines.length; idx++) {
+            String line = lines[idx];
             String trimmedLine = line.trim();
             if (isConventionalCommitLine(trimmedLine)) {
                 // After finding the first line, continue collecting the body until hitting analysis sections
                 StringBuilder result = new StringBuilder(trimmedLine);
-                int idx = java.util.Arrays.asList(lines).indexOf(line);
                 boolean inBody = false;
 
                 for (int i = idx + 1; i < lines.length; i++) {
@@ -549,7 +669,7 @@ Footer 包含：
                         break;
                     }
                 }
-                return convertLiteralNewlines(result.toString().trim());
+                return normalizeCommitMessage(result.toString());
             }
         }
 
@@ -569,7 +689,70 @@ Footer 包含：
             }
         }
 
-        return convertLiteralNewlines(fallback.toString().trim());
+        return normalizeCommitMessage(fallback.toString());
+    }
+
+    private String extractCommitTagContent(String message) {
+        if (message == null || message.isEmpty()) {
+            return null;
+        }
+        String lower = message.toLowerCase(Locale.ROOT);
+        String tagStart = COMMIT_TAG_START.toLowerCase(Locale.ROOT);
+        String tagEnd = COMMIT_TAG_END.toLowerCase(Locale.ROOT);
+        int startIdx = lower.indexOf(tagStart);
+        int endIdx = lower.indexOf(tagEnd, startIdx + tagStart.length());
+
+        if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
+            return message.substring(startIdx + COMMIT_TAG_START.length(), endIdx);
+        }
+        return null;
+    }
+
+    private String extractFirstCodeBlock(String message) {
+        int codeBlockStart = message.indexOf("```");
+        if (codeBlockStart == -1) {
+            return null;
+        }
+
+        int contentStart = message.indexOf('\n', codeBlockStart);
+        if (contentStart == -1) {
+            return null;
+        }
+
+        int codeBlockEnd = message.indexOf("```", contentStart + 1);
+        if (codeBlockEnd == -1) {
+            return null;
+        }
+
+        return message.substring(contentStart + 1, codeBlockEnd);
+    }
+
+    private String normalizeCommitMessage(String message) {
+        String normalized = convertLiteralNewlines(message == null ? "" : message.trim());
+        normalized = normalized.replace(COMMIT_TAG_START, "").replace(COMMIT_TAG_END, "");
+
+        StringBuilder result = new StringBuilder();
+        for (String line : normalized.split("\n")) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("Generated with Claude Code")
+                    || trimmed.toLowerCase(Locale.ROOT).startsWith("co-authored-by:")) {
+                continue;
+            }
+            result.append(line).append("\n");
+        }
+
+        return stripSurroundingQuotes(result.toString().trim());
+    }
+
+    private String stripSurroundingQuotes(String text) {
+        if (text.length() >= 2) {
+            char first = text.charAt(0);
+            char last = text.charAt(text.length() - 1);
+            if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
+                return text.substring(1, text.length() - 1).trim();
+            }
+        }
+        return text;
     }
 
     /**
@@ -599,7 +782,7 @@ Footer 包含：
             return false;
         }
         // Match: feat:, fix:, refactor:, feat(scope):, etc.
-        String[] types = {"feat", "fix", "refactor", "docs", "test", "chore", "perf", "ci", "style", "build"};
+        String[] types = {"feat", "fix", "refactor", "docs", "test", "chore", "perf", "ci", "style", "build", "revert"};
         for (String type : types) {
             if (line.startsWith(type + ":") || line.startsWith(type + "(")) {
                 return true;
@@ -634,29 +817,19 @@ Footer 包含：
     }
 
     /**
-     * Check whether the content is a thinking/reasoning process.
+     * Check whether the content is a thinking/reasoning block.
+     * Only matches explicit XML-style thinking tags since disableThinking is already set.
      */
     private boolean isThinkingContent(String content) {
         if (content == null || content.isEmpty()) {
             return false;
         }
-        // Common markers for thinking/reasoning content
-        String[] thinkingMarkers = {
-            "思考", "thinking", "Thinking", "<thinking>", "</thinking>",
-            "让我分析", "让我思考", "我来分析", "首先分析",
-            "Let me think", "Let me analyze"
-        };
         String trimmed = content.trim();
-        for (String marker : thinkingMarkers) {
-            if (trimmed.startsWith(marker) || trimmed.contains("<thinking>")) {
-                return true;
-            }
-        }
-        return false;
+        return trimmed.contains("<thinking>") || trimmed.contains("</thinking>");
     }
 
     /**
-     * Remove thinking markers and their content.
+     * Remove thinking XML tags and their content from the response.
      */
     private String removeThinkingMarkers(String content) {
         if (content == null || content.isEmpty()) {
@@ -665,7 +838,6 @@ Footer 包含：
 
         String result = content;
 
-        // Remove <thinking>...</thinking> tags and their content
         while (result.contains("<thinking>") && result.contains("</thinking>")) {
             int start = result.indexOf("<thinking>");
             int end = result.indexOf("</thinking>") + "</thinking>".length();
@@ -676,15 +848,6 @@ Footer 包含：
             }
         }
 
-        // Remove UI thinking markers like "Thinking >" etc.
-        String[] uiMarkers = {"思考 ▸", "思考▸", "思考 ►", "思考►", "Thinking ▸", "Thinking▸"};
-        for (String marker : uiMarkers) {
-            result = result.replace(marker, "");
-        }
-
-        // Remove leading blank lines
-        result = result.replaceFirst("^\\s*\\n+", "");
-
-        return result.trim();
+        return result.replaceFirst("^\\s*\\n+", "").trim();
     }
 }

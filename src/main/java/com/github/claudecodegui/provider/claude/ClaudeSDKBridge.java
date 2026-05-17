@@ -260,7 +260,7 @@ public class ClaudeSDKBridge extends BaseSDKBridge {
             List<ClaudeSession.Attachment> attachments,
             MessageCallback callback
     ) {
-        return sendMessage(channelId, message, sessionId, null, cwd, attachments, null, null, null, null, null, false, callback);
+        return sendMessage(channelId, message, sessionId, null, cwd, attachments, null, null, null, null, null, false, null, callback);
     }
 
     /**
@@ -278,7 +278,7 @@ public class ClaudeSDKBridge extends BaseSDKBridge {
             String agentPrompt,
             MessageCallback callback
     ) {
-        return sendMessage(channelId, message, sessionId, null, cwd, attachments, permissionMode, model, openedFiles, agentPrompt, null, false, callback);
+        return sendMessage(channelId, message, sessionId, null, cwd, attachments, permissionMode, model, openedFiles, agentPrompt, null, false, null, callback);
     }
 
     /**
@@ -297,7 +297,7 @@ public class ClaudeSDKBridge extends BaseSDKBridge {
             Boolean streaming,
             MessageCallback callback
     ) {
-        return sendMessage(channelId, message, sessionId, null, cwd, attachments, permissionMode, model, openedFiles, agentPrompt, streaming, false, callback);
+        return sendMessage(channelId, message, sessionId, null, cwd, attachments, permissionMode, model, openedFiles, agentPrompt, streaming, false, null, callback);
     }
 
     /**
@@ -318,11 +318,11 @@ public class ClaudeSDKBridge extends BaseSDKBridge {
             MessageCallback callback
     ) {
         return sendMessage(channelId, message, sessionId, null, cwd, attachments, permissionMode,
-                model, openedFiles, agentPrompt, streaming, disableThinking, callback);
+                model, openedFiles, agentPrompt, streaming, disableThinking, null, callback);
     }
 
     /**
-     * Send message in existing channel (streaming response, with all options including streaming flag and disableThinking).
+     * Send message in existing channel (full parameters including reasoningEffort).
      */
     public CompletableFuture<SDKResult> sendMessage(
             String channelId,
@@ -337,6 +337,58 @@ public class ClaudeSDKBridge extends BaseSDKBridge {
             String agentPrompt,
             Boolean streaming,
             Boolean disableThinking,
+            String reasoningEffort,
+            MessageCallback callback
+    ) {
+        return sendMessage(channelId, message, sessionId, runtimeSessionEpoch, cwd, attachments,
+                permissionMode, model, openedFiles, agentPrompt, streaming, disableThinking,
+                reasoningEffort, null, callback);
+    }
+
+    /**
+     * Send message in existing channel (full parameters including maxTurns for single-turn mode).
+     */
+    public CompletableFuture<SDKResult> sendMessage(
+            String channelId,
+            String message,
+            String sessionId,
+            String runtimeSessionEpoch,
+            String cwd,
+            List<ClaudeSession.Attachment> attachments,
+            String permissionMode,
+            String model,
+            JsonObject openedFiles,
+            String agentPrompt,
+            Boolean streaming,
+            Boolean disableThinking,
+            String reasoningEffort,
+            Integer maxTurns,
+            MessageCallback callback
+    ) {
+        return sendMessage(channelId, message, sessionId, runtimeSessionEpoch, cwd, attachments,
+                permissionMode, model, openedFiles, agentPrompt, streaming, disableThinking,
+                reasoningEffort, maxTurns, false, callback);
+    }
+
+    /**
+     * Send message with full parameters including denyAllTools (for debate mode).
+     */
+    public CompletableFuture<SDKResult> sendMessage(
+            String channelId,
+            String message,
+            String sessionId,
+            String runtimeSessionEpoch,
+            String cwd,
+            List<ClaudeSession.Attachment> attachments,
+            String permissionMode,
+            String model,
+            JsonObject openedFiles,
+            String agentPrompt,
+            Boolean streaming,
+            Boolean disableThinking,
+            String reasoningEffort,
+            Integer maxTurns,
+            boolean denyAllTools,
             MessageCallback callback
     ) {
         // Try daemon mode first (avoids per-request Node.js process spawning)
@@ -344,7 +396,7 @@ public class ClaudeSDKBridge extends BaseSDKBridge {
         if (db != null) {
             return sendMessageViaDaemon(db, channelId, message, sessionId, runtimeSessionEpoch, cwd,
                     attachments, permissionMode, model, openedFiles, agentPrompt,
-                    streaming, disableThinking, callback);
+                    streaming, disableThinking, reasoningEffort, maxTurns, denyAllTools, callback);
         }
 
         // Fallback: per-process mode (spawns a new Node.js process per request)
@@ -362,6 +414,8 @@ public class ClaudeSDKBridge extends BaseSDKBridge {
                 agentPrompt,
                 streaming,
                 disableThinking,
+                reasoningEffort,
+                maxTurns,
                 callback
         );
     }
@@ -430,6 +484,9 @@ public class ClaudeSDKBridge extends BaseSDKBridge {
             String agentPrompt,
             Boolean streaming,
             Boolean disableThinking,
+            String reasoningEffort,
+            Integer maxTurns,
+            boolean denyAllTools,
             MessageCallback callback
     ) {
         return daemonRequestExecutor.sendMessageViaDaemon(
@@ -446,6 +503,9 @@ public class ClaudeSDKBridge extends BaseSDKBridge {
                 agentPrompt,
                 streaming,
                 disableThinking,
+                reasoningEffort,
+                maxTurns,
+                denyAllTools,
                 callback
         );
     }

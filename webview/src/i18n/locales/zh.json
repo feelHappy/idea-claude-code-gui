@@ -233,6 +233,7 @@
       },
       "groups": {
         "create": "创建",
+        "style": "风格",
         "review": "评审",
         "system": "体系"
       },
@@ -252,6 +253,41 @@
           "description": "产出移动优先的应用流程、主界面和交互体验建议。",
           "prompt": "请使用 UI UX Pro Max，为我设计一个移动优先的应用流程，覆盖核心页面、关键交互模式、无障碍考虑和统一的视觉语言。"
         },
+        "ecommerce": {
+          "title": "电商页面",
+          "description": "设计以转化为导向的商品详情页，含图库、定价和行动按钮。",
+          "prompt": "请使用 UI UX Pro Max，为我设计一个电商商品详情页，包含转化优化布局、商品图库、定价区域、信任标识和清晰的加购流程。"
+        },
+        "glassmorphism": {
+          "title": "玻璃拟态",
+          "description": "磨砂玻璃效果，透明层叠加柔和景深。",
+          "prompt": "请使用 UI UX Pro Max 的 glassmorphism 风格，设计一个现代卡片式界面。运用磨砂玻璃效果、微妙的透明层叠和柔和阴影来营造景深。"
+        },
+        "minimalism": {
+          "title": "极简主义",
+          "description": "大量留白、克制配色、只保留必要元素。",
+          "prompt": "请使用 UI UX Pro Max 的 minimalism 风格。注重大面积留白、克制的配色方案、干净的字体排版，只保留最核心的 UI 元素。少即是多。"
+        },
+        "brutalism": {
+          "title": "粗野主义",
+          "description": "粗犷字体、高对比色彩、刻意粗糙的视觉美学。",
+          "prompt": "请使用 UI UX Pro Max 的 brutalism 风格。大胆粗犷的字体、高对比色彩、可见边框、非常规布局，以及刻意粗糙的视觉美学。"
+        },
+        "neumorphism": {
+          "title": "新拟态",
+          "description": "柔和凸起形态，内外阴影营造触感深度。",
+          "prompt": "请使用 UI UX Pro Max 的 neumorphism 风格。在统一背景上使用柔和凸起形态、微妙的内外阴影，营造按压/浮起的触感体验。"
+        },
+        "auroraUi": {
+          "title": "极光 UI",
+          "description": "鲜艳渐变、流动色彩过渡、空灵氛围感。",
+          "prompt": "请使用 UI UX Pro Max 的 aurora UI 风格。鲜艳的渐变背景、流动的色彩过渡、深色底配发光强调色，营造空灵的氛围感。"
+        },
+        "bentoGrid": {
+          "title": "便当格栅",
+          "description": "大小不一的非对称网格卡片，Apple 风格呈现。",
+          "prompt": "请使用 UI UX Pro Max 的 bento grid 布局风格。大小不一的非对称网格卡片、干净间距、大格突出重点功能，呈现现代 Apple 风格。"
+        },
         "designReview": {
           "title": "设计评审",
           "description": "检查当前页面或组件的布局、层级、可读性和 UX 问题，并给出整改建议。",
@@ -262,10 +298,25 @@
           "description": "只针对一个现有组件做视觉与交互重构，不重做整个系统。",
           "prompt": "请使用 UI UX Pro Max，帮我把这个现有组件重构得更统一、更清晰，重点优化状态设计、间距节奏、响应式表现和交互反馈。"
         },
+        "colorPalette": {
+          "title": "配色方案",
+          "description": "生成完整色彩体系，含对比度和暗色模式支持。",
+          "prompt": "请使用 UI UX Pro Max，为当前产品生成一套完整配色方案。包含主色、辅色、CTA 色、背景色、文字色和边框色，附带对比度和暗色模式变体。"
+        },
+        "typography": {
+          "title": "字体搭配",
+          "description": "获取字体配对建议，含字阶和 Tailwind 配置。",
+          "prompt": "请使用 UI UX Pro Max，为当前产品推荐一组字体搭配。包含标题和正文字体（Google Fonts）、字阶体系、行高规范，以及 Tailwind CSS 配置。"
+        },
         "designSystem": {
           "title": "设计体系",
           "description": "为产品建立可复用的颜色、字体、间距和组件规范。",
           "prompt": "请使用 UI UX Pro Max，为当前产品定义一套轻量设计系统，包括颜色 token、字体层级、间距规则、核心组件规范，以及前端实现建议。"
+        },
+        "responsive": {
+          "title": "响应式策略",
+          "description": "规划断点、布局变化和移动端到桌面端的适配方案。",
+          "prompt": "请使用 UI UX Pro Max，为当前界面规划响应式策略。定义断点、布局变化、组件适配方式，以及从移动端到桌面端的触控友好调整。"
         }
       }
     },
@@ -369,32 +420,37 @@
         "error": "异常"
       },
       "groups": {
-        "setup": "准备",
-        "review": "审查",
-        "refine": "收敛优化",
-        "creative": "扩展探索"
+        "create": "创建",
+        "evaluate": "评估",
+        "refine": "精修",
+        "harden": "加固",
+        "system": "体系"
       },
       "commands": {
-        "teach-impeccable": "加载 Impeccable 的方法说明和设计语境，适合作为进入命令前的准备步骤。",
-        "audit": "对当前界面做技术型设计审计，覆盖可访问性、性能、主题和响应式问题。",
-        "critique": "批判性评审当前界面方向，输出有优先级的设计问题和建议。",
-        "clarify": "先澄清目标、约束和权衡，再继续做界面设计或改造。",
-        "normalize": "把不一致的 UI 模式整理成更统一、更可维护的界面基线。",
-        "harden": "把界面强化到更接近生产可用，包括状态、可访问性和鲁棒性细节。",
-        "polish": "对现有页面做精修，重点改善间距、层级和交互细节。",
-        "typeset": "优化排版、文案节奏和高密度界面的阅读体验。",
-        "arrange": "重新梳理布局、分区和信息层级，让结构更清晰。",
-        "extract": "从现有页面或组件中提炼可复用的设计模式和规则。",
-        "adapt": "把已有设计方向适配到新的产品场景或品牌约束中。",
-        "distill": "把复杂设计反馈压缩成适合决策的简洁摘要。",
-        "optimize": "从实现和交付角度优化界面方案，提高可维护性和落地性。",
-        "quieter": "降低视觉噪音，减少不必要的强调和装饰。",
-        "bolder": "把当前视觉方向推得更鲜明、更有态度。",
-        "colorize": "重做配色和对比策略，形成更明确的色彩语言。",
-        "delight": "增加克制但有效的愉悦感细节，而不是堆砌装饰。",
-        "animate": "优化动效和状态过渡，让交互反馈更有节奏。",
-        "overdrive": "在需要时探索更激进的视觉改版方向。",
-        "onboard": "设计首屏引导和 onboarding 流程，让用户更快进入使用状态。",
+        "craft": "一步到位 — 从想法到实现最快的路径，设计+构建一气呵成。",
+        "shape": "设计发现 — 先理清目标和约束，再动手构建。",
+        "impeccable": "核心智能 — 加载完整的 Impeccable 技能上下文。",
+        "teach-impeccable": "品牌训练 — 让 Impeccable 学习你的项目品牌、token 和规范。",
+        "audit": "五维质检 — 可访问性、性能、主题、响应式、语义化全面扫描。",
+        "critique": "设计评分 — 发现问题并按优先级排列修复顺序。",
+        "polish": "最终精修 — 收紧间距、层级和交互细节。",
+        "layout": "间距节奏 — 修复对齐、间隙和内容流。",
+        "typeset": "字体排版 — 修复字号、行高和阅读节奏。",
+        "colorize": "配色重做 — 更强的调色策略和更好的对比度。",
+        "bolder": "加强冲击 — 让设计更有态度和表现力。",
+        "quieter": "降低噪音 — 去掉繁忙界面中不必要的强调。",
+        "animate": "状态动效 — 有意义的过渡和交互反馈。",
+        "delight": "增加个性 — 克制的愉悦感，不堆砌装饰。",
+        "overdrive": "高级特效 — 着色器、物理效果和激进视觉实验。",
+        "harden": "生产就绪 — 边界情况、国际化、错误状态和鲁棒性。",
+        "adapt": "跨端适配 — 让设计适应不同视口和设备。",
+        "onboard": "首屏引导 — 设计新用户激活和空状态体验。",
+        "optimize": "性能诊断 — 包体积、渲染开销和加载速度。",
+        "clarify": "文案重写 — 修复令人困惑的标签、错误提示和微文案。",
+        "distill": "精简本质 — 去除复杂性但不丢失含义。",
+        "extract": "提取组件 — 从现有界面中抽离可复用组件和设计 token。",
+        "document": "生成规范 — 为当前界面输出 DESIGN.md 设计文档。",
+        "live": "浏览器迭代 — 实时预览和变体探索。",
         "frontend-design": "加载 Impeccable 的设计原则和反模式约束。"
       }
     },
@@ -501,15 +557,18 @@
       }
     },
     "debate": {
-      "title": "Bug 辩论",
+      "title": "方案辩论",
       "start": "发起辩论",
       "stop": "停止",
       "viewFile": "查看记录",
       "roundProgress": "第 {{current}}/{{max}} 轮",
+      "messages": "条消息",
+      "collapse": "收起面板",
+      "expand": "展开面板",
       "dialog": {
-        "title": "发起 Bug 辩论",
-        "topicPlaceholder": "主题（可选）",
-        "descPlaceholder": "描述 bug 或问题...",
+        "title": "发起方案辩论",
+        "topicPlaceholder": "辩论主题（可选）",
+        "descPlaceholder": "描述你的方案或技术问题，让 Claude 和 Codex 展开辩论...",
         "maxRounds": "最大轮次："
       },
       "status": {

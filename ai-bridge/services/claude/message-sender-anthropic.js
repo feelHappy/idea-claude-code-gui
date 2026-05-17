@@ -10,7 +10,7 @@ import { resolveModelFromSettings } from '../../utils/model-utils.js';
 import { loadSessionHistory, persistJsonlMessage } from './session-service.js';
 import { ensureAnthropicSdk, ensureBedrockSdk, truncateErrorContent } from './message-utils.js';
 
-export async function sendMessageWithAnthropicSDK(message, resumeSessionId, cwd, permissionMode, model, apiKey, baseUrl, authType) {
+export async function sendMessageWithAnthropicSDK(message, resumeSessionId, cwd, permissionMode, model, apiKey, baseUrl, authType, systemPromptOverride) {
   try {
     // Dynamically load Anthropic SDK
     const anthropicModule = await ensureAnthropicSdk();
@@ -104,6 +104,7 @@ export async function sendMessageWithAnthropicSDK(message, resumeSessionId, cwd,
     const response = await client.messages.create({
       model: modelId,
       max_tokens: 8192,
+      ...(systemPromptOverride ? { system: systemPromptOverride } : {}),
       messages: messagesForApi
     });
 

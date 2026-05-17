@@ -50,6 +50,21 @@ public class DebateFileManager {
     }
 
     public void appendRoundEntry(Path filePath, String provider, int round, String content) throws IOException {
+        appendRoundEntry(filePath, provider, round, content, null);
+    }
+
+    /**
+     * 写入辩论轮次内容。
+     * visibleText 写入公开 transcript，rawResponse 写入 debug trace 文件。
+     *
+     * @param filePath 辩论文件路径
+     * @param provider 参与者名称
+     * @param round 轮次
+     * @param visibleText 净化后的公开内容
+     * @param rawResponse 原始响应（可选，写入 debug trace）
+     */
+    public void appendRoundEntry(Path filePath, String provider, int round,
+                                 String visibleText, String rawResponse) throws IOException {
         String existing = readFile(filePath);
         StringBuilder sb = new StringBuilder(existing);
 
@@ -63,9 +78,36 @@ public class DebateFileManager {
         }
 
         sb.append("\n### ").append(provider).append(" (Round ").append(round).append(")\n\n");
-        sb.append(content.trim()).append("\n");
+        sb.append(visibleText.trim()).append("\n");
 
         Files.write(filePath, sb.toString().getBytes(StandardCharsets.UTF_8));
+
+        if (rawResponse != null && !rawResponse.equals(visibleText)) {
+            appendDebugTrace(filePath, provider, round, rawResponse);
+        }
+    }
+
+    /**
+     * 将原始响应写入独立的 debug trace 文件。
+     * 文件名为辩论文件名 + .debug.md 后缀。
+     */
+    private void appendDebugTrace(Path debateFilePath, String provider, int round,
+                                  String rawResponse) throws IOException {
+        String debugFileName = debateFilePath.getFileName().toString().replace(".md", ".debug.md");
+        Path debugPath = debateFilePath.getParent().resolve(debugFileName);
+
+        StringBuilder sb = new StringBuilder();
+        if (Files.exists(debugPath)) {
+            sb.append(new String(Files.readAllBytes(debugPath), StandardCharsets.UTF_8));
+        } else {
+            sb.append("# Debug Trace\n\n");
+            sb.append("> Raw model responses before sanitization. Not for display.\n\n---\n");
+        }
+
+        sb.append("\n\n## ").append(provider).append(" Round ").append(round).append(" (raw)\n\n");
+        sb.append(rawResponse.trim()).append("\n");
+
+        Files.write(debugPath, sb.toString().getBytes(StandardCharsets.UTF_8));
     }
 
     public void writeConsensus(Path filePath, String agreedBy, int round, String summary) throws IOException {

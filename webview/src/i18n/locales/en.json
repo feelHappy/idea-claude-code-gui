@@ -233,6 +233,7 @@
       },
       "groups": {
         "create": "Create",
+        "style": "Style",
         "review": "Review",
         "system": "System"
       },
@@ -252,6 +253,41 @@
           "description": "Create mobile-first product flows, screens, and interaction guidance.",
           "prompt": "Use UI UX Pro Max to design a mobile-first application flow, including the main screens, interaction patterns, accessibility considerations, and a clean design language."
         },
+        "ecommerce": {
+          "title": "E-commerce",
+          "description": "Design a conversion-focused product page with gallery, pricing, and CTA.",
+          "prompt": "Use UI UX Pro Max to design an e-commerce product page with conversion-optimized layout, product gallery, pricing section, trust signals, and a clear add-to-cart flow."
+        },
+        "glassmorphism": {
+          "title": "Glassmorphism",
+          "description": "Frosted glass effects with transparency layers and soft depth.",
+          "prompt": "Use UI UX Pro Max with glassmorphism style to design a modern card-based interface. Apply frosted glass effects, subtle transparency layers, and soft shadows for depth."
+        },
+        "minimalism": {
+          "title": "Minimalism",
+          "description": "Clean whitespace, restrained palette, and only essential elements.",
+          "prompt": "Use UI UX Pro Max with minimalism style. Focus on generous whitespace, restrained color palette, clean typography, and only essential UI elements. Less is more."
+        },
+        "brutalism": {
+          "title": "Brutalism",
+          "description": "Bold raw typography, high contrast, and intentionally rough aesthetic.",
+          "prompt": "Use UI UX Pro Max with brutalism style. Bold raw typography, high-contrast colors, visible borders, unconventional layouts, and intentionally rough aesthetic."
+        },
+        "neumorphism": {
+          "title": "Neumorphism",
+          "description": "Soft extruded shapes with inner/outer shadows for tactile depth.",
+          "prompt": "Use UI UX Pro Max with neumorphism style. Soft extruded shapes, subtle inner/outer shadows on a uniform background, creating a tactile pressed/raised feel."
+        },
+        "auroraUi": {
+          "title": "Aurora UI",
+          "description": "Vibrant gradients, flowing color transitions, and ethereal atmosphere.",
+          "prompt": "Use UI UX Pro Max with aurora UI style. Vibrant gradient backgrounds, flowing color transitions, dark base with luminous accents, and an ethereal atmospheric feel."
+        },
+        "bentoGrid": {
+          "title": "Bento Grid",
+          "description": "Asymmetric grid cards with varying sizes, Apple-inspired presentation.",
+          "prompt": "Use UI UX Pro Max with bento grid layout style. Asymmetric grid cards of varying sizes, clean gaps, feature highlights in larger cells, and a modern Apple-inspired presentation."
+        },
         "designReview": {
           "title": "Design Review",
           "description": "Review an existing page or component and produce actionable UI/UX fixes.",
@@ -262,10 +298,25 @@
           "description": "Improve one existing component without redesigning the whole product.",
           "prompt": "Use UI UX Pro Max to refactor this component into a cleaner, more consistent UI with better states, spacing, responsiveness, and clearer interaction feedback."
         },
+        "colorPalette": {
+          "title": "Color Palette",
+          "description": "Generate a full color system with contrast ratios and dark mode support.",
+          "prompt": "Use UI UX Pro Max to generate a complete color palette for this product. Include primary, secondary, CTA, background, text, and border colors with contrast ratios and dark mode variants."
+        },
+        "typography": {
+          "title": "Typography",
+          "description": "Get font pairing recommendations with type scale and Tailwind config.",
+          "prompt": "Use UI UX Pro Max to recommend a font pairing for this product. Include heading and body fonts from Google Fonts, a type scale, line heights, and Tailwind CSS configuration."
+        },
         "designSystem": {
           "title": "Design System",
           "description": "Define reusable tokens, rules, and component standards for a product.",
           "prompt": "Use UI UX Pro Max to define a lightweight design system for this product, including color tokens, typography scale, spacing, component rules, and implementation guidance."
+        },
+        "responsive": {
+          "title": "Responsive",
+          "description": "Plan breakpoints, layout shifts, and mobile-to-desktop adaptations.",
+          "prompt": "Use UI UX Pro Max to plan a responsive strategy for this interface. Define breakpoints, layout shifts, component adaptations, and touch-friendly adjustments for mobile through desktop."
         }
       }
     },
@@ -369,32 +420,37 @@
         "error": "Error"
       },
       "groups": {
-        "setup": "Setup",
-        "review": "Review",
+        "create": "Create",
+        "evaluate": "Evaluate",
         "refine": "Refine",
-        "creative": "Creative"
+        "harden": "Harden",
+        "system": "System"
       },
       "commands": {
-        "teach-impeccable": "Load Impeccable guidance and bootstrap the design vocabulary before deeper work.",
-        "audit": "Run a technical UI quality audit across accessibility, performance, theming, and responsiveness.",
-        "critique": "Critique the current interface direction and surface design issues with prioritized feedback.",
-        "clarify": "Clarify ambiguous design goals, constraints, and tradeoffs before making UI changes.",
-        "normalize": "Normalize inconsistent UI patterns into a cleaner, more systematic design baseline.",
-        "harden": "Harden an interface for production with stronger states, accessibility, and resilience details.",
-        "polish": "Polish an existing screen with tighter spacing, hierarchy, and interaction details.",
-        "typeset": "Improve typography, copy flow, and layout readability for dense product interfaces.",
-        "arrange": "Reorganize layouts, sections, and content hierarchy into a clearer structure.",
-        "extract": "Extract reusable patterns or design rules from a screen or component set.",
-        "adapt": "Adapt an existing design direction to a new product context or brand constraint.",
-        "distill": "Condense complex design feedback into a compact decision-ready summary.",
-        "optimize": "Optimize UI implementation choices for maintainability and production delivery.",
-        "quieter": "Reduce visual noise and unnecessary emphasis in busy interfaces.",
-        "bolder": "Push the visual direction into a more opinionated and expressive design.",
-        "colorize": "Rework color usage and visual contrast with a stronger palette strategy.",
-        "delight": "Add tasteful moments of delight without turning the UI into decorative noise.",
-        "animate": "Improve motion design with more deliberate transitions and state changes.",
-        "overdrive": "Explore a maximal redesign direction when you want a more radical visual push.",
-        "onboard": "Design onboarding and first-run flows with clearer guidance and activation steps.",
+        "craft": "Design and build in one flow — the fastest path from idea to implementation.",
+        "shape": "Discovery-based design brief — clarify goals and constraints before building.",
+        "impeccable": "Core design intelligence — load the full Impeccable skill context.",
+        "teach-impeccable": "Train Impeccable on your project brand, tokens, and conventions.",
+        "audit": "Five-dimension quality check — accessibility, performance, theming, responsiveness, semantics.",
+        "critique": "Design review with scoring — surface issues and prioritize what to fix first.",
+        "polish": "Final refinement pass — tighten spacing, hierarchy, and interaction details.",
+        "layout": "Fix spacing and visual rhythm — alignment, gaps, and content flow.",
+        "typeset": "Fix typography — font sizes, line heights, and reading rhythm.",
+        "colorize": "Rework color usage — stronger palette strategy and better contrast.",
+        "bolder": "Increase visual impact — make the design more opinionated and expressive.",
+        "quieter": "Reduce visual noise — strip unnecessary emphasis from busy interfaces.",
+        "animate": "Add motion that conveys state — deliberate transitions and feedback.",
+        "delight": "Add personality — tasteful moments of delight without decorative noise.",
+        "overdrive": "Advanced effects — shaders, physics, and radical visual experiments.",
+        "harden": "Production-ready — edge cases, i18n, error states, and resilience.",
+        "adapt": "Cross-device responsiveness — adapt the design to different viewports.",
+        "onboard": "First-run and empty states — guide new users through activation.",
+        "optimize": "Performance diagnostics — bundle size, render cost, and load speed.",
+        "clarify": "Rewrite confusing UX copy — labels, errors, and microcopy.",
+        "distill": "Strip to essence — remove complexity without losing meaning.",
+        "extract": "Pull reusable components and design tokens from existing screens.",
+        "document": "Generate a DESIGN.md specification for the current interface.",
+        "live": "Browser-based iteration — live preview with variant exploration.",
         "frontend-design": "Load Impeccable design principles and anti-pattern guidance."
       }
     },
@@ -501,15 +557,18 @@
       }
     },
     "debate": {
-      "title": "Bug Debate",
+      "title": "Solution Debate",
       "start": "Start Debate",
       "stop": "Stop",
       "viewFile": "View",
       "roundProgress": "Round {{current}}/{{max}}",
+      "messages": "messages",
+      "collapse": "Collapse",
+      "expand": "Open panel",
       "dialog": {
-        "title": "Start Bug Debate",
+        "title": "Start Solution Debate",
         "topicPlaceholder": "Topic (optional)",
-        "descPlaceholder": "Describe the bug or problem...",
+        "descPlaceholder": "Describe your solution or technical question for Claude and Codex to debate...",
         "maxRounds": "Max rounds:"
       },
       "status": {

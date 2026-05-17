@@ -10,6 +10,7 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.IconLoader;
 import com.intellij.openapi.vcs.CheckinProjectPanel;
 import com.intellij.openapi.vcs.CommitMessageI;
 import com.intellij.openapi.vcs.VcsDataKeys;
@@ -18,17 +19,27 @@ import com.intellij.openapi.vcs.changes.ChangeListManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import javax.swing.*;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Action to generate Git commit messages using AI.
+ * Supports cancel-on-second-click and loading state feedback.
  */
 public class GenerateCommitMessageAction extends AnAction implements DumbAware {
 
     private static final Logger LOG = Logger.getInstance(GenerateCommitMessageAction.class);
+
+    private static final Icon ICON_DEFAULT = IconLoader.getIcon("/icons/ai-commit.svg", GenerateCommitMessageAction.class);
+    private static final Icon ICON_LOADING = IconLoader.getIcon("/icons/ai-commit-loading.svg", GenerateCommitMessageAction.class);
+
+    private final AtomicBoolean generating = new AtomicBoolean(false);
+    private volatile boolean cancelled = false;
+    private volatile String originalMessage = "";
 
     public GenerateCommitMessageAction() {
         super();
@@ -41,46 +52,51 @@ public class GenerateCommitMessageAction extends AnAction implements DumbAware {
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent e) {
-        LOG.info("GenerateCommitMessageAction triggered");
-
         Project project = e.getProject();
         if (project == null) {
-            LOG.warn("Project is null");
             return;
         }
 
-        LOG.info("Project: " + project.getName());
+        // If already generating, treat second click as cancel
+        if (generating.get()) {
+            cancelled = true;
+            generating.set(false);
+            ApplicationManager.getApplication().invokeLater(() -> {
+                CommitMessageI panel = getCommitMessagePanel(e);
+                if (panel != null) {
+                    panel.setCommitMessage(originalMessage);
+                }
+                e.getPresentation().setIcon(ICON_DEFAULT);
+                ClaudeNotifier.showWarning(project, ClaudeCodeGuiBundle.message("commit.cancelGeneration"));
+            });
+            return;
+        }
 
-        // Get CommitMessageI for setting the commit message
         CommitMessageI commitMessagePanel = getCommitMessagePanel(e);
-
-        // Get user-selected changes using the new method with proper fallback chain
         Collection<Change> changes = getUserSelectedChanges(e, project);
 
-        // Check if we successfully obtained required objects
         if (commitMessagePanel == null) {
-            LOG.error("Cannot access commit message panel");
             ClaudeNotifier.showWarning(project, ClaudeCodeGuiBundle.message("commit.cannotAccessPanel"));
             return;
         }
 
         if (changes == null || changes.isEmpty()) {
-            LOG.warn("No changes selected");
             ClaudeNotifier.showWarning(project, ClaudeCodeGuiBundle.message("commit.noChanges"));
             return;
         }
 
-        LOG.info("Successfully obtained CommitMessageI and changes, proceeding to generate commit message");
+        // Enter generating state
+        generating.set(true);
+        cancelled = false;
+        originalMessage = "";
 
-        // Save references for async callback
-        final CommitMessageI finalCommitMessagePanel = commitMessagePanel;
+        // Visual feedback: switch to loading icon and show placeholder
+        e.getPresentation().setIcon(ICON_LOADING);
+        commitMessagePanel.setCommitMessage(ClaudeCodeGuiBundle.message("commit.generating"));
+
+        final CommitMessageI finalPanel = commitMessagePanel;
         final Collection<Change> finalChanges = changes;
 
-        // Show "generating..." placeholder in commit message box
-        String generatingText = ClaudeCodeGuiBundle.message("commit.generating");
-        commitMessagePanel.setCommitMessage(generatingText);
-
-        // Generate commit message asynchronously
         ApplicationManager.getApplication().executeOnPooledThread(() -> {
             try {
                 GitCommitMessageService service = new GitCommitMessageService(project);
@@ -88,8 +104,12 @@ public class GenerateCommitMessageAction extends AnAction implements DumbAware {
                     @Override
                     public void onSuccess(String commitMessage) {
                         ApplicationManager.getApplication().invokeLater(() -> {
-                            // Set the generated commit message
-                            finalCommitMessagePanel.setCommitMessage(commitMessage);
+                            generating.set(false);
+                            e.getPresentation().setIcon(ICON_DEFAULT);
+                            if (cancelled) {
+                                return;
+                            }
+                            finalPanel.setCommitMessage(commitMessage);
                             ClaudeNotifier.showSuccess(project, ClaudeCodeGuiBundle.message("commit.generateSuccess"));
                         });
                     }
@@ -97,8 +117,12 @@ public class GenerateCommitMessageAction extends AnAction implements DumbAware {
                     @Override
                     public void onError(String error) {
                         ApplicationManager.getApplication().invokeLater(() -> {
-                            // Clear placeholder text
-                            finalCommitMessagePanel.setCommitMessage("");
+                            generating.set(false);
+                            e.getPresentation().setIcon(ICON_DEFAULT);
+                            if (cancelled) {
+                                return;
+                            }
+                            finalPanel.setCommitMessage(originalMessage);
                             ClaudeNotifier.showError(project, ClaudeCodeGuiBundle.message("commit.generateFailed") + ": " + error);
                         });
                     }
@@ -106,8 +130,12 @@ public class GenerateCommitMessageAction extends AnAction implements DumbAware {
             } catch (Exception ex) {
                 LOG.error("Failed to generate commit message", ex);
                 ApplicationManager.getApplication().invokeLater(() -> {
-                    // Clear placeholder text
-                    finalCommitMessagePanel.setCommitMessage("");
+                    generating.set(false);
+                    e.getPresentation().setIcon(ICON_DEFAULT);
+                    if (cancelled) {
+                        return;
+                    }
+                    finalPanel.setCommitMessage(originalMessage);
                     ClaudeNotifier.showError(project, ClaudeCodeGuiBundle.message("commit.generateFailed") + ": " + ex.getMessage());
                 });
             }
@@ -119,17 +147,13 @@ public class GenerateCommitMessageAction extends AnAction implements DumbAware {
      */
     @Nullable
     private CommitMessageI getCommitMessagePanel(@NotNull AnActionEvent e) {
-        // Try COMMIT_WORKFLOW_HANDLER first (newer IDEA versions)
         Object workflowHandler = e.getData(VcsDataKeys.COMMIT_WORKFLOW_HANDLER);
         if (workflowHandler instanceof CommitMessageI) {
-            LOG.info("Got CommitMessageI from COMMIT_WORKFLOW_HANDLER");
             return (CommitMessageI) workflowHandler;
         }
 
-        // Try COMMIT_MESSAGE_CONTROL
         CommitMessageI messageControl = e.getData(VcsDataKeys.COMMIT_MESSAGE_CONTROL);
         if (messageControl != null) {
-            LOG.info("Got CommitMessageI from COMMIT_MESSAGE_CONTROL");
             return messageControl;
         }
 
@@ -148,44 +172,33 @@ public class GenerateCommitMessageAction extends AnAction implements DumbAware {
     private Collection<Change> getUserSelectedChanges(@NotNull AnActionEvent e, @NotNull Project project) {
         Collection<Change> changes;
 
-        // Method 1: Try COMMIT_WORKFLOW_HANDLER.ui.getIncludedChanges() via reflection
-        // This is the preferred method as it returns only user-checked files in the commit dialog
         Object workflowHandler = e.getData(VcsDataKeys.COMMIT_WORKFLOW_HANDLER);
         if (workflowHandler != null) {
             changes = getIncludedChangesViaReflection(workflowHandler);
             if (changes != null && !changes.isEmpty()) {
-                LOG.info("Got " + changes.size() + " changes from COMMIT_WORKFLOW_HANDLER.ui.getIncludedChanges()");
                 return changes;
             }
         }
 
-        // Method 2: Try CheckinProjectPanel.getSelectedChanges() (legacy)
         Object messageControl = e.getData(VcsDataKeys.COMMIT_MESSAGE_CONTROL);
         if (messageControl instanceof CheckinProjectPanel checkinPanel) {
             changes = checkinPanel.getSelectedChanges();
             if (changes != null && !changes.isEmpty()) {
-                LOG.info("Got " + changes.size() + " changes from CheckinProjectPanel.getSelectedChanges() (fallback)");
                 return changes;
             }
         }
 
-        // Method 3: Try VcsDataKeys.CHANGES
         Change[] changesArray = e.getData(VcsDataKeys.CHANGES);
         if (changesArray != null && changesArray.length > 0) {
-            changes = java.util.Arrays.asList(changesArray);
-            LOG.info("Got " + changes.size() + " changes from VcsDataKeys.CHANGES (fallback)");
-            return changes;
+            return java.util.Arrays.asList(changesArray);
         }
 
-        // Method 4: Last resort - get all changes from ChangeListManager
         ChangeListManager changeListManager = ChangeListManager.getInstance(project);
         Collection<Change> allChanges = changeListManager.getAllChanges();
         if (!allChanges.isEmpty()) {
-            LOG.info("Got " + allChanges.size() + " changes from ChangeListManager.getAllChanges() (last resort fallback)");
             return allChanges;
         }
 
-        LOG.warn("Failed to get changes from any data source");
         return null;
     }
 
@@ -243,24 +256,15 @@ public class GenerateCommitMessageAction extends AnAction implements DumbAware {
     @Override
     public void update(@NotNull AnActionEvent e) {
         Project project = e.getProject();
-        boolean enabled = project != null;
+        e.getPresentation().setEnabledAndVisible(project != null);
 
-        // Debug: log when update is called
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("GenerateCommitMessageAction.update called, project=" + (project != null ? project.getName() : "null"));
-
-            // Log available DataKeys
-            Object workflowHandler = e.getData(VcsDataKeys.COMMIT_WORKFLOW_HANDLER);
-            Object messageControl = e.getData(VcsDataKeys.COMMIT_MESSAGE_CONTROL);
-
-            LOG.debug("Available DataKeys:");
-            LOG.debug("  - COMMIT_WORKFLOW_HANDLER: " + (workflowHandler != null ? workflowHandler.getClass().getName() : "null"));
-            LOG.debug("  - COMMIT_MESSAGE_CONTROL: " + (messageControl != null ? messageControl.getClass().getName() : "null"));
+        if (generating.get()) {
+            e.getPresentation().setIcon(ICON_LOADING);
+            e.getPresentation().setText(ClaudeCodeGuiBundle.message("commit.generating"));
+        } else {
+            e.getPresentation().setIcon(ICON_DEFAULT);
+            e.getPresentation().setText(ClaudeCodeGuiBundle.message("action.generateCommitMessage.text"));
+            e.getPresentation().setDescription(ClaudeCodeGuiBundle.message("action.generateCommitMessage.description"));
         }
-
-        // Set localized text
-        e.getPresentation().setText(ClaudeCodeGuiBundle.message("action.generateCommitMessage.text"));
-        e.getPresentation().setDescription(ClaudeCodeGuiBundle.message("action.generateCommitMessage.description"));
-        e.getPresentation().setEnabledAndVisible(enabled);
     }
 }

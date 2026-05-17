@@ -1,82 +1,51 @@
-# 编码规范 — Spring Boot 项目
+# 编码规范 — 通用项目
 
-> 本文件定义 Spring Boot 项目的编码规范和架构约束。
+> 本文件定义通用编码规范。适用于未匹配到特定技术栈变体的项目。
 > Agent 在编码实现阶段（⑤）和代码审查阶段（⑥）必须加载本文件。
 
 ---
 
-## 分层架构
+## 通用原则
 
-```
-Controller → Service → Mapper/Repository → Entity
-                ↕
-            DTO / VO / Convertor
-```
-
-| 层 | 职责 | 命名规范 |
-|----|------|---------|
-| Controller | 接收请求、参数校验、调用 Service | `XxxController` |
-| Service | 业务逻辑编排 | `XxxService` / `XxxServiceImpl` |
-| Mapper | 数据访问（MyBatis/JPA） | `XxxMapper` / `XxxRepository` |
-| Entity | 数据库实体映射 | `XxxEntity` 或 `Xxx` |
-| DTO | 数据传输对象（跨层/跨服务） | `XxxDTO` |
-| VO | 视图对象（返回给前端） | `XxxVO` |
-| Convertor | 对象转换（Entity↔DTO↔VO） | `XxxConvertor` |
+1. **一致性优先**：跟随项目现有风格，不引入新的命名/格式约定
+2. **最小改动**：只修改与目标直接相关的代码
+3. **不做无关重构**：bug 修复不附带代码美化
+4. **先读后写**：修改前先理解现有逻辑和调用关系
 
 ---
 
-## 关键约束
+## 代码质量
 
 | 类别 | 规范 |
 |------|------|
-| 金额字段 | `BigDecimal`，运算时指定 `RoundingMode.HALF_UP` |
-| ID 生成 | 雪花 ID `@TableId(type = IdType.ASSIGN_ID)` 或自增 |
-| 软删除 | `@TableLogic` on `delFlag` 字段 |
-| 审计字段 | `createdBy` / `createdTime` / `updatedBy` / `updatedTime`，使用 `FieldFill` 自动填充 |
-| 外部调用 | 必须设超时（connectTimeout + readTimeout）和降级 |
-| SQL 参数 | `#{}` 不用 `${}`（防注入） |
-| 事务 | `@Transactional` 只加在 Service 层，不加在 Controller |
-| 异常处理 | 业务异常用 `BusinessException`，不吞异常 |
+| 命名 | 有意义的名称，不用单字母（循环变量除外） |
+| 函数长度 | 单个函数不超过 50 行（超出考虑拆分） |
+| 文件长度 | 单个文件不超过 500 行（超出考虑拆分） |
+| 嵌套深度 | 不超过 3 层（提前 return / 提取方法） |
+| 错误处理 | 不吞异常，至少记录日志 |
+| 安全 | 不硬编码密钥/密码，用环境变量或配置文件 |
 
 ---
 
-## MyBatis-Plus 规范（如使用）
+## 依赖管理
 
-```java
-// ✓ Lambda 查询
-LambdaQueryWrapper<Entity> wrapper = new LambdaQueryWrapper<>();
-wrapper.eq(Entity::getStatus, status)
-       .orderByDesc(Entity::getCreatedTime);
-
-// ✗ 字符串字段名
-QueryWrapper<Entity> wrapper = new QueryWrapper<>();
-wrapper.eq("status", status); // 重构时容易遗漏
-```
-
-- 分页：使用 `Page<T>` + `IPage<T>`
-- 批量操作：确认最终走 JDBC batch（`executorType=BATCH`）
-- 逻辑删除：查询自动过滤，物理删除需显式调用
+- 新依赖：stdlib > 已有依赖 > 评估后引入
+- 引入新依赖前说明理由
+- 使用精确版本号，不用 `latest` 或宽松范围
 
 ---
 
-## 响应格式
+## 构建验证
 
-```java
-// 统一响应包装
-R<T> {
-    int code;       // 200=成功, 其他=失败
-    String msg;     // 提示信息
-    T data;         // 业务数据
-}
-```
+- 代码修改后执行项目构建命令验证
+- 构建通过时静默继续
+- 构建失败时只输出错误信息，立即修复
 
 ---
 
 ## 禁止行为
 
-- ✗ Controller 中写业务逻辑
-- ✗ Service 中直接操作 HttpServletRequest/Response
-- ✗ Entity 直接返回给前端（必须转 VO）
-- ✗ 在循环中执行 SQL 查询（N+1 问题）
-- ✗ 硬编码配置值（用 `@Value` 或配置类）
-- ✗ catch Exception 后不处理（至少 log.error）
+- ✗ 引入未使用的依赖
+- ✗ 提交含有 TODO/FIXME 的代码而不说明
+- ✗ 在循环中执行 I/O 操作
+- ✗ 硬编码环境相关的值（URL、端口、路径）

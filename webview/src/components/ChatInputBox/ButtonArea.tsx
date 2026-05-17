@@ -13,9 +13,12 @@ import { MiniMaxBar } from './MiniMaxBar.js';
 
 import { HarnessBar } from './HarnessBar.js';
 import { useHarnessIntegration } from './hooks/useHarnessIntegration.js';
-import { DebatePanel } from './DebatePanel.js';
+import { useDebate } from './hooks/useDebate.js';
+import type { DebateRound } from './hooks/useDebate.js';
+import { DebateDialog } from './DebatePanel.js';
+import { openFile } from '../../utils/bridge.js';
 
-type AddonPanelId = 'bmad' | 'gitNexus' | 'uiUxPro' | 'minimax' | 'harness' | 'debate';
+type AddonPanelId = 'bmad' | 'gitNexus' | 'uiUxPro' | 'minimax' | 'harness';
 
 /**
  * Get custom Codex model list from localStorage
@@ -72,6 +75,128 @@ function getCustomClaudeModels(): ModelInfo[] {
   }
 }
 
+function DebateRoundItem({ round: r }: { round: DebateRound }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = r.content.length > 200;
+
+  return (
+    <div className={`debate-round-item ${r.provider === 'Claude' ? 'provider-claude-item' : 'provider-codex-item'}`}>
+      <div className={`debate-round-provider ${r.provider === 'Claude' ? 'provider-claude' : 'provider-codex'}`}>
+        {r.provider}
+        <span className="debate-round-num">R{r.round}</span>
+        {r.streaming && <span className="debate-streaming-indicator" />}
+      </div>
+      <div className={`debate-round-content${isLong && !expanded && !r.streaming ? ' collapsed' : ''}`}>
+        {r.content}
+      </div>
+      {isLong && !r.streaming && (
+        <button className="debate-round-toggle" onClick={() => setExpanded(!expanded)}>
+          {expanded ? 'Collapse' : 'Expand'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function DebateDrawer({
+  open,
+  onClose,
+  debateState,
+  rounds,
+  onStop,
+  onDismiss,
+}: {
+  open: boolean;
+  onClose: () => void;
+  debateState: { active: boolean; state: string; topic?: string; round?: number; maxRounds?: number; filePath?: string; error?: string; message?: string };
+  rounds: DebateRound[];
+  onStop: () => void;
+  onDismiss: () => void;
+}) {
+  const { t } = useTranslation();
+  const roundsEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (roundsEndRef.current) {
+      roundsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [rounds.length]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [open, onClose]);
+
+  return (
+    <div className={`debate-drawer-overlay${open ? ' open' : ''}`} onClick={onClose}>
+      <div className={`debate-drawer${open ? ' open' : ''}`} onClick={(e) => e.stopPropagation()}>
+        <div className="debate-drawer-header">
+          <span className="debate-drawer-title">
+            <i className="codicon codicon-comment-discussion" />
+            {t('chat.debate.title', { defaultValue: 'Solution Debate' })}
+          </span>
+          <span className={`bmad-command-badge ${debateState.state === 'ERROR' ? 'state-error' : debateState.state === 'CONSENSUS' ? 'state-ready' : debateState.active ? 'state-loading' : 'subtle'}`}>
+            {t(`chat.debate.status.${debateState.state.toLowerCase()}`, { defaultValue: debateState.state })}
+          </span>
+          {debateState.round != null && (
+            <span className="bmad-command-badge subtle">
+              {t('chat.debate.roundProgress', { current: debateState.round, max: debateState.maxRounds })}
+            </span>
+          )}
+          <span style={{ flex: 1 }} />
+          {debateState.filePath && !debateState.active && (
+            <button className="debate-icon-button" onClick={() => openFile(debateState.filePath)} title={t('chat.debate.viewFile', { defaultValue: 'View debate record' })}>
+              <i className="codicon codicon-go-to-file" />
+            </button>
+          )}
+          {debateState.active ? (
+            <button className="debate-icon-button" onClick={onStop} title={t('chat.debate.stop')}>
+              <i className="codicon codicon-debug-stop" />
+            </button>
+          ) : (
+            <button className="debate-icon-button" onClick={() => { onDismiss(); onClose(); }} title={t('common.close', { defaultValue: 'Close' })}>
+              <i className="codicon codicon-close" />
+            </button>
+          )}
+          <button className="debate-icon-button" onClick={onClose} title={t('chat.debate.collapse', { defaultValue: 'Collapse' })}>
+            <i className="codicon codicon-chevron-right" />
+          </button>
+        </div>
+
+        {debateState.topic && (
+          <div className="debate-drawer-topic">{debateState.topic}</div>
+        )}
+
+        {debateState.error && (
+          <div className="debate-panel-message" style={{ color: 'var(--vscode-errorForeground, #f48771)' }}>
+            {debateState.error}
+          </div>
+        )}
+        {debateState.message && !debateState.error && !debateState.active && (
+          <div className="debate-panel-message">{debateState.message}</div>
+        )}
+
+        <div className="debate-drawer-rounds">
+          {rounds.length === 0 && debateState.active && (
+            <div className="debate-drawer-empty">
+              <i className="codicon codicon-loading codicon-modifier-spin" />
+              <span>{t('chat.debate.status.starting', { defaultValue: 'Starting debate...' })}</span>
+            </div>
+          )}
+          {rounds.map((r: DebateRound, i: number) => (
+            <DebateRoundItem key={i} round={r} />
+          ))}
+          <div ref={roundsEndRef} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * ButtonArea - Bottom toolbar component
  * Contains mode selector, model selector, attachment button, prompt enhancer button, send/stop button
@@ -109,6 +234,15 @@ export const ButtonArea = ({
   const { t } = useTranslation();
   const toolkitLabel = t('chat.toolbar.tools', { defaultValue: 'Tools' });
   const harnessProps = useHarnessIntegration();
+  const { debateState, rounds: debateRounds, startDebate, stopDebate, dismissDebate } = useDebate();
+  const [showDebateDialog, setShowDebateDialog] = useState(false);
+  const [debateDrawerOpen, setDebateDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (debateState.active && debateRounds.length > 0 && !debateDrawerOpen) {
+      setDebateDrawerOpen(true);
+    }
+  }, [debateState.active, debateRounds.length]);
   // const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Track changes to custom models in localStorage
@@ -311,13 +445,6 @@ export const ButtonArea = ({
       });
     }
 
-    items.push({
-      id: 'debate',
-      label: t('chat.debate.title', { defaultValue: 'Debate' }),
-      icon: 'codicon-comment-discussion',
-      content: <DebatePanel />,
-    });
-
     return items;
   }, [bmad, gitNexus, harnessProps, impeccable, minimax, t, uiUxPro]);
 
@@ -402,8 +529,8 @@ export const ButtonArea = ({
             />
             <ModeSelect value={permissionMode} onChange={handleModeSelect} provider={currentProvider} />
             <ModelSelect value={selectedModel} onChange={handleModelSelect} models={availableModels} currentProvider={currentProvider} onAddModel={onAddModel} />
-            {currentProvider === 'codex' && (
-              <ReasoningSelect value={reasoningEffort} onChange={handleReasoningChange} />
+            {(currentProvider === 'codex' || currentProvider === 'claude') && (
+              <ReasoningSelect value={reasoningEffort} onChange={handleReasoningChange} provider={currentProvider} />
             )}
             {addonItems.length > 0 && (
               <div className="toolkit-selector-wrap">
@@ -464,6 +591,15 @@ export const ButtonArea = ({
           <div className="button-area-right">
             <div className="button-divider" />
 
+            {/* Debate button - temporarily hidden, Claude output issue pending fix */}
+            {false && <button
+              className={`debate-icon-button has-tooltip${debateState.active ? ' active' : ''}`}
+              onClick={() => debateState.active ? setDebateDrawerOpen(!debateDrawerOpen) : setShowDebateDialog(true)}
+              data-tooltip={debateState.active ? t('chat.debate.title') : t('chat.debate.start')}
+            >
+              <span className="codicon codicon-comment-discussion" />
+            </button>}
+
             {/* Enhance prompt button */}
             <button
               className="enhance-prompt-button has-tooltip"
@@ -506,6 +642,40 @@ export const ButtonArea = ({
           </div>
         </div>
       )}
+
+      {(debateState.active || debateState.state === 'CONSENSUS' || debateState.state === 'MAX_ROUNDS_REACHED' || debateState.state === 'STOPPED' || debateState.state === 'ERROR') && (
+        <div className="debate-status-bar" onClick={() => setDebateDrawerOpen(true)}>
+          <span className={`debate-status-dot ${debateState.active ? 'active' : debateState.state === 'ERROR' ? 'error' : 'done'}`} />
+          <span className="debate-status-text">
+            {t(`chat.debate.status.${debateState.state.toLowerCase()}`, { defaultValue: debateState.state })}
+            {debateRounds.length > 0 && ` · ${debateRounds.length} ${t('chat.debate.messages', { defaultValue: 'messages' })}`}
+          </span>
+          <span style={{ flex: 1 }} />
+          {debateState.active && (
+            <button className="debate-icon-button" onClick={(e) => { e.stopPropagation(); stopDebate(); }} title={t('chat.debate.stop')}>
+              <i className="codicon codicon-debug-stop" />
+            </button>
+          )}
+          <button className="debate-icon-button" onClick={(e) => { e.stopPropagation(); setDebateDrawerOpen(true); }} title={t('chat.debate.expand', { defaultValue: 'Open panel' })}>
+            <i className="codicon codicon-chevron-left" />
+          </button>
+        </div>
+      )}
+
+      <DebateDrawer
+        open={debateDrawerOpen}
+        onClose={() => setDebateDrawerOpen(false)}
+        debateState={debateState}
+        rounds={debateRounds}
+        onStop={stopDebate}
+        onDismiss={dismissDebate}
+      />
+
+      <DebateDialog
+        visible={showDebateDialog}
+        onClose={() => setShowDebateDialog(false)}
+        onStart={startDebate}
+      />
     </>
   );
 };

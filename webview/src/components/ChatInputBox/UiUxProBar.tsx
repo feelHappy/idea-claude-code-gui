@@ -5,11 +5,12 @@ import type { UiUxToolbarProps } from './types.js';
 
 const GROUP_LABELS: Record<UiUxPromptPreset['group'], string> = {
   create: 'Create',
+  style: 'Style',
   review: 'Review',
   system: 'System',
 };
 
-const GROUP_ORDER: UiUxPromptPreset['group'][] = ['create', 'review', 'system'];
+const GROUP_ORDER: UiUxPromptPreset['group'][] = ['create', 'style', 'review', 'system'];
 
 export function UiUxProBar({
   presets,
@@ -39,7 +40,7 @@ export function UiUxProBar({
         acc[preset.group].push(preset);
         return acc;
       },
-      { create: [], review: [], system: [] }
+      { create: [], style: [], review: [], system: [] }
     );
   }, [presets]);
 
@@ -65,7 +66,7 @@ export function UiUxProBar({
         });
         return acc;
       },
-      { create: [], review: [], system: [] }
+      { create: [], style: [], review: [], system: [] }
     );
   }, [groupedPresets, searchTerm, t]);
 

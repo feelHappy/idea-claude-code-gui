@@ -7,13 +7,14 @@ import {
 import type { ImpeccableToolbarProps } from './types.js';
 
 const GROUP_LABELS: Record<ImpeccableCommandPreset['group'], string> = {
-  setup: 'Setup',
-  review: 'Review',
+  create: 'Create',
+  evaluate: 'Evaluate',
   refine: 'Refine',
-  creative: 'Creative',
+  harden: 'Harden',
+  system: 'System',
 };
 
-const GROUP_ORDER: ImpeccableCommandPreset['group'][] = ['setup', 'review', 'refine', 'creative'];
+const GROUP_ORDER: ImpeccableCommandPreset['group'][] = ['create', 'evaluate', 'refine', 'harden', 'system'];
 
 export function ImpeccableBar({
   presets,
@@ -43,7 +44,7 @@ export function ImpeccableBar({
         acc[preset.group].push(preset);
         return acc;
       },
-      { setup: [], review: [], refine: [], creative: [] },
+      { create: [], evaluate: [], refine: [], harden: [], system: [] },
     );
   }, [presets]);
 
@@ -70,7 +71,7 @@ export function ImpeccableBar({
         });
         return acc;
       },
-      { setup: [], review: [], refine: [], creative: [] },
+      { create: [], evaluate: [], refine: [], harden: [], system: [] },
     );
   }, [groupedPresets, searchTerm, status.provider, t]);
 

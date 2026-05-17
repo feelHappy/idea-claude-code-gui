@@ -255,19 +255,24 @@ export interface ModelInfo {
  */
 export const CLAUDE_MODELS: ModelInfo[] = [
   {
+    id: 'claude-opus-4-7',
+    label: 'Opus 4.7',
+    description: 'Opus 4.7 · Latest and most capable',
+  },
+  {
     id: 'claude-sonnet-4-6',
     label: 'Sonnet 4.6',
-    description: 'Sonnet 4.6 · Use the default model',
+    description: 'Sonnet 4.6 · Balanced speed and capability',
   },
   {
     id: 'claude-opus-4-6',
     label: 'Opus 4.6',
-    description: 'Opus 4.6 · Latest and most capable',
+    description: 'Opus 4.6 · Previous generation flagship',
   },
   {
     id: 'claude-opus-4-6[1m]',
-    label: 'Opus (1M context)',
-    description: 'Opus 4.6 for long sessions',
+    label: 'Opus 4.6 (1M)',
+    description: 'Opus 4.6 · 1M context window for long sessions',
   },
   {
     id: 'claude-haiku-4-5',
@@ -280,6 +285,11 @@ export const CLAUDE_MODELS: ModelInfo[] = [
  * Codex model list
  */
 export const CODEX_MODELS: ModelInfo[] = [
+  {
+    id: 'gpt-5.5',
+    label: 'GPT-5.5',
+    description: 'GPT-5.5 · Latest frontier model',
+  },
   {
     id: 'gpt-5.3-codex',
     label: 'gpt-5.3-codex',
@@ -333,11 +343,11 @@ export const AVAILABLE_PROVIDERS: ProviderInfo[] = [
 ];
 
 /**
- * Codex Reasoning Effort (thinking depth)
- * Controls the depth of reasoning for Codex models
- * Valid values: low, medium, high, xhigh
+ * Reasoning Effort (thinking depth)
+ * Controls the depth of reasoning for Claude and Codex models
+ * Valid values: low, medium, high, xhigh, max
  */
-export type ReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh';
+export type ReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 /**
  * Reasoning level information
@@ -350,7 +360,7 @@ export interface ReasoningInfo {
 }
 
 /**
- * Available reasoning levels for Codex
+ * All available reasoning levels
  */
 export const REASONING_LEVELS: ReasoningInfo[] = [
   {
@@ -373,11 +383,23 @@ export const REASONING_LEVELS: ReasoningInfo[] = [
   },
   {
     id: 'xhigh',
-    label: 'Max',
+    label: 'XHigh',
     icon: 'codicon-flame',
-    description: 'Maximum reasoning depth',
+    description: 'Extended reasoning depth',
+  },
+  {
+    id: 'max',
+    label: 'Max',
+    icon: 'codicon-zap',
+    description: 'Maximum reasoning (select models only)',
   },
 ];
+
+/**
+ * Reasoning levels available per provider
+ */
+export const CODEX_REASONING_LEVELS: ReasoningInfo[] = REASONING_LEVELS.filter(l => l.id !== 'max');
+export const CLAUDE_REASONING_LEVELS: ReasoningInfo[] = REASONING_LEVELS;
 
 // ============================================================
 // Usage Types
