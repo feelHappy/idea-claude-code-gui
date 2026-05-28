@@ -1,10 +1,6 @@
-export type BmadCommandGroup =
-  | 'agents'
-  | 'analysis'
-  | 'planning'
-  | 'solutioning'
-  | 'implementation'
-  | 'utilities';
+export type BmadCommandGroup = 'discover' | 'plan' | 'build' | 'tools';
+
+export type BmadCommandLevel = 'beginner' | 'intermediate' | 'advanced';
 
 export interface BmadCommandPreset {
   id: string;
@@ -12,6 +8,7 @@ export interface BmadCommandPreset {
   description: string;
   descriptionKey: string;
   group: BmadCommandGroup;
+  level: BmadCommandLevel;
 }
 
 interface BmadCommandDefinition {
@@ -21,6 +18,7 @@ interface BmadCommandDefinition {
   description: string;
   descriptionKey: string;
   group: BmadCommandGroup;
+  level: BmadCommandLevel;
   showByDefault?: boolean;
 }
 
@@ -60,20 +58,15 @@ export interface BmadStatus {
 }
 
 const BMAD_COMMAND_DEFINITIONS: BmadCommandDefinition[] = [
-  {
-    id: 'bmad-help',
-    primaryCommand: 'bmad-help',
-    description: 'Recommend the next BMad workflow or explain what to do next.',
-    descriptionKey: 'chat.bmad.commands.bmad-help',
-    group: 'utilities',
-  },
+  // ── Discover ──────────────────────────────────────────────
   {
     id: 'bmad-agent-analyst',
     primaryCommand: 'bmad-agent-analyst',
     aliases: ['bmad-analyst'],
     description: 'Load the Analyst agent for discovery, requirement analysis, and structured project exploration.',
     descriptionKey: 'chat.bmad.commands.bmad-agent-analyst',
-    group: 'agents',
+    group: 'discover',
+    level: 'intermediate',
   },
   {
     id: 'bmad-agent-pm',
@@ -81,7 +74,8 @@ const BMAD_COMMAND_DEFINITIONS: BmadCommandDefinition[] = [
     aliases: ['bmad-pm'],
     description: 'Load the Product Manager agent to drive product planning, scope, and PRD-oriented decisions.',
     descriptionKey: 'chat.bmad.commands.bmad-agent-pm',
-    group: 'agents',
+    group: 'discover',
+    level: 'intermediate',
   },
   {
     id: 'bmad-agent-architect',
@@ -89,7 +83,8 @@ const BMAD_COMMAND_DEFINITIONS: BmadCommandDefinition[] = [
     aliases: ['bmad-architect'],
     description: 'Load the Architect agent for technical architecture, system design, and implementation guidance.',
     descriptionKey: 'chat.bmad.commands.bmad-agent-architect',
-    group: 'agents',
+    group: 'discover',
+    level: 'intermediate',
   },
   {
     id: 'bmad-agent-ux-designer',
@@ -97,15 +92,8 @@ const BMAD_COMMAND_DEFINITIONS: BmadCommandDefinition[] = [
     aliases: ['bmad-ux-designer'],
     description: 'Load the UX Designer agent for interface flows, user journeys, and experience design work.',
     descriptionKey: 'chat.bmad.commands.bmad-agent-ux-designer',
-    group: 'agents',
-  },
-  {
-    id: 'bmad-agent-sm',
-    primaryCommand: 'bmad-agent-sm',
-    aliases: ['bmad-sm'],
-    description: 'Load the Scrum Master agent to coordinate story flow, sprint preparation, and delivery sequencing.',
-    descriptionKey: 'chat.bmad.commands.bmad-agent-sm',
-    group: 'agents',
+    group: 'discover',
+    level: 'intermediate',
   },
   {
     id: 'bmad-agent-dev',
@@ -113,15 +101,8 @@ const BMAD_COMMAND_DEFINITIONS: BmadCommandDefinition[] = [
     aliases: ['bmad-dev'],
     description: 'Load the Developer agent to implement stories, write code, and handle delivery-focused execution.',
     descriptionKey: 'chat.bmad.commands.bmad-agent-dev',
-    group: 'agents',
-  },
-  {
-    id: 'bmad-agent-qa',
-    primaryCommand: 'bmad-agent-qa',
-    aliases: ['bmad-qa'],
-    description: 'Load the QA agent for testing strategy, quality checks, and verification planning.',
-    descriptionKey: 'chat.bmad.commands.bmad-agent-qa',
-    group: 'agents',
+    group: 'discover',
+    level: 'intermediate',
   },
   {
     id: 'bmad-agent-tech-writer',
@@ -129,50 +110,40 @@ const BMAD_COMMAND_DEFINITIONS: BmadCommandDefinition[] = [
     aliases: ['bmad-tech-writer'],
     description: 'Load the Tech Writer agent to produce technical docs, explanations, and polished written outputs.',
     descriptionKey: 'chat.bmad.commands.bmad-agent-tech-writer',
-    group: 'agents',
-  },
-  {
-    id: 'bmad-agent-quick-flow-solo-dev',
-    primaryCommand: 'bmad-agent-quick-flow-solo-dev',
-    aliases: ['bmad-quick-flow-solo-dev', 'bmad-master'],
-    description: 'Load the solo quick-flow agent for fast one-person delivery without the full multi-role sequence.',
-    descriptionKey: 'chat.bmad.commands.bmad-agent-quick-flow-solo-dev',
-    group: 'agents',
-  },
-  {
-    id: 'bmad-advanced-elicitation',
-    primaryCommand: 'bmad-advanced-elicitation',
-    description: 'Ask the right follow-up questions to clarify goals, constraints, and missing requirements.',
-    descriptionKey: 'chat.bmad.commands.bmad-advanced-elicitation',
-    group: 'analysis',
+    group: 'discover',
+    level: 'intermediate',
   },
   {
     id: 'bmad-brainstorming',
     primaryCommand: 'bmad-brainstorming',
     description: 'Guide a structured brainstorming session across one or more ideation techniques.',
     descriptionKey: 'chat.bmad.commands.bmad-brainstorming',
-    group: 'analysis',
+    group: 'discover',
+    level: 'intermediate',
   },
   {
     id: 'bmad-market-research',
     primaryCommand: 'bmad-market-research',
     description: 'Research the market, customer needs, trends, and the competitive landscape.',
     descriptionKey: 'chat.bmad.commands.bmad-market-research',
-    group: 'analysis',
+    group: 'discover',
+    level: 'intermediate',
   },
   {
     id: 'bmad-domain-research',
     primaryCommand: 'bmad-domain-research',
     description: 'Deep-dive into the domain, terminology, workflows, and subject-matter context.',
     descriptionKey: 'chat.bmad.commands.bmad-domain-research',
-    group: 'analysis',
+    group: 'discover',
+    level: 'intermediate',
   },
   {
     id: 'bmad-technical-research',
     primaryCommand: 'bmad-technical-research',
     description: 'Evaluate technical feasibility, solution options, and implementation approaches.',
     descriptionKey: 'chat.bmad.commands.bmad-technical-research',
-    group: 'analysis',
+    group: 'discover',
+    level: 'intermediate',
   },
   {
     id: 'bmad-product-brief',
@@ -180,213 +151,257 @@ const BMAD_COMMAND_DEFINITIONS: BmadCommandDefinition[] = [
     aliases: ['bmad-create-product-brief'],
     description: 'Capture a new product idea as a focused brief before PRD work starts.',
     descriptionKey: 'chat.bmad.commands.bmad-product-brief',
-    group: 'analysis',
+    group: 'discover',
+    level: 'beginner',
   },
   {
-    id: 'bmad-product-brief-preview',
-    primaryCommand: 'bmad-product-brief-preview',
-    description: 'Review the product brief and decide what to refine before moving into PRD work.',
-    descriptionKey: 'chat.bmad.commands.bmad-product-brief-preview',
-    group: 'analysis',
-    showByDefault: false,
+    id: 'bmad-prfaq',
+    primaryCommand: 'bmad-prfaq',
+    description: 'Use the Working Backwards PRFAQ challenge to forge and validate product concepts.',
+    descriptionKey: 'chat.bmad.commands.bmad-prfaq',
+    group: 'discover',
+    level: 'intermediate',
   },
   {
-    id: 'bmad-create-prd',
-    primaryCommand: 'bmad-create-prd',
-    description: 'Create a structured PRD for a new feature or project.',
-    descriptionKey: 'chat.bmad.commands.bmad-create-prd',
-    group: 'planning',
+    id: 'bmad-advanced-elicitation',
+    primaryCommand: 'bmad-advanced-elicitation',
+    description: 'Ask the right follow-up questions to clarify goals, constraints, and missing requirements.',
+    descriptionKey: 'chat.bmad.commands.bmad-advanced-elicitation',
+    group: 'discover',
+    level: 'advanced',
+  },
+
+  // ── Plan ──────────────────────────────────────────────────
+  {
+    id: 'bmad-prd',
+    primaryCommand: 'bmad-prd',
+    aliases: ['bmad-create-prd', 'bmad-edit-prd', 'bmad-validate-prd'],
+    description: 'Create, update, or validate a PRD — one skill handles the full lifecycle.',
+    descriptionKey: 'chat.bmad.commands.bmad-prd',
+    group: 'plan',
+    level: 'beginner',
   },
   {
-    id: 'bmad-validate-prd',
-    primaryCommand: 'bmad-validate-prd',
-    description: 'Validate that the PRD is complete, lean, and internally consistent.',
-    descriptionKey: 'chat.bmad.commands.bmad-validate-prd',
-    group: 'planning',
-  },
-  {
-    id: 'bmad-edit-prd',
-    primaryCommand: 'bmad-edit-prd',
-    description: 'Improve and refine an existing PRD instead of starting over.',
-    descriptionKey: 'chat.bmad.commands.bmad-edit-prd',
-    group: 'planning',
-  },
-  {
-    id: 'bmad-create-ux-design',
-    primaryCommand: 'bmad-create-ux-design',
-    description: 'Plan the UX and interaction flow, especially when UI is a major part of the project.',
-    descriptionKey: 'chat.bmad.commands.bmad-create-ux-design',
-    group: 'planning',
+    id: 'bmad-ux',
+    primaryCommand: 'bmad-ux',
+    aliases: ['bmad-create-ux-design'],
+    description: 'Plan UX patterns and design specifications, producing DESIGN.md and EXPERIENCE.md.',
+    descriptionKey: 'chat.bmad.commands.bmad-ux',
+    group: 'plan',
+    level: 'intermediate',
   },
   {
     id: 'bmad-create-architecture',
     primaryCommand: 'bmad-create-architecture',
     description: 'Produce the technical architecture and solution design.',
     descriptionKey: 'chat.bmad.commands.bmad-create-architecture',
-    group: 'solutioning',
+    group: 'plan',
+    level: 'intermediate',
   },
   {
     id: 'bmad-create-epics-and-stories',
     primaryCommand: 'bmad-create-epics-and-stories',
     description: 'Break the PRD and architecture into epics and implementable stories.',
     descriptionKey: 'chat.bmad.commands.bmad-create-epics-and-stories',
-    group: 'solutioning',
+    group: 'plan',
+    level: 'intermediate',
   },
   {
     id: 'bmad-check-implementation-readiness',
     primaryCommand: 'bmad-check-implementation-readiness',
     description: 'Check that PRD, UX, architecture, epics, and stories are aligned before delivery starts.',
     descriptionKey: 'chat.bmad.commands.bmad-check-implementation-readiness',
-    group: 'solutioning',
+    group: 'plan',
+    level: 'intermediate',
   },
+
+  // ── Build ─────────────────────────────────────────────────
   {
     id: 'bmad-sprint-planning',
     primaryCommand: 'bmad-sprint-planning',
     description: 'Turn the prepared stories into an execution-ready sprint plan.',
     descriptionKey: 'chat.bmad.commands.bmad-sprint-planning',
-    group: 'implementation',
+    group: 'build',
+    level: 'intermediate',
   },
   {
     id: 'bmad-sprint-status',
     primaryCommand: 'bmad-sprint-status',
     description: 'Summarize current sprint progress and route to the next BMad workflow.',
     descriptionKey: 'chat.bmad.commands.bmad-sprint-status',
-    group: 'implementation',
+    group: 'build',
+    level: 'intermediate',
   },
   {
     id: 'bmad-create-story',
     primaryCommand: 'bmad-create-story',
     description: 'Prepare the next story before implementation starts.',
     descriptionKey: 'chat.bmad.commands.bmad-create-story',
-    group: 'implementation',
+    group: 'build',
+    level: 'intermediate',
   },
   {
     id: 'bmad-dev-story',
     primaryCommand: 'bmad-dev-story',
     description: 'Implement the current story with the expected BMad flow.',
     descriptionKey: 'chat.bmad.commands.bmad-dev-story',
-    group: 'implementation',
+    group: 'build',
+    level: 'intermediate',
   },
   {
     id: 'bmad-code-review',
     primaryCommand: 'bmad-code-review',
     description: 'Run the BMad review step after implementation.',
     descriptionKey: 'chat.bmad.commands.bmad-code-review',
-    group: 'implementation',
+    group: 'build',
+    level: 'intermediate',
+  },
+  {
+    id: 'bmad-investigate',
+    primaryCommand: 'bmad-investigate',
+    description: 'Forensic case investigation for bug triage, root cause analysis, and unfamiliar code exploration.',
+    descriptionKey: 'chat.bmad.commands.bmad-investigate',
+    group: 'build',
+    level: 'beginner',
+  },
+  {
+    id: 'bmad-checkpoint-preview',
+    primaryCommand: 'bmad-checkpoint-preview',
+    description: 'LLM-assisted human-in-the-loop review of changes before proceeding.',
+    descriptionKey: 'chat.bmad.commands.bmad-checkpoint-preview',
+    group: 'build',
+    level: 'intermediate',
   },
   {
     id: 'bmad-qa-generate-e2e-tests',
     primaryCommand: 'bmad-qa-generate-e2e-tests',
     description: 'Generate automated QA or E2E coverage using the project\'s existing test stack.',
     descriptionKey: 'chat.bmad.commands.bmad-qa-generate-e2e-tests',
-    group: 'implementation',
+    group: 'build',
+    level: 'intermediate',
   },
   {
     id: 'bmad-retrospective',
     primaryCommand: 'bmad-retrospective',
     description: 'Review completed work, lessons learned, and what to do next at the end of an epic.',
     descriptionKey: 'chat.bmad.commands.bmad-retrospective',
-    group: 'implementation',
+    group: 'build',
+    level: 'intermediate',
+  },
+
+  // ── Tools ─────────────────────────────────────────────────
+  {
+    id: 'bmad-help',
+    primaryCommand: 'bmad-help',
+    description: 'Recommend the next BMad workflow or explain what to do next.',
+    descriptionKey: 'chat.bmad.commands.bmad-help',
+    group: 'tools',
+    level: 'beginner',
   },
   {
     id: 'bmad-quick-dev',
     primaryCommand: 'bmad-quick-dev',
     description: 'Use the lightweight quick-flow for small tasks and simple changes.',
     descriptionKey: 'chat.bmad.commands.bmad-quick-dev',
-    group: 'utilities',
+    group: 'tools',
+    level: 'beginner',
   },
   {
-    id: 'bmad-quick-dev-new-preview',
-    primaryCommand: 'bmad-quick-dev-new-preview',
-    description: 'Try the experimental quick flow that clarifies, plans, implements, reviews, and presents in one pass.',
-    descriptionKey: 'chat.bmad.commands.bmad-quick-dev-new-preview',
-    group: 'utilities',
-    showByDefault: false,
+    id: 'bmad-spec',
+    primaryCommand: 'bmad-spec',
+    aliases: ['bmad-quick-spec'],
+    description: 'Distill any intent into the SPEC kernel — the canonical contract for downstream work.',
+    descriptionKey: 'chat.bmad.commands.bmad-spec',
+    group: 'tools',
+    level: 'intermediate',
   },
   {
-    id: 'bmad-quick-spec',
-    primaryCommand: 'bmad-quick-spec',
-    description: 'Create a lighter-weight spec for one-off tasks, small apps, and simple brownfield work.',
-    descriptionKey: 'chat.bmad.commands.bmad-quick-spec',
-    group: 'utilities',
-    showByDefault: false,
+    id: 'bmad-customize',
+    primaryCommand: 'bmad-customize',
+    description: 'Customize BMad agent behavior and workflow settings via TOML overrides.',
+    descriptionKey: 'chat.bmad.commands.bmad-customize',
+    group: 'tools',
+    level: 'advanced',
   },
   {
     id: 'bmad-document-project',
     primaryCommand: 'bmad-document-project',
     description: 'Document an existing project before deeper planning or delivery work.',
     descriptionKey: 'chat.bmad.commands.bmad-document-project',
-    group: 'utilities',
+    group: 'tools',
+    level: 'beginner',
   },
   {
     id: 'bmad-generate-project-context',
     primaryCommand: 'bmad-generate-project-context',
     description: 'Generate lean project context for better agent grounding in brownfield repos.',
     descriptionKey: 'chat.bmad.commands.bmad-generate-project-context',
-    group: 'utilities',
+    group: 'tools',
+    level: 'beginner',
   },
   {
     id: 'bmad-correct-course',
     primaryCommand: 'bmad-correct-course',
     description: 'Recover when scope, plan, or implementation has drifted off track.',
     descriptionKey: 'chat.bmad.commands.bmad-correct-course',
-    group: 'utilities',
-  },
-  {
-    id: 'bmad-distillator',
-    primaryCommand: 'bmad-distillator',
-    description: 'Condense long notes, docs, or outputs into concise structured takeaways.',
-    descriptionKey: 'chat.bmad.commands.bmad-distillator',
-    group: 'utilities',
-  },
-  {
-    id: 'bmad-editorial-review-prose',
-    primaryCommand: 'bmad-editorial-review-prose',
-    description: 'Review prose for clarity, tone, readability, and wording.',
-    descriptionKey: 'chat.bmad.commands.bmad-editorial-review-prose',
-    group: 'utilities',
-  },
-  {
-    id: 'bmad-editorial-review-structure',
-    primaryCommand: 'bmad-editorial-review-structure',
-    description: 'Review document structure, sequencing, and overall information flow.',
-    descriptionKey: 'chat.bmad.commands.bmad-editorial-review-structure',
-    group: 'utilities',
-  },
-  {
-    id: 'bmad-index-docs',
-    primaryCommand: 'bmad-index-docs',
-    description: 'Generate an index of project documents to speed up later BMad workflows.',
-    descriptionKey: 'chat.bmad.commands.bmad-index-docs',
-    group: 'utilities',
+    group: 'tools',
+    level: 'intermediate',
   },
   {
     id: 'bmad-party-mode',
     primaryCommand: 'bmad-party-mode',
-    description: 'Switch into a looser, more creative collaboration mode for exploring bold ideas.',
+    description: 'Orchestrate multi-agent discussions for diverse perspectives on your project.',
     descriptionKey: 'chat.bmad.commands.bmad-party-mode',
-    group: 'utilities',
+    group: 'tools',
+    level: 'advanced',
   },
   {
     id: 'bmad-review-adversarial-general',
     primaryCommand: 'bmad-review-adversarial-general',
     description: 'Stress-test a plan or output with adversarial review to uncover weak spots.',
     descriptionKey: 'chat.bmad.commands.bmad-review-adversarial-general',
-    group: 'utilities',
+    group: 'tools',
+    level: 'advanced',
   },
   {
     id: 'bmad-review-edge-case-hunter',
     primaryCommand: 'bmad-review-edge-case-hunter',
     description: 'Search for edge cases, failure modes, and overlooked scenarios.',
     descriptionKey: 'chat.bmad.commands.bmad-review-edge-case-hunter',
-    group: 'utilities',
+    group: 'tools',
+    level: 'advanced',
+  },
+  {
+    id: 'bmad-editorial-review-prose',
+    primaryCommand: 'bmad-editorial-review-prose',
+    description: 'Review prose for clarity, tone, readability, and wording.',
+    descriptionKey: 'chat.bmad.commands.bmad-editorial-review-prose',
+    group: 'tools',
+    level: 'advanced',
+  },
+  {
+    id: 'bmad-editorial-review-structure',
+    primaryCommand: 'bmad-editorial-review-structure',
+    description: 'Review document structure, sequencing, and overall information flow.',
+    descriptionKey: 'chat.bmad.commands.bmad-editorial-review-structure',
+    group: 'tools',
+    level: 'advanced',
+  },
+  {
+    id: 'bmad-index-docs',
+    primaryCommand: 'bmad-index-docs',
+    description: 'Generate an index of project documents to speed up later BMad workflows.',
+    descriptionKey: 'chat.bmad.commands.bmad-index-docs',
+    group: 'tools',
+    level: 'advanced',
   },
   {
     id: 'bmad-shard-doc',
     primaryCommand: 'bmad-shard-doc',
     description: 'Split a large document into smaller, easier-to-review sections.',
     descriptionKey: 'chat.bmad.commands.bmad-shard-doc',
-    group: 'utilities',
+    group: 'tools',
+    level: 'advanced',
   },
 ];
 
@@ -402,6 +417,7 @@ function createPreset(
     description: definition.description,
     descriptionKey: definition.descriptionKey,
     group: definition.group,
+    level: definition.level,
   };
 }
 
@@ -439,7 +455,8 @@ function createFallbackBmadPreset(command: string): BmadCommandPreset {
     command,
     description: `Invoke the ${command} BMad skill installed in the current project.`,
     descriptionKey: `chat.bmad.commands.${command}`,
-    group: 'utilities',
+    group: 'tools',
+    level: 'intermediate',
   };
 }
 

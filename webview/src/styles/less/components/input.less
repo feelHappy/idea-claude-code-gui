@@ -6,6 +6,130 @@
     flex-shrink: 0;
 }
 
+.session-handoff-prompt {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 auto 8px;
+    padding: 8px 10px;
+    max-width: min(100%, 920px);
+    border: 1px solid rgba(245, 158, 11, 0.36);
+    border-radius: 8px;
+    background: rgba(245, 158, 11, 0.10);
+    color: var(--text-primary);
+}
+
+.session-handoff-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    flex: 0 0 26px;
+    border-radius: 6px;
+    background: rgba(245, 158, 11, 0.16);
+    color: #f59e0b;
+}
+
+.session-handoff-copy {
+    min-width: 0;
+    flex: 1;
+}
+
+.session-handoff-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 18px;
+}
+
+.session-handoff-usage {
+    color: #f59e0b;
+    font-weight: 600;
+}
+
+.session-handoff-description {
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 17px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.session-handoff-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.session-handoff-primary,
+.session-handoff-secondary,
+.session-handoff-dismiss {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 26px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.session-handoff-primary {
+    padding: 0 9px;
+    border: 1px solid rgba(245, 158, 11, 0.55);
+    background: rgba(245, 158, 11, 0.20);
+    color: var(--text-primary);
+}
+
+.session-handoff-primary:hover {
+    background: rgba(245, 158, 11, 0.28);
+}
+
+.session-handoff-secondary {
+    padding: 0 8px;
+    border: 1px solid var(--border-secondary);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.session-handoff-secondary:hover {
+    background: var(--bg-hover);
+}
+
+.session-handoff-dismiss {
+    width: 26px;
+    padding: 0;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+}
+
+.session-handoff-dismiss:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+@media (max-width: 720px) {
+    .session-handoff-prompt {
+        align-items: flex-start;
+    }
+
+    .session-handoff-title,
+    .session-handoff-actions {
+        flex-wrap: wrap;
+    }
+
+    .session-handoff-description {
+        white-space: normal;
+    }
+}
+
 .input-container {
     display: flex;
     flex-direction: column;

@@ -35,6 +35,7 @@
     min-width: 0; /* 允许内容缩小 */
     max-width: 100%; /* 防止超出容器 */
     contain: layout style; /* Isolate layout — prevents cross-message recalculation during scroll */
+    will-change: transform; /* Hint GPU compositing for smoother scrolling in JCEF */
 }
 
 .message:last-child {

@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ButtonAreaProps, ModelInfo, PermissionMode, ReasoningEffort } from './types';
 import { ConfigSelect, ModelSelect, ModeSelect, ProviderSelect, ReasoningSelect } from './selectors';
-import { CLAUDE_MODELS, CODEX_MODELS } from './types';
+import { CLAUDE_MODELS, CODEX_MODELS, DEFAULT_REASONING_EFFORT } from './types';
 import { STORAGE_KEYS, validateCodexCustomModels } from '../../types/provider';
 import type { CodexCustomModel } from '../../types/provider';
 import { readClaudeModelMapping } from '../../utils/claudeModelMapping';
@@ -209,7 +209,7 @@ export const ButtonArea = ({
   selectedModel = 'claude-sonnet-4-6',
   permissionMode = 'bypassPermissions',
   currentProvider = 'claude',
-  reasoningEffort = 'medium',
+  reasoningEffort = DEFAULT_REASONING_EFFORT,
   onSubmit,
   onStop,
   onModeSelect,

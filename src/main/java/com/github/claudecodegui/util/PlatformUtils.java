@@ -1,7 +1,7 @@
 package com.github.claudecodegui.util;
 
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
-import com.intellij.ide.plugins.PluginManagerCore;
+import com.intellij.ide.plugins.PluginManager;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.extensions.PluginId;
@@ -109,7 +109,7 @@ public class PlatformUtils {
                         ClassLoader classLoader = PlatformUtils.class.getClassLoader();
 
                         // Iterate over all plugins to find the one containing the current class
-                        for (IdeaPluginDescriptor plugin : PluginManagerCore.getPlugins()) {
+                        for (IdeaPluginDescriptor plugin : PluginManager.getPlugins()) {
                             if (plugin.getPluginClassLoader() == classLoader) {
                                 cachedPluginId = plugin.getPluginId().getIdString();
                                 LOG.info("Plugin ID detected: " + cachedPluginId);
@@ -191,7 +191,7 @@ public class PlatformUtils {
             }
 
             // Check plugin actual path
-            IdeaPluginDescriptor plugin = PluginManagerCore.getPlugin(
+            IdeaPluginDescriptor plugin = findPluginDescriptor(
                     PluginId.getId(getPluginId())
             );
             if (plugin != null) {
@@ -533,5 +533,22 @@ public class PlatformUtils {
      */
     public static int getMaxPathLength() {
         return isWindows() ? 260 : 4096;
+    }
+
+    /**
+     * Look up a plugin descriptor by ID using the non-deprecated {@code getPlugins()} API.
+     * Replaces the deprecated {@code PluginManager.getPlugin(PluginId)}.
+     *
+     * @param pluginId the plugin ID to look up
+     * @return the descriptor, or null if not found
+     */
+    public static IdeaPluginDescriptor findPluginDescriptor(PluginId pluginId) {
+        if (pluginId == null) return null;
+        for (IdeaPluginDescriptor descriptor : PluginManager.getPlugins()) {
+            if (pluginId.equals(descriptor.getPluginId())) {
+                return descriptor;
+            }
+        }
+        return null;
     }
 }

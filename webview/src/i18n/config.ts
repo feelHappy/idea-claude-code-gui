@@ -10,10 +10,17 @@ import ja from './locales/ja.json';
 import ru from './locales/ru.json';
 import ko from './locales/ko.json';
 
-// Retrieve the saved language from localStorage; default to Simplified Chinese if not set
+const DEFAULT_LANGUAGE = 'zh';
+const SUPPORTED_LANGUAGES = ['zh', 'en', 'zh-TW', 'hi', 'es', 'fr', 'ja', 'ru', 'ko'];
+
+// Retrieve the saved language from localStorage only when the user explicitly set it.
+// Auto-detected IDEA locale values are intentionally ignored so new windows default to Chinese.
 const getInitialLanguage = (): string => {
+  const manuallySet = localStorage.getItem('languageManuallySet') === 'true';
   const savedLanguage = localStorage.getItem('language');
-  return savedLanguage || 'zh'; // Default to Simplified Chinese
+  return manuallySet && savedLanguage && SUPPORTED_LANGUAGES.includes(savedLanguage)
+    ? savedLanguage
+    : DEFAULT_LANGUAGE;
 };
 
 i18n

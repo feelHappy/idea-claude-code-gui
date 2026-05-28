@@ -218,7 +218,10 @@ export function registerMessageCallbacks(
           return ensureStreamingAssistantPreserved(prev, appendOptimisticMessageIfMissing(prev, smartMerged));
         }
 
-        // Streaming + !useBackendStreamingRender: only update on tool_use changes
+        // Streaming + !useBackendStreamingRender: only update on structural changes.
+        // The delta channel (onContentDelta) handles text content, so backend
+        // updateMessages is only needed when new tool_use blocks appear or new
+        // user messages (with tool_result) are added.
         const lastAssistantIdx = findActiveTurnAssistantIndex(parsed);
         if (lastAssistantIdx < 0) {
           return ensureStreamingAssistantPreserved(prev, appendOptimisticMessageIfMissing(prev, parsed));
@@ -231,9 +234,9 @@ export function registerMessageCallbacks(
           seenToolUseCountRef.current = toolUseCount;
         }
         const hasNewToolUse = toolUseCount > seenToolUseCountRef.current;
-        const hasToolUse = toolUseCount > 0;
+        const messageCountChanged = parsed.length !== prev.length;
 
-        if (!hasNewToolUse && !hasToolUse) {
+        if (!hasNewToolUse && !messageCountChanged) {
           return prev;
         }
 

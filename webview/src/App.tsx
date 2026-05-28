@@ -36,9 +36,16 @@ import { ChatHeader } from './components/ChatHeader';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { MessageList } from './components/MessageList';
 import { MessageAnchorRail } from './components/MessageAnchorRail';
+import { SessionHandoffPrompt } from './components/SessionHandoffPrompt';
 import { FILE_MODIFY_TOOL_NAMES, isToolName } from './utils/toolConstants';
 import type { RewindableMessage } from './components/RewindSelectDialog';
 import { AppDialogs } from './components/AppDialogs';
+import { copyToClipboard } from './utils/copyUtils';
+import {
+  buildSessionHandoffClipboardText,
+  buildSessionHandoffMarkdown,
+  shouldRecommendSessionHandoff,
+} from './utils/sessionHandoff';
 import type {
   ClaudeMessage,
   HistoryData,
@@ -47,6 +54,8 @@ import type {
 } from './types';
 
 const DEFAULT_STATUS = 'ready';
+const SESSION_HANDOFF_TOKEN_THRESHOLD = 3_000_000;
+const SESSION_HANDOFF_RESET_TOKEN_THRESHOLD = 2_900_000;
 
 const App = () => {
   const { t } = useTranslation();
@@ -84,6 +93,17 @@ const App = () => {
   const [customSessionTitle, setCustomSessionTitle] = useState<string | null>(null);
   const chatInputRef = useRef<ChatInputBoxHandle>(null);
   const [draftInput, setDraftInput] = useState('');
+  const [handoffPromptDismissed, setHandoffPromptDismissed] = useState(false);
+  const [handoffProgressPath, setHandoffProgressPath] = useState<string | null>(null);
+  const [handoffProgressSignature, setHandoffProgressSignature] = useState<string | null>(null);
+  const [handoffProgressAttemptedSignature, setHandoffProgressAttemptedSignature] = useState<string | null>(null);
+  const [handoffProgressPending, setHandoffProgressPending] = useState(false);
+  const handoffSaveRequestRef = useRef<{
+    requestId: string;
+    signature: string;
+    timeoutId: number;
+    resolve: (path: string | null) => void;
+  } | null>(null);
 
   // StatusPanel collapse state
   const userCollapsedRef = useRef(false);
@@ -463,6 +483,207 @@ const App = () => {
     return text.length > 15 ? `${text.substring(0, 15)}...` : text;
   }, [customSessionTitle, messages, t, getMessageText]);
 
+  const handoffProgressSignatureCurrent = useMemo(() => {
+    const latestMessage = messages[messages.length - 1];
+    const latestMessageKey = latestMessage
+      ? `${latestMessage.type}:${latestMessage.timestamp || ''}:${getMessageText(latestMessage).length}`
+      : 'no-message';
+    const activeSelection = contextInfo?.file
+      ? `${contextInfo.file}:${contextInfo.startLine ?? ''}:${contextInfo.endLine ?? ''}`
+      : 'no-active-file';
+    return [
+      currentSessionId || 'no-session',
+      messages.length,
+      latestMessageKey,
+      currentProvider,
+      selectedModel,
+      activeSelection,
+    ].join(':');
+  }, [contextInfo, currentProvider, currentSessionId, getMessageText, messages, selectedModel]);
+
+  const buildCurrentHandoffMarkdown = useCallback(() => buildSessionHandoffMarkdown(messages, {
+    sessionTitle,
+    sessionId: currentSessionId,
+    provider: currentProvider,
+    model: selectedModel,
+    usagePercentage,
+    usageUsedTokens,
+    usageMaxTokens,
+    activeFile: contextInfo?.file,
+    selectedLines: contextInfo?.startLine !== undefined && contextInfo?.endLine !== undefined
+      ? (contextInfo.startLine === contextInfo.endLine
+          ? `L${contextInfo.startLine}`
+          : `L${contextInfo.startLine}-${contextInfo.endLine}`)
+      : undefined,
+  }), [
+    messages,
+    sessionTitle,
+    currentSessionId,
+    currentProvider,
+    selectedModel,
+    usagePercentage,
+    usageUsedTokens,
+    usageMaxTokens,
+    contextInfo,
+  ]);
+
+  useEffect(() => {
+    window.onSessionHandoffProgressSaved = (json) => {
+      let data: {
+        success?: boolean;
+        path?: string;
+        error?: string;
+        requestId?: string;
+      };
+      try {
+        data = JSON.parse(json);
+      } catch {
+        data = { success: false, error: 'Invalid session handoff save response.' };
+      }
+
+      const pending = handoffSaveRequestRef.current;
+      if (pending && data.requestId && pending.requestId !== data.requestId) {
+        return;
+      }
+
+      if (pending) {
+        window.clearTimeout(pending.timeoutId);
+        handoffSaveRequestRef.current = null;
+      }
+
+      setHandoffProgressPending(false);
+      if (data.success && data.path) {
+        setHandoffProgressPath(data.path);
+        setHandoffProgressSignature(pending?.signature ?? handoffProgressSignatureCurrent);
+        pending?.resolve(data.path);
+      } else {
+        pending?.resolve(null);
+      }
+    };
+
+    return () => {
+      delete window.onSessionHandoffProgressSaved;
+    };
+  }, [handoffProgressSignatureCurrent]);
+
+  const saveCurrentHandoffProgress = useCallback(() => {
+    const content = buildCurrentHandoffMarkdown();
+    const requestId = `handoff-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    return new Promise<string | null>((resolve) => {
+      if (handoffSaveRequestRef.current) {
+        window.clearTimeout(handoffSaveRequestRef.current.timeoutId);
+        handoffSaveRequestRef.current.resolve(null);
+        handoffSaveRequestRef.current = null;
+      }
+
+      const timeoutId = window.setTimeout(() => {
+        if (handoffSaveRequestRef.current?.requestId === requestId) {
+          handoffSaveRequestRef.current = null;
+          setHandoffProgressPending(false);
+          resolve(null);
+        }
+      }, 8000);
+
+      handoffSaveRequestRef.current = {
+        requestId,
+        signature: handoffProgressSignatureCurrent,
+        timeoutId,
+        resolve,
+      };
+      setHandoffProgressPending(true);
+
+      const sent = sendBridgeEvent('save_session_handoff_progress', JSON.stringify({
+        requestId,
+        content,
+      }));
+
+      if (!sent) {
+        window.clearTimeout(timeoutId);
+        handoffSaveRequestRef.current = null;
+        setHandoffProgressPending(false);
+        resolve(null);
+      }
+    });
+  }, [buildCurrentHandoffMarkdown, handoffProgressSignatureCurrent]);
+
+  const sessionHandoffRecommended = shouldRecommendSessionHandoff(
+    usageUsedTokens,
+    messages.length > 0,
+    SESSION_HANDOFF_TOKEN_THRESHOLD,
+  );
+
+  useEffect(() => {
+    if (typeof usageUsedTokens === 'number' && usageUsedTokens < SESSION_HANDOFF_RESET_TOKEN_THRESHOLD) {
+      setHandoffPromptDismissed(false);
+      setHandoffProgressPath(null);
+      setHandoffProgressSignature(null);
+      setHandoffProgressAttemptedSignature(null);
+    }
+  }, [usageUsedTokens]);
+
+  useEffect(() => {
+    if (!sessionHandoffRecommended || handoffProgressPending) {
+      return;
+    }
+    if (handoffProgressSignature === handoffProgressSignatureCurrent) {
+      return;
+    }
+    if (handoffProgressAttemptedSignature === handoffProgressSignatureCurrent) {
+      return;
+    }
+    setHandoffProgressAttemptedSignature(handoffProgressSignatureCurrent);
+    void saveCurrentHandoffProgress().then((path) => {
+      if (!path) {
+        // Save failed or timed out — clear attempted so the next effect run can retry.
+        setHandoffProgressAttemptedSignature(null);
+      }
+    });
+  }, [
+    handoffProgressAttemptedSignature,
+    handoffProgressPending,
+    handoffProgressSignature,
+    handoffProgressSignatureCurrent,
+    saveCurrentHandoffProgress,
+    sessionHandoffRecommended,
+  ]);
+
+  const handleCopySessionHandoff = useCallback(async () => {
+    const progressPath = await saveCurrentHandoffProgress() || handoffProgressPath;
+    if (!progressPath) {
+      addToast(t('sessionHandoff.saveFailed'), 'error');
+      return;
+    }
+    const success = await copyToClipboard(buildSessionHandoffClipboardText(progressPath));
+    addToast(
+      success ? t('sessionHandoff.copySuccess') : t('sessionHandoff.copyFailed'),
+      success ? 'success' : 'error',
+    );
+  }, [addToast, handoffProgressPath, saveCurrentHandoffProgress, t]);
+
+  const handleCopySessionHandoffAndNewTab = useCallback(async () => {
+    const progressPath = await saveCurrentHandoffProgress() || handoffProgressPath;
+    if (!progressPath) {
+      addToast(t('sessionHandoff.saveFailed'), 'error');
+      return;
+    }
+    const success = await copyToClipboard(buildSessionHandoffClipboardText(progressPath));
+    addToast(
+      success ? t('sessionHandoff.copySuccess') : t('sessionHandoff.copyFailed'),
+      success ? 'success' : 'error',
+    );
+    if (success) {
+      sendBridgeEvent('create_new_tab');
+      setHandoffPromptDismissed(true);
+    }
+  }, [addToast, handoffProgressPath, saveCurrentHandoffProgress, t]);
+
+  const showSessionHandoffPrompt =
+    sessionHandoffRecommended &&
+    handoffProgressSignature === handoffProgressSignatureCurrent &&
+    Boolean(handoffProgressPath) &&
+    !handoffPromptDismissed;
+
   // ── Render ──
   return (
     <>
@@ -574,6 +795,15 @@ const App = () => {
             />
           </StatusPanelErrorBoundary>
           <div className="input-area" ref={inputAreaRef}>
+            {showSessionHandoffPrompt && (
+              <SessionHandoffPrompt
+                usageUsedTokens={usageUsedTokens}
+                onCopy={handleCopySessionHandoff}
+                onCopyAndNewTab={handleCopySessionHandoffAndNewTab}
+                onDismiss={() => setHandoffPromptDismissed(true)}
+                t={t}
+              />
+            )}
             <ChatInputBox
               ref={chatInputRef}
               isLoading={loading}

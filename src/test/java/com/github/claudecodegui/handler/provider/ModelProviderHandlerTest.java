@@ -51,4 +51,12 @@ public class ModelProviderHandlerTest {
         assertEquals("glm-4.7[1M]", resolved);
         assertEquals(1_000_000, ModelProviderHandler.getModelContextLimit(resolved));
     }
+
+    @Test
+    public void shouldUseOneMillionAsDefaultContextLimit() {
+        assertEquals(1_000_000, ModelProviderHandler.getModelContextLimit(null));
+        assertEquals(1_000_000, ModelProviderHandler.getModelContextLimit(""));
+        assertEquals(1_000_000, ModelProviderHandler.getModelContextLimit("unknown-model"));
+        assertEquals(1_000_000, ModelProviderHandler.getModelContextLimit("claude-sonnet-4-6"));
+    }
 }

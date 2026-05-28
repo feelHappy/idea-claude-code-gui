@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import type { ClaudeMessage } from '../types';
 
-export const THROTTLE_INTERVAL = 50; // 50ms throttle interval
+export const THROTTLE_INTERVAL = 100; // 100ms throttle — halves streaming updates to reduce JCEF load
 
 interface UseStreamingMessagesReturn {
   // Content refs

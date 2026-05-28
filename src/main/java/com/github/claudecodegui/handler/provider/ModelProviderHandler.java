@@ -21,13 +21,14 @@ import java.util.concurrent.CompletableFuture;
 public class ModelProviderHandler {
 
     private static final Logger LOG = Logger.getInstance(ModelProviderHandler.class);
+    static final int DEFAULT_CONTEXT_LIMIT = 1_000_000;
 
     static final Map<String, Integer> MODEL_CONTEXT_LIMITS = new HashMap<>();
     static {
         // Claude models
-        MODEL_CONTEXT_LIMITS.put("claude-sonnet-4-6", 200_000);
-        MODEL_CONTEXT_LIMITS.put("claude-opus-4-6", 200_000);
-        MODEL_CONTEXT_LIMITS.put("claude-haiku-4-5", 200_000);
+        MODEL_CONTEXT_LIMITS.put("claude-sonnet-4-6", DEFAULT_CONTEXT_LIMIT);
+        MODEL_CONTEXT_LIMITS.put("claude-opus-4-6", DEFAULT_CONTEXT_LIMIT);
+        MODEL_CONTEXT_LIMITS.put("claude-haiku-4-5", DEFAULT_CONTEXT_LIMIT);
         // Codex/OpenAI models
         MODEL_CONTEXT_LIMITS.put("gpt-5.4", 1_000_000);
         MODEL_CONTEXT_LIMITS.put("gpt-5.3-codex", 258_000);
@@ -305,7 +306,7 @@ public class ModelProviderHandler {
      */
     public static int getModelContextLimit(String model) {
         if (model == null || model.isEmpty()) {
-            return 200_000;
+            return DEFAULT_CONTEXT_LIMIT;
         }
 
         // Regex: matches trailing [number+unit], supports optional spaces, decimals, case insensitive
@@ -328,6 +329,6 @@ public class ModelProviderHandler {
         }
 
         // If no capacity suffix, try to look up from predefined mapping
-        return MODEL_CONTEXT_LIMITS.getOrDefault(model, 200_000);
+        return MODEL_CONTEXT_LIMITS.getOrDefault(model, DEFAULT_CONTEXT_LIMIT);
     }
 }

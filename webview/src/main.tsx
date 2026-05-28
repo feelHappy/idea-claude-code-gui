@@ -256,11 +256,9 @@ if (window.__pendingFontConfig) {
 
 /**
  * Apply IDEA language configuration to i18n
- * Only applies IDEA language if user hasn't manually set a language preference
+ * Keeps Simplified Chinese as the product default unless the user manually changes it.
  */
 function applyLanguageConfig(config: { language: string; ideaLocale?: string }) {
-  const { language } = config;
-
   // Check if user has manually set a language preference
   const manuallySet = localStorage.getItem('languageManuallySet') === 'true';
   if (manuallySet) {
@@ -268,11 +266,9 @@ function applyLanguageConfig(config: { language: string; ideaLocale?: string }) 
     return;
   }
 
-  // Validate that the language code is supported
-  const supportedLanguages = ['zh', 'en', 'zh-TW', 'hi', 'es', 'fr', 'ja', 'ru', 'ko'];
-  const targetLanguage = supportedLanguages.includes(language) ? language : 'zh';
+  const targetLanguage = 'zh';
 
-  console.log('[Main] Applying IDEA language config:', config, 'target language:', targetLanguage);
+  console.log('[Main] Applying default language instead of IDEA language config:', config, 'target language:', targetLanguage);
 
   // Switch i18n language
   i18n.changeLanguage(targetLanguage)

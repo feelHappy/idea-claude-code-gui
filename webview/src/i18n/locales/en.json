@@ -122,16 +122,26 @@
         "error": "Error"
       },
       "groups": {
-        "agents": "Agents",
-        "analysis": "Analysis",
-        "planning": "Planning",
-        "solutioning": "Solutioning",
-        "implementation": "Implementation",
-        "utilities": "Utilities"
+        "discover": "Discover",
+        "plan": "Plan",
+        "build": "Build",
+        "tools": "Tools"
+      },
+      "levels": {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "advanced": "Advanced"
       },
       "kinds": {
         "agent": "Agent",
         "workflow": "Workflow"
+      },
+      "guide": {
+        "title": "Recommended Flow",
+        "fullFlow": "Brief → PRD → UX → Architecture → Epics → Sprint → Dev → Review",
+        "quickFlow": "Small task? → Quick Dev",
+        "debugFlow": "Debug? → Investigate",
+        "stuckFlow": "Stuck? → Help"
       },
       "commands": {
         "bmad-agent-analyst": "Load the Analyst agent for discovery, requirement analysis, and structured project exploration.",
@@ -142,29 +152,23 @@
         "bmad-architect": "Load the Architect agent for technical architecture, system design, and implementation guidance.",
         "bmad-agent-ux-designer": "Load the UX Designer agent for interface flows, user journeys, and experience design work.",
         "bmad-ux-designer": "Load the UX Designer agent for interface flows, user journeys, and experience design work.",
-        "bmad-agent-sm": "Load the Scrum Master agent to coordinate story flow, sprint preparation, and delivery sequencing.",
-        "bmad-sm": "Load the Scrum Master agent to coordinate story flow, sprint preparation, and delivery sequencing.",
         "bmad-agent-dev": "Load the Developer agent to implement stories, write code, and handle delivery-focused execution.",
         "bmad-dev": "Load the Developer agent to implement stories, write code, and handle delivery-focused execution.",
-        "bmad-agent-qa": "Load the QA agent for testing strategy, quality checks, and verification planning.",
-        "bmad-qa": "Load the QA agent for testing strategy, quality checks, and verification planning.",
         "bmad-agent-tech-writer": "Load the Tech Writer agent to produce technical docs, explanations, and polished written outputs.",
         "bmad-tech-writer": "Load the Tech Writer agent to produce technical docs, explanations, and polished written outputs.",
-        "bmad-agent-quick-flow-solo-dev": "Load the solo quick-flow agent for fast one-person delivery without the full multi-role sequence.",
-        "bmad-quick-flow-solo-dev": "Load the solo quick-flow agent for fast one-person delivery without the full multi-role sequence.",
-        "bmad-master": "Load the solo quick-flow agent for fast one-person delivery without the full multi-role sequence.",
-        "bmad-advanced-elicitation": "Ask targeted follow-up questions to clarify goals, constraints, and missing requirements.",
         "bmad-brainstorming": "Guide a structured brainstorming session across one or more ideation techniques.",
-        "bmad-help": "Recommend the next BMad workflow or explain what to do next.",
         "bmad-market-research": "Research the market, customer needs, trends, and the competitive landscape.",
         "bmad-domain-research": "Deep-dive into the domain, terminology, workflows, and subject-matter context.",
         "bmad-technical-research": "Evaluate technical feasibility, solution options, and implementation approaches.",
         "bmad-product-brief": "Capture a new product idea as a focused brief before PRD work starts.",
         "bmad-create-product-brief": "Capture a new product idea as a focused brief before PRD work starts.",
-        "bmad-product-brief-preview": "Review the product brief and decide what to refine before moving into PRD work.",
+        "bmad-prfaq": "Use the Working Backwards PRFAQ challenge to forge and validate product concepts.",
+        "bmad-advanced-elicitation": "Ask targeted follow-up questions to clarify goals, constraints, and missing requirements.",
+        "bmad-prd": "Create, update, or validate a PRD — one skill handles the full lifecycle.",
         "bmad-create-prd": "Create a structured PRD for a new feature or project.",
-        "bmad-validate-prd": "Validate that the PRD is complete, lean, and internally consistent.",
         "bmad-edit-prd": "Improve and refine an existing PRD instead of starting over.",
+        "bmad-validate-prd": "Validate that the PRD is complete, lean, and internally consistent.",
+        "bmad-ux": "Plan UX patterns and design specifications, producing DESIGN.md and EXPERIENCE.md.",
         "bmad-create-ux-design": "Plan the UX and interaction flow, especially when UI is a major part of the project.",
         "bmad-create-architecture": "Produce the technical architecture and solution design.",
         "bmad-create-epics-and-stories": "Break the PRD and architecture into epics and implementable stories.",
@@ -174,21 +178,24 @@
         "bmad-create-story": "Prepare the next story before implementation starts.",
         "bmad-dev-story": "Implement the current story with the expected BMad flow.",
         "bmad-code-review": "Run the BMad review step after implementation.",
+        "bmad-investigate": "Forensic case investigation for bug triage, root cause analysis, and unfamiliar code exploration.",
+        "bmad-checkpoint-preview": "LLM-assisted human-in-the-loop review of changes before proceeding.",
         "bmad-qa-generate-e2e-tests": "Generate automated QA or E2E coverage using the project's existing test stack.",
         "bmad-retrospective": "Review completed work, lessons learned, and what to do next at the end of an epic.",
+        "bmad-help": "Recommend the next BMad workflow or explain what to do next.",
         "bmad-quick-dev": "Use the lightweight quick-flow for small tasks and simple changes.",
-        "bmad-quick-dev-new-preview": "Try the experimental quick flow that clarifies, plans, implements, reviews, and presents in one pass.",
+        "bmad-spec": "Distill any intent into the SPEC kernel — the canonical contract for downstream work.",
         "bmad-quick-spec": "Create a lighter-weight spec for one-off tasks, small apps, and simple brownfield work.",
+        "bmad-customize": "Customize BMad agent behavior and workflow settings via TOML overrides.",
         "bmad-document-project": "Document an existing project before deeper planning or delivery work.",
         "bmad-generate-project-context": "Generate lean project context for better agent grounding in brownfield repos.",
         "bmad-correct-course": "Recover when scope, plan, or implementation has drifted off track.",
-        "bmad-distillator": "Condense long notes, docs, or outputs into concise structured takeaways.",
+        "bmad-party-mode": "Orchestrate multi-agent discussions for diverse perspectives on your project.",
+        "bmad-review-adversarial-general": "Stress-test a plan or output with adversarial review to uncover weak spots.",
+        "bmad-review-edge-case-hunter": "Search for edge cases, failure modes, and overlooked scenarios.",
         "bmad-editorial-review-prose": "Review prose for clarity, tone, readability, and wording.",
         "bmad-editorial-review-structure": "Review document structure, sequencing, and overall information flow.",
         "bmad-index-docs": "Generate an index of project documents to speed up later BMad workflows.",
-        "bmad-party-mode": "Switch into a looser, more creative collaboration mode for exploring bold ideas.",
-        "bmad-review-adversarial-general": "Stress-test a plan or output with adversarial review to uncover weak spots.",
-        "bmad-review-edge-case-hunter": "Search for edge cases, failure modes, and overlooked scenarios.",
         "bmad-shard-doc": "Split a large document into smaller, easier-to-review sections."
       }
     },
@@ -1653,7 +1660,10 @@
     "bashGroupFailed": "failed",
     "promptLabel": "Prompt",
     "updatePlan": "Update Plan",
-    "applyPatch": "Apply Patch"
+    "applyPatch": "Apply Patch",
+    "showAllLines": "Show all {{count}} lines",
+    "showAllDiffLines": "Show all {{count}} diff lines",
+    "diffCollapsedLines": "⋯ {{count}} unchanged lines ⋯"
   },
   "todo": {
     "inProgress": "In Progress {{completed}}/{{total}} tasks",
@@ -1954,6 +1964,17 @@
     "enableDescription": "When enabled, the currently opened file path in the editor will be sent to AI. Note: only the file path is transmitted, not the file content.",
     "enable": "Enable",
     "cancel": "Cancel"
+  },
+  "sessionHandoff": {
+    "title": "Switch context soon",
+    "usage": "{{tokens}} tokens used",
+    "description": "A progress file has been prepared. Copy the short handoff note, open a fresh tab, and have the next agent read the file first.",
+    "copy": "Copy handoff note",
+    "copyAndNewTab": "Copy and new tab",
+    "dismiss": "Dismiss handoff reminder",
+    "copySuccess": "Session handoff note copied to clipboard",
+    "copyFailed": "Failed to copy session handoff note",
+    "saveFailed": "Failed to generate the progress file. Please retry."
   },
   "rewind": {
     "title": "Rewind Files to Previous State",

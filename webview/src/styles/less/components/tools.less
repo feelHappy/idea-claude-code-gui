@@ -151,6 +151,7 @@
     white-space: pre-wrap;
     display: flex;
     gap: 6px;
+    flex-direction: column;
 }
 
 .bash-output-block.normal {
@@ -159,6 +160,32 @@
 
 .bash-output-block.error {
     color: var(--color-error);
+}
+
+.bash-output-text {
+    margin: 0;
+    font-family: inherit;
+    font-size: inherit;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.bash-output-expand-btn {
+    align-self: flex-start;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-family: inherit;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.bash-output-expand-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
 }
 
 /* ==================== 亮色模式适配 ==================== */
@@ -385,8 +412,6 @@
 .bash-timeline-detail .bash-output-block {
     margin-top: 6px;
     font-size: 11px;
-    max-height: 150px;
-    overflow-y: auto;
 }
 
 /* 亮色模式适配 */

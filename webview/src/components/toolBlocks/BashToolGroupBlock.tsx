@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ToolInput, ToolResultBlock } from '../../types';
+import TruncatedOutput from './TruncatedOutput';
 
 interface BashItem {
   command: string;
@@ -228,7 +229,7 @@ const BashToolGroupBlock = ({ items, deniedToolIds }: BashToolGroupBlockProps) =
                               style={{ fontSize: '14px', marginTop: '1px' }}
                             />
                           )}
-                          <span>{item.output}</span>
+                          <TruncatedOutput content={item.output} isError={item.isError} />
                         </div>
                       )}
                     </div>

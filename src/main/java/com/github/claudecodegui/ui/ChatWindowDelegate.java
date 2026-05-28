@@ -30,6 +30,7 @@ import com.github.claudecodegui.handler.provider.ProviderHandler;
 import com.github.claudecodegui.handler.RewindHandler;
 import com.github.claudecodegui.handler.RewriteHandler;
 import com.github.claudecodegui.handler.SessionHandler;
+import com.github.claudecodegui.handler.SessionHandoffHandler;
 import com.github.claudecodegui.handler.SettingsHandler;
 import com.github.claudecodegui.handler.SkillHandler;
 import com.github.claudecodegui.handler.TabHandler;
@@ -277,6 +278,7 @@ public class ChatWindowDelegate {
         messageDispatcher.registerHandler(new FileHandler(handlerContext));
         messageDispatcher.registerHandler(new SettingsHandler(handlerContext));
         messageDispatcher.registerHandler(new SessionHandler(handlerContext));
+        messageDispatcher.registerHandler(new SessionHandoffHandler(handlerContext));
         messageDispatcher.registerHandler(new FileExportHandler(handlerContext));
         messageDispatcher.registerHandler(new DiffHandler(handlerContext));
         messageDispatcher.registerHandler(new PromptEnhancerHandler(handlerContext));

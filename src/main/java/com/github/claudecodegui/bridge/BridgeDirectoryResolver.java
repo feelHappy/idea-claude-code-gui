@@ -2,7 +2,7 @@ package com.github.claudecodegui.bridge;
 
 import com.github.claudecodegui.util.PlatformUtils;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
-import com.intellij.ide.plugins.PluginManagerCore;
+import com.intellij.ide.plugins.PluginManager;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.diagnostic.Logger;
@@ -231,7 +231,7 @@ public class BridgeDirectoryResolver {
     private void addPluginCandidates(List<File> possibleDirs) {
         try {
             PluginId pluginId = PluginId.getId(PlatformUtils.getPluginId());
-            IdeaPluginDescriptor descriptor = PluginManagerCore.getPlugin(pluginId);
+            IdeaPluginDescriptor descriptor = PlatformUtils.findPluginDescriptor(pluginId);
             if (descriptor != null) {
                 File pluginDir = descriptor.getPluginPath().toFile();
                 addCandidate(possibleDirs, new File(pluginDir, SDK_DIR_NAME));
@@ -354,12 +354,12 @@ public class BridgeDirectoryResolver {
 
             PluginId pluginId = PluginId.getId(PlatformUtils.getPluginId());
             LOG.info("[BridgeResolver] Plugin ID: " + PlatformUtils.getPluginId());
-            IdeaPluginDescriptor descriptor = PluginManagerCore.getPlugin(pluginId);
+            IdeaPluginDescriptor descriptor = PlatformUtils.findPluginDescriptor(pluginId);
             if (descriptor == null) {
                 LOG.warn("[BridgeResolver] Cannot get plugin descriptor by PluginId: " + PlatformUtils.getPluginId());
 
                 // Try to find by iterating through all plugins
-                for (IdeaPluginDescriptor plugin : PluginManagerCore.getPlugins()) {
+                for (IdeaPluginDescriptor plugin : PluginManager.getPlugins()) {
                     String id = plugin.getPluginId().getIdString();
                     String name = plugin.getName();
                     // Match by plugin ID or name

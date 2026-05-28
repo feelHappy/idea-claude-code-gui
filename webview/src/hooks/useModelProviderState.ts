@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TFunction } from 'i18next';
 import { sendBridgeEvent } from '../utils/bridge';
-import { CLAUDE_MODELS, CODEX_MODELS, isValidPermissionMode } from '../components/ChatInputBox/types';
+import { CLAUDE_MODELS, CODEX_MODELS, DEFAULT_REASONING_EFFORT, isValidPermissionMode, isValidReasoningEffort } from '../components/ChatInputBox/types';
 import type { PermissionMode, ReasoningEffort, SelectedAgent } from '../components/ChatInputBox/types';
 import type { ProviderConfig } from '../types/provider';
 import { writeClaudeModelMapping } from '../utils/claudeModelMapping';
@@ -32,8 +32,8 @@ export function useModelProviderState({ addToast, t }: UseModelProviderStateOpti
   const [claudePermissionMode, setClaudePermissionMode] = useState<PermissionMode>('bypassPermissions');
   const [codexPermissionMode, setCodexPermissionMode] = useState<PermissionMode>('default');
   const [permissionMode, setPermissionMode] = useState<PermissionMode>('bypassPermissions');
-  // Codex reasoning effort (thinking depth)
-  const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>('medium');
+  // Reasoning effort (thinking depth)
+  const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>(DEFAULT_REASONING_EFFORT);
   const [usagePercentage, setUsagePercentage] = useState(0);
   const [usageUsedTokens, setUsageUsedTokens] = useState<number | undefined>(undefined);
   const [usageMaxTokens, setUsageMaxTokens] = useState<number | undefined>(undefined);
@@ -100,6 +100,7 @@ export function useModelProviderState({ addToast, t }: UseModelProviderStateOpti
       let restoredCodexModel = CODEX_MODELS[0].id;
       let restoredClaudePermissionMode: PermissionMode = 'bypassPermissions';
       let restoredCodexPermissionMode: PermissionMode = 'default';
+      let restoredReasoningEffort: ReasoningEffort = DEFAULT_REASONING_EFFORT;
       let initialPermissionMode: PermissionMode = 'bypassPermissions';
 
       if (saved) {
@@ -117,6 +118,9 @@ export function useModelProviderState({ addToast, t }: UseModelProviderStateOpti
           restoredCodexPermissionMode = state.codexPermissionMode === 'plan'
             ? 'default'
             : state.codexPermissionMode;
+        }
+        if (isValidReasoningEffort(state.reasoningEffort)) {
+          restoredReasoningEffort = state.reasoningEffort;
         }
 
         const savedClaudeCustomModels = getCustomModels('claude-custom-models');
@@ -144,6 +148,7 @@ export function useModelProviderState({ addToast, t }: UseModelProviderStateOpti
       setClaudePermissionMode(restoredClaudePermissionMode);
       setCodexPermissionMode(restoredCodexPermissionMode);
       setPermissionMode(initialPermissionMode);
+      setReasoningEffort(restoredReasoningEffort);
 
       let syncRetryCount = 0;
       const MAX_SYNC_RETRIES = 30;
@@ -154,6 +159,7 @@ export function useModelProviderState({ addToast, t }: UseModelProviderStateOpti
           const modelToSync = restoredProvider === 'codex' ? restoredCodexModel : restoredClaudeModel;
           sendBridgeEvent('set_model', modelToSync);
           sendBridgeEvent('set_mode', initialPermissionMode);
+          sendBridgeEvent('set_reasoning_effort', restoredReasoningEffort);
         } else {
           syncRetryCount++;
           if (syncRetryCount < MAX_SYNC_RETRIES) {
@@ -176,11 +182,12 @@ export function useModelProviderState({ addToast, t }: UseModelProviderStateOpti
         codexModel: selectedCodexModel,
         claudePermissionMode,
         codexPermissionMode,
+        reasoningEffort,
       }));
     } catch {
       // Failed to save model selection state
     }
-  }, [currentProvider, selectedClaudeModel, selectedCodexModel, claudePermissionMode, codexPermissionMode]);
+  }, [currentProvider, selectedClaudeModel, selectedCodexModel, claudePermissionMode, codexPermissionMode, reasoningEffort]);
 
   // Load selected agent
   useEffect(() => {

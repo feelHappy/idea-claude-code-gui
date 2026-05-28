@@ -13,6 +13,7 @@ import type {
   ChatInputBoxProps,
   PermissionMode,
 } from './types.js';
+import { DEFAULT_REASONING_EFFORT } from './types.js';
 import { ChatInputBoxHeader } from './ChatInputBoxHeader.js';
 import { ChatInputBoxFooter } from './ChatInputBoxFooter.js';
 import { ResizeHandles } from './ResizeHandles.js';
@@ -77,7 +78,7 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       onModeSelect,
       onModelSelect,
       onProviderSelect,
-      reasoningEffort = 'medium',
+      reasoningEffort = DEFAULT_REASONING_EFFORT,
       onReasoningChange,
       activeFile,
       selectedLines,

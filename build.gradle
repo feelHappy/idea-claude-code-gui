@@ -55,7 +55,7 @@ checkstyle {
 }
 
 group = 'com.github.idea-claude-code-gui'
-version = '1.1.0'
+version = '1.1.0-fix'
 def minimumJavaVersion = 17
 def currentJvmFeatureVersion = JavaVersion.current().majorVersion.toInteger()
 def buildToolchainVersion = Math.max(minimumJavaVersion, currentJvmFeatureVersion)
@@ -481,7 +481,9 @@ tasks.register('packageAiBridge', Exec) {
             }
             '''
         tempScript.text = scriptContent
-        commandLine 'powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', tempScript.absolutePath
+        def powershellExe = new File(System.getenv('SystemRoot') ?: 'C:\\Windows', 'System32\\WindowsPowerShell\\v1.0\\powershell.exe')
+        commandLine powershellExe.exists() ? powershellExe.absolutePath : 'powershell.exe',
+            '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', tempScript.absolutePath
     } else {
         // Unix/Linux/macOS: Use zip command to preserve permissions
         // Exclude SDK package directories

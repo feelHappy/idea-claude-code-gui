@@ -4,25 +4,21 @@ import { getBmadProviderLabel, type BmadCommandPreset } from './bmadCommands.js'
 import type { BmadToolbarProps } from './types.js';
 
 const GROUP_LABELS: Record<BmadCommandPreset['group'], string> = {
-  agents: 'Agents',
-  analysis: 'Analysis',
-  planning: 'Planning',
-  solutioning: 'Solutioning',
-  implementation: 'Implementation',
-  utilities: 'Utilities',
+  discover: 'Discover',
+  plan: 'Plan',
+  build: 'Build',
+  tools: 'Tools',
 };
 
 const GROUP_ORDER: BmadCommandPreset['group'][] = [
-  'agents',
-  'analysis',
-  'planning',
-  'solutioning',
-  'implementation',
-  'utilities',
+  'discover',
+  'plan',
+  'build',
+  'tools',
 ];
 
 function getPresetKind(preset: BmadCommandPreset): 'agent' | 'workflow' {
-  return preset.group === 'agents' ? 'agent' : 'workflow';
+  return preset.command.startsWith('bmad-agent-') ? 'agent' : 'workflow';
 }
 
 export function BmadCommandBar({
@@ -53,7 +49,7 @@ export function BmadCommandBar({
         acc[preset.group].push(preset);
         return acc;
       },
-      { agents: [], analysis: [], planning: [], solutioning: [], implementation: [], utilities: [] }
+      { discover: [], plan: [], build: [], tools: [] }
     );
   }, [presets]);
 
@@ -79,7 +75,7 @@ export function BmadCommandBar({
         });
         return acc;
       },
-      { agents: [], analysis: [], planning: [], solutioning: [], implementation: [], utilities: [] }
+      { discover: [], plan: [], build: [], tools: [] }
     );
   }, [groupedPresets, searchTerm, t]);
 
@@ -257,6 +253,21 @@ export function BmadCommandBar({
                   />
                 </div>
 
+                {!searchTerm ? (
+                  <div className="bmad-command-guide">
+                    <span className="bmad-command-guide-label">
+                      {t('chat.bmad.guide.title', { defaultValue: 'Recommended Flow' })}
+                    </span>
+                    <span className="bmad-command-guide-flow">
+                      {t('chat.bmad.guide.quickFlow', { defaultValue: 'Small task? → Quick Dev' })}
+                      {'  ·  '}
+                      {t('chat.bmad.guide.debugFlow', { defaultValue: 'Debug? → Investigate' })}
+                      {'  ·  '}
+                      {t('chat.bmad.guide.stuckFlow', { defaultValue: 'Stuck? → Help' })}
+                    </span>
+                  </div>
+                ) : null}
+
                 {hasFilteredPresets ? (
                   GROUP_ORDER.map((group) => {
                     const items = filteredGroupedPresets[group];
@@ -279,6 +290,9 @@ export function BmadCommandBar({
                           const presetKindLabel = t(`chat.bmad.kinds.${presetKind}`, {
                             defaultValue: presetKind === 'agent' ? 'Agent' : 'Workflow',
                           });
+                          const levelLabel = t(`chat.bmad.levels.${preset.level}`, {
+                            defaultValue: preset.level,
+                          });
 
                           return (
                             <button
@@ -294,6 +308,9 @@ export function BmadCommandBar({
                                 <span className="bmad-command-option-title">{preset.command}</span>
                                 <span className={`bmad-command-kind-badge kind-${presetKind}`}>
                                   {presetKindLabel}
+                                </span>
+                                <span className={`bmad-command-level-badge level-${preset.level}`}>
+                                  {levelLabel}
                                 </span>
                               </span>
                               <span className="bmad-command-option-desc">{description}</span>

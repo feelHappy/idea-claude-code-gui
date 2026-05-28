@@ -52,7 +52,8 @@ public class BmadHandler extends BaseMessageHandler {
     };
     private static final Set<String> CORE_SKILL_NAMES = new HashSet<>(Arrays.asList(
             "bmad-help",
-            "bmad-create-prd",
+            "bmad-prd",
+            "bmad-ux",
             "bmad-create-architecture",
             "bmad-create-epics-and-stories",
             "bmad-sprint-planning",
@@ -60,6 +61,8 @@ public class BmadHandler extends BaseMessageHandler {
             "bmad-dev-story",
             "bmad-code-review",
             "bmad-quick-dev",
+            "bmad-investigate",
+            "bmad-spec",
             "bmad-document-project",
             "bmad-generate-project-context",
             "bmad-correct-course"

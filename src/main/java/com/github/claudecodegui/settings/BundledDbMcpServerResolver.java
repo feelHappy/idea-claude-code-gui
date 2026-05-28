@@ -2,7 +2,7 @@ package com.github.claudecodegui.settings;
 
 import com.github.claudecodegui.util.PlatformUtils;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
-import com.intellij.ide.plugins.PluginManagerCore;
+import com.intellij.ide.plugins.PluginManager;
 import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.extensions.PluginId;
@@ -41,7 +41,7 @@ class BundledDbMcpServerResolver {
     private void addPluginCandidates(List<Path> candidates) {
         try {
             PluginId pluginId = PluginId.getId(PlatformUtils.getPluginId());
-            IdeaPluginDescriptor descriptor = PluginManagerCore.getPlugin(pluginId);
+            IdeaPluginDescriptor descriptor = PlatformUtils.findPluginDescriptor(pluginId);
             if (descriptor != null) {
                 addCandidate(candidates, descriptor.getPluginPath().resolve(DB_MCP_DIR_NAME));
             }

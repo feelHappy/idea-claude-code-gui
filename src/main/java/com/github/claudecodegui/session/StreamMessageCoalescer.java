@@ -19,7 +19,17 @@ import java.util.List;
 public class StreamMessageCoalescer {
 
     private static final Logger LOG = Logger.getInstance(StreamMessageCoalescer.class);
+    /** Default interval for providers with delta streaming (e.g. Claude). */
     private static final int UPDATE_INTERVAL_MS = 50;
+    /**
+     * Codex SDK does not emit content deltas, so the backend must push the full message list
+     * for every chunk. Long contexts produce large JSON payloads and trigger React reconciliation
+     * across all visible messages on every push, which makes JCEF lag noticeably.
+     * Use a longer coalescing interval for Codex to halve the push frequency at the cost of
+     * a barely perceptible streaming delay.
+     */
+    private static final int CODEX_UPDATE_INTERVAL_MS = 180;
+    private static final String CODEX_PROVIDER_ID = "codex";
 
     private final Object lock = new Object();
     private final Alarm updateAlarm = new Alarm(Alarm.ThreadToUse.SWING_THREAD);
@@ -100,6 +110,22 @@ public class StreamMessageCoalescer {
     }
 
     /**
+     * Resolve the coalescing interval for the active provider.
+     * Falls back to the Claude-style fast interval when the context is unavailable.
+     */
+    private int currentIntervalMs() {
+        try {
+            HandlerContext ctx = callbackTarget.getHandlerContext();
+            if (ctx != null && CODEX_PROVIDER_ID.equalsIgnoreCase(ctx.getCurrentProvider())) {
+                return CODEX_UPDATE_INTERVAL_MS;
+            }
+        } catch (Exception ignored) {
+            // Defensive: any failure here must not interrupt streaming.
+        }
+        return UPDATE_INTERVAL_MS;
+    }
+
+    /**
      * Flush any pending messages immediately and optionally run a callback afterwards.
      */
     public void flush(Runnable afterFlushOnEdt) {
@@ -155,7 +181,7 @@ public class StreamMessageCoalescer {
                 return;
             }
             long elapsed = System.currentTimeMillis() - lastUpdateAtMs;
-            delayMs = (int) Math.max(0L, UPDATE_INTERVAL_MS - elapsed);
+            delayMs = (int) Math.max(0L, currentIntervalMs() - elapsed);
             updateScheduled = true;
             ++updateSequence;
         }

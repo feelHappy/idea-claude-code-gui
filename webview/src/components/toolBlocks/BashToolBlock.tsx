@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ToolInput, ToolResultBlock } from '../../types';
 import { useIsToolDenied } from '../../hooks/useIsToolDenied';
+import TruncatedOutput from './TruncatedOutput';
 
 interface BashToolBlockProps {
   name?: string;
@@ -68,7 +69,7 @@ const BashToolBlock = ({ input, result, toolId }: BashToolBlockProps) => {
                   {isError && (
                     <span className="codicon codicon-error" style={{ fontSize: '14px', marginTop: '1px' }} />
                   )}
-                  <span>{output}</span>
+                  <TruncatedOutput content={output} isError={isError} />
                 </div>
               )}
             </div>
@@ -80,4 +81,3 @@ const BashToolBlock = ({ input, result, toolId }: BashToolBlockProps) => {
 };
 
 export default BashToolBlock;
-

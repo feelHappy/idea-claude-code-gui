@@ -7,6 +7,17 @@ import { getFileIcon } from '../../utils/fileIcons';
 import { getToolLineInfo, resolveToolTarget } from '../../utils/toolPresentation';
 import GenericToolBlock from './GenericToolBlock';
 
+/** Max total diff lines before collapsing unchanged runs. */
+const MAX_COLLAPSED_DIFF_LINES = 300;
+/** Unchanged lines to show around each changed line when collapsed. */
+const DIFF_CONTEXT_LINES = 3;
+/**
+ * Upper limit for the DP table size (oldLines × newLines).
+ * If exceeded, skip the expensive LCS and fall back to a lightweight summary diff
+ * to avoid freezing the WebView on large file replacements.
+ */
+const MAX_LCS_CELLS = 500_000;
+
 interface EditToolBlockProps {
   name?: string;
   input?: ToolInput;
@@ -46,6 +57,11 @@ function computeDiff(oldLines: string[], newLines: string[]): DiffResult {
       additions: 0,
       deletions: oldLines.length,
     };
+  }
+
+  // Guard: skip O(m*n) DP when the matrix would be too large.
+  if ((oldLines.length as number) * (newLines.length as number) > MAX_LCS_CELLS) {
+    return computeFallbackDiff(oldLines, newLines);
   }
 
   const m = oldLines.length;
@@ -88,6 +104,94 @@ function computeDiff(oldLines: string[], newLines: string[]): DiffResult {
   return { lines: diffLines, additions, deletions };
 }
 
+/**
+ * Lightweight fallback when the DP matrix would exceed MAX_LCS_CELLS.
+ * Shows head of old (deleted) + head of new (added) with a summary in between.
+ * Runs in O(n) time and uses no extra matrix allocation.
+ */
+function computeFallbackDiff(oldLines: string[], newLines: string[]): DiffResult {
+  const HEAD = 80;
+  const oldHead = oldLines.slice(0, HEAD);
+  const newHead = newLines.slice(0, HEAD);
+  const oldTail = oldLines.length > HEAD ? oldLines.slice(-20) : [];
+  const newTail = newLines.length > HEAD ? newLines.slice(-20) : [];
+
+  const lines: DiffLine[] = [];
+
+  // Old head
+  for (const line of oldHead) lines.push({ type: 'deleted', content: line });
+
+  if (oldLines.length > HEAD + 20) {
+    lines.push({ type: 'unchanged', content: `⋯ ${oldLines.length - HEAD - 20} more lines removed ⋯` });
+  }
+  for (const line of oldTail) lines.push({ type: 'deleted', content: line });
+
+  // Separator
+  lines.push({ type: 'unchanged', content: '─── replacement ───' });
+
+  // New head
+  for (const line of newHead) lines.push({ type: 'added', content: line });
+
+  if (newLines.length > HEAD + 20) {
+    lines.push({ type: 'unchanged', content: `⋯ ${newLines.length - HEAD - 20} more lines added ⋯` });
+  }
+  for (const line of newTail) lines.push({ type: 'added', content: line });
+
+  return {
+    lines,
+    additions: newLines.length,
+    deletions: oldLines.length,
+  };
+}
+
+/**
+ * Given a list of diff lines, compute which indices to render when collapsed.
+ */
+function computeVisibleSegments(lines: DiffLine[], contextLines: number): Array<{ type: 'visible'; indices: number[] } | { type: 'gap'; count: number }> {
+  if (lines.length === 0) return [];
+
+  // Find all changed line indices
+  const changedIndices = new Set<number>();
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].type !== 'unchanged') changedIndices.add(i);
+  }
+
+  if (changedIndices.size === 0) {
+    // All unchanged — show context around beginning and end only
+    return [{ type: 'visible', indices: [0] }, { type: 'gap', count: lines.length - 2 }, { type: 'visible', indices: [lines.length - 1] }];
+  }
+
+  // Build the set of visible indices (changed ± context)
+  const visibleSet = new Set<number>();
+  for (const idx of changedIndices) {
+    for (let i = Math.max(0, idx - contextLines); i <= Math.min(lines.length - 1, idx + contextLines); i++) {
+      visibleSet.add(i);
+    }
+  }
+
+  // Convert to segments
+  const segments: Array<{ type: 'visible'; indices: number[] } | { type: 'gap'; count: number }> = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (visibleSet.has(i)) {
+      const indices: number[] = [];
+      while (i < lines.length && visibleSet.has(i)) {
+        indices.push(i);
+        i++;
+      }
+      segments.push({ type: 'visible', indices });
+    } else {
+      let count = 0;
+      while (i < lines.length && !visibleSet.has(i)) {
+        count++;
+        i++;
+      }
+      segments.push({ type: 'gap', count });
+    }
+  }
+  return segments;
+}
+
 const EditToolBlock = ({ name, input, result, toolId }: EditToolBlockProps) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(() => {
@@ -97,6 +201,7 @@ const EditToolBlock = ({ name, input, result, toolId }: EditToolBlockProps) => {
       return false;
     }
   });
+  const [showFullDiff, setShowFullDiff] = useState(false);
 
   const isDenied = useIsToolDenied(toolId);
 
@@ -129,6 +234,13 @@ const EditToolBlock = ({ name, input, result, toolId }: EditToolBlockProps) => {
     const newLines = newString ? newString.split('\n') : [];
     return computeDiff(oldLines, newLines);
   }, [oldString, newString]);
+
+  const shouldCollapse = diff.lines.length > MAX_COLLAPSED_DIFF_LINES && !showFullDiff;
+
+  const collapsedSegments = useMemo(() => {
+    if (diff.lines.length <= MAX_COLLAPSED_DIFF_LINES) return null;
+    return computeVisibleSegments(diff.lines, DIFF_CONTEXT_LINES);
+  }, [diff.lines]);
 
   // Auto-refresh file in IDEA when the tool call completes successfully
   const hasRefreshed = useRef(false);
@@ -299,6 +411,15 @@ const EditToolBlock = ({ name, input, result, toolId }: EditToolBlockProps) => {
 
         {expanded && (
         <div className="task-details" style={{ padding: 0, borderTop: '1px solid var(--border-primary)' }}>
+          {shouldCollapse && (
+            <button
+              className="bash-output-expand-btn"
+              style={{ margin: '4px 8px', fontSize: '11px' }}
+              onClick={(e) => { e.stopPropagation(); setShowFullDiff(true); }}
+            >
+              {t('tools.showAllDiffLines', { count: diff.lines.length })}
+            </button>
+          )}
           <div
             style={{
               // Use monospace font to ensure consistent tab and space widths
@@ -319,72 +440,92 @@ const EditToolBlock = ({ name, input, result, toolId }: EditToolBlockProps) => {
               transform: 'translateZ(0)',
             }}
           >
-            {diff.lines.map((line, index) => {
-              const isDeleted = line.type === 'deleted';
-              const isAdded = line.type === 'added';
-              const isUnchanged = line.type === 'unchanged';
-
-              return (
-                <div
-                  key={index}
-                  style={{
-                    display: 'flex',
-                    background: isDeleted
-                      ? 'rgba(80, 20, 20, 0.3)'
-                      : isAdded
-                        ? 'rgba(20, 80, 20, 0.3)'
-                        : 'transparent',
-                    color: '#ccc',
-                    minWidth: '100%',
-                  }}
-                >
+            {(shouldCollapse && collapsedSegments ? collapsedSegments : diff.lines.map((_, index) => ({ type: 'visible' as const, indices: [index] }))).map((segment, segIndex) => {
+              if (segment.type === 'gap') {
+                return (
                   <div
+                    key={`gap-${segIndex}`}
                     style={{
-                      width: '40px',
-                      textAlign: 'right',
-                      paddingRight: '10px',
-                      color: '#666',
-                      userSelect: 'none',
-                      borderRight: '1px solid #333',
+                      display: 'flex',
                       background: '#252526',
-                      flex: '0 0 40px',
-                    }}
-                  />
-                  <div
-                    style={{
-                      width: '24px',
-                      textAlign: 'center',
-                      color: isDeleted ? '#ff6b6b' : isAdded ? '#89d185' : '#666',
+                      color: '#666',
+                      fontSize: '11px',
+                      lineHeight: '1.5',
+                      padding: '2px 0',
                       userSelect: 'none',
-                      background: isDeleted
-                        ? 'rgba(80, 20, 20, 0.2)'
-                        : isAdded
-                          ? 'rgba(20, 80, 20, 0.2)'
-                          : 'transparent',
-                      opacity: isUnchanged ? 0.5 : 0.7,
-                      flex: '0 0 24px',
+                      textAlign: 'center',
+                      justifyContent: 'center',
                     }}
                   >
-                    {isDeleted ? '-' : isAdded ? '+' : ' '}
+                    {t('tools.diffCollapsedLines', { count: segment.count })}
                   </div>
-                  <pre
+                );
+              }
+              return segment.indices.map((index) => {
+                const line = diff.lines[index];
+                const isDeleted = line.type === 'deleted';
+                const isAdded = line.type === 'added';
+                const isUnchanged = line.type === 'unchanged';
+
+                return (
+                  <div
+                    key={index}
                     style={{
-                      // Preserve original whitespace with consistent tab width
-                      whiteSpace: 'pre',
-                      margin: 0,
-                      paddingLeft: '4px',
-                      flex: 1,
-                      // Re-declare tabSize in case highlight or wrapper layers override it
-                      tabSize: 4 as unknown as number,
-                      MozTabSize: 4 as unknown as number,
-                      // Disable arbitrary line breaks to keep selection and scrolling stable
-                      overflowWrap: 'normal' as const,
+                      display: 'flex',
+                      background: isDeleted
+                        ? 'rgba(80, 20, 20, 0.3)'
+                        : isAdded
+                          ? 'rgba(20, 80, 20, 0.3)'
+                          : 'transparent',
+                      color: '#ccc',
+                      minWidth: '100%',
                     }}
                   >
-                    {line.content}
-                  </pre>
-                </div>
-              );
+                    <div
+                      style={{
+                        width: '40px',
+                        textAlign: 'right',
+                        paddingRight: '10px',
+                        color: '#666',
+                        userSelect: 'none',
+                        borderRight: '1px solid #333',
+                        background: '#252526',
+                        flex: '0 0 40px',
+                      }}
+                    />
+                    <div
+                      style={{
+                        width: '24px',
+                        textAlign: 'center',
+                        color: isDeleted ? '#ff6b6b' : isAdded ? '#89d185' : '#666',
+                        userSelect: 'none',
+                        background: isDeleted
+                          ? 'rgba(80, 20, 20, 0.2)'
+                          : isAdded
+                            ? 'rgba(20, 80, 20, 0.2)'
+                            : 'transparent',
+                        opacity: isUnchanged ? 0.5 : 0.7,
+                        flex: '0 0 24px',
+                      }}
+                    >
+                      {isDeleted ? '-' : isAdded ? '+' : ' '}
+                    </div>
+                    <pre
+                      style={{
+                        whiteSpace: 'pre',
+                        margin: 0,
+                        paddingLeft: '4px',
+                        flex: 1,
+                        tabSize: 4 as unknown as number,
+                        MozTabSize: 4 as unknown as number,
+                        overflowWrap: 'normal' as const,
+                      }}
+                    >
+                      {line.content}
+                    </pre>
+                  </div>
+                );
+              });
             })}
           </div>
         </div>

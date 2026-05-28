@@ -543,6 +543,11 @@ interface Window {
   onRewindResult?: (json: string) => void;
 
   /**
+   * Session handoff progress save result callback.
+   */
+  onSessionHandoffProgressSaved?: (json: string) => void;
+
+  /**
    * Rewrite result callback - returns the result of a message rewrite operation
    */
   onRewriteResult?: (json: string) => void;

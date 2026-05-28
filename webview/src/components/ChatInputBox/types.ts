@@ -349,6 +349,8 @@ export const AVAILABLE_PROVIDERS: ProviderInfo[] = [
  */
 export type ReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
+export const DEFAULT_REASONING_EFFORT: ReasoningEffort = 'xhigh';
+
 /**
  * Reasoning level information
  */
@@ -400,6 +402,14 @@ export const REASONING_LEVELS: ReasoningInfo[] = [
  */
 export const CODEX_REASONING_LEVELS: ReasoningInfo[] = REASONING_LEVELS.filter(l => l.id !== 'max');
 export const CLAUDE_REASONING_LEVELS: ReasoningInfo[] = REASONING_LEVELS;
+
+export const VALID_REASONING_EFFORT_IDS: ReadonlySet<string> = new Set(
+  REASONING_LEVELS.map((level) => level.id)
+);
+
+export function isValidReasoningEffort(effort: string | undefined | null): effort is ReasoningEffort {
+  return typeof effort === 'string' && VALID_REASONING_EFFORT_IDS.has(effort);
+}
 
 // ============================================================
 // Usage Types

@@ -122,16 +122,26 @@
         "error": "异常"
       },
       "groups": {
-        "agents": "角色",
-        "analysis": "分析",
-        "planning": "规划",
-        "solutioning": "方案",
-        "implementation": "研发",
-        "utilities": "常用"
+        "discover": "探索",
+        "plan": "规划",
+        "build": "研发",
+        "tools": "工具"
+      },
+      "levels": {
+        "beginner": "入门",
+        "intermediate": "进阶",
+        "advanced": "高级"
       },
       "kinds": {
         "agent": "角色",
         "workflow": "流程"
+      },
+      "guide": {
+        "title": "推荐流程",
+        "fullFlow": "Brief → PRD → UX → 架构 → Epic → Sprint → 开发 → 评审",
+        "quickFlow": "小需求？→ Quick Dev",
+        "debugFlow": "调试？→ Investigate",
+        "stuckFlow": "卡住了？→ Help"
       },
       "commands": {
         "bmad-agent-analyst": "加载 Analyst 角色，适合做需求分析、调研梳理和项目前期探索。",
@@ -142,29 +152,23 @@
         "bmad-architect": "加载 Architect 角色，适合做技术架构、系统设计和方案把关。",
         "bmad-agent-ux-designer": "加载 UX Designer 角色，适合做界面流程、用户旅程和体验设计。",
         "bmad-ux-designer": "加载 UX Designer 角色，适合做界面流程、用户旅程和体验设计。",
-        "bmad-agent-sm": "加载 Scrum Master 角色，适合协调 Story 流转、Sprint 准备和交付节奏。",
-        "bmad-sm": "加载 Scrum Master 角色，适合协调 Story 流转、Sprint 准备和交付节奏。",
         "bmad-agent-dev": "加载 Developer 角色，适合进入实现阶段，编写代码并推进交付。",
         "bmad-dev": "加载 Developer 角色，适合进入实现阶段，编写代码并推进交付。",
-        "bmad-agent-qa": "加载 QA 角色，适合做测试策略、质量检查和验证规划。",
-        "bmad-qa": "加载 QA 角色，适合做测试策略、质量检查和验证规划。",
         "bmad-agent-tech-writer": "加载 Tech Writer 角色，适合写技术文档、说明文案和交付材料。",
         "bmad-tech-writer": "加载 Tech Writer 角色，适合写技术文档、说明文案和交付材料。",
-        "bmad-agent-quick-flow-solo-dev": "加载单人快流程角色，适合一个人快速完成轻量交付。",
-        "bmad-quick-flow-solo-dev": "加载单人快流程角色，适合一个人快速完成轻量交付。",
-        "bmad-master": "加载单人快流程角色，适合一个人快速完成轻量交付。",
-        "bmad-advanced-elicitation": "通过有针对性的追问，补齐目标、约束和缺失需求。",
         "bmad-brainstorming": "用结构化方式做头脑风暴，适合发散想法与收敛方向。",
-        "bmad-help": "帮你推荐下一步该走哪个 BMad 流程，或解释下一步怎么做。",
         "bmad-market-research": "调研市场、用户需求、趋势和竞品格局。",
         "bmad-domain-research": "深入梳理业务领域、术语、流程和上下文知识。",
         "bmad-technical-research": "评估技术可行性、方案选型和实现路径。",
         "bmad-product-brief": "在写 PRD 前，先把产品想法整理成聚焦的 Brief。",
         "bmad-create-product-brief": "在写 PRD 前，先把产品想法整理成聚焦的 Brief。",
-        "bmad-product-brief-preview": "预览并校准 Product Brief，再决定是否进入 PRD 阶段。",
+        "bmad-prfaq": "用 Working Backwards PRFAQ 挑战法锻造并验证产品概念。",
+        "bmad-advanced-elicitation": "通过有针对性的追问，补齐目标、约束和缺失需求。",
+        "bmad-prd": "一站式完成 PRD 的创建、修订或验证，一个命令覆盖完整生命周期。",
         "bmad-create-prd": "为新功能或新项目生成结构化 PRD。",
-        "bmad-validate-prd": "检查 PRD 是否完整、精炼且前后自洽。",
         "bmad-edit-prd": "在已有 PRD 基础上做增强和修订，而不是重写。",
+        "bmad-validate-prd": "检查 PRD 是否完整、精炼且前后自洽。",
+        "bmad-ux": "规划 UX 模式和设计规范，产出 DESIGN.md 和 EXPERIENCE.md。",
         "bmad-create-ux-design": "规划 UX 和交互流程，尤其适合 UI 占比高的项目。",
         "bmad-create-architecture": "输出技术架构和方案设计。",
         "bmad-create-epics-and-stories": "把 PRD 和架构拆成 Epic 与可执行 Story。",
@@ -174,21 +178,24 @@
         "bmad-create-story": "在开发开始前整理下一条 Story。",
         "bmad-dev-story": "按 BMad 流程实现当前 Story。",
         "bmad-code-review": "在开发完成后执行 BMad Review。",
+        "bmad-investigate": "取证级 Bug 分析，适合根因定位和陌生代码探索。",
+        "bmad-checkpoint-preview": "开发中的人工审查节点，变更提交前先过一遍。",
         "bmad-qa-generate-e2e-tests": "结合项目现有测试栈，补齐自动化 QA 或 E2E 测试。",
         "bmad-retrospective": "在阶段完成后做复盘，总结经验和下一步动作。",
+        "bmad-help": "帮你推荐下一步该走哪个 BMad 流程，或解释下一步怎么做。",
         "bmad-quick-dev": "小需求或简单改动走轻量快开发流程。",
-        "bmad-quick-dev-new-preview": "使用实验中的一体化快流程，一次完成澄清、计划、实现、评审和交付说明。",
+        "bmad-spec": "把任何意图提炼成可执行的 SPEC 内核，作为下游工作的规范合约。",
         "bmad-quick-spec": "为一次性任务、小应用或简单存量改造生成轻量规格说明。",
+        "bmad-customize": "通过 TOML 覆盖自定义 BMad 角色行为和工作流设置。",
         "bmad-document-project": "在深入规划或交付前先梳理已有项目文档。",
         "bmad-generate-project-context": "为存量项目生成精简上下文，方便智能体理解项目。",
         "bmad-correct-course": "当范围、计划或实现跑偏时，用来纠偏。",
-        "bmad-distillator": "把长文档、长笔记或长输出压缩成结构化摘要。",
+        "bmad-party-mode": "编排多角色讨论，从不同视角碰撞想法。",
+        "bmad-review-adversarial-general": "用对抗式视角审视方案或输出，尽早暴露薄弱点。",
+        "bmad-review-edge-case-hunter": "专门排查边界场景、失败模式和容易遗漏的问题。",
         "bmad-editorial-review-prose": "检查文案表达的清晰度、语气、可读性和措辞。",
         "bmad-editorial-review-structure": "检查文档结构、顺序安排和整体信息流。",
         "bmad-index-docs": "为项目文档生成索引，方便后续 BMad 流程引用。",
-        "bmad-party-mode": "切换到更自由、更有创意的协作模式，适合探索大胆想法。",
-        "bmad-review-adversarial-general": "用对抗式视角审视方案或输出，尽早暴露薄弱点。",
-        "bmad-review-edge-case-hunter": "专门排查边界场景、失败模式和容易遗漏的问题。",
         "bmad-shard-doc": "把超长文档拆成更容易阅读和评审的小块。"
       }
     },
@@ -1658,7 +1665,10 @@
     "bashGroupFailed": "失败",
     "promptLabel": "提示词",
     "updatePlan": "更新计划",
-    "applyPatch": "应用补丁"
+    "applyPatch": "应用补丁",
+    "showAllLines": "显示全部 {{count}} 行",
+    "showAllDiffLines": "显示全部 {{count}} 行差异",
+    "diffCollapsedLines": "⋯ {{count}} 行未变更 ⋯"
   },
   "todo": {
     "inProgress": "进行中 {{completed}}/{{total}} 个任务",
@@ -1959,6 +1969,17 @@
     "enableDescription": "开启后，编辑器中当前打开的文件路径将发送给 AI。注意：仅传递文件路径，不会传递文件内容。",
     "enable": "开启",
     "cancel": "取消"
+  },
+  "sessionHandoff": {
+    "title": "需要切换上下文",
+    "usage": "已使用 {{tokens}} tokens",
+    "description": "已整理进度追踪文件。复制简短接力说明，打开新标签后让新智能体先读文件继续。",
+    "copy": "复制接力说明",
+    "copyAndNewTab": "复制并新建标签",
+    "dismiss": "暂时隐藏接力提醒",
+    "copySuccess": "会话接力说明已复制到剪切板",
+    "copyFailed": "复制会话接力说明失败",
+    "saveFailed": "生成进度追踪文件失败，请稍后重试"
   },
   "rewind": {
     "title": "回溯文件到之前的状态",
